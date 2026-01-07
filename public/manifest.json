@@ -1,0 +1,30 @@
+{
+    "name": "Attar Al Jannah",
+    "short_name": "Attar",
+    "description": "Premium Attar from Minhajul Jannah - Join the sales challenge",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#10b981",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": [
+        "shopping",
+        "lifestyle"
+    ],
+    "lang": "en-US",
+    "dir": "ltr"
+}
