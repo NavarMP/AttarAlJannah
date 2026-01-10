@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, CheckCircle2, Upload, QrCode } from "lucide-react";
+import { Loader2, CheckCircle2, Upload, QrCode, Copy } from "lucide-react";
 import { toast } from "sonner";
 import Image from "next/image";
 
@@ -29,19 +29,30 @@ export function OrderForm({ studentId }: OrderFormProps) {
         register,
         handleSubmit,
         watch,
+        setValue,
         formState: { errors },
         reset,
     } = useForm<OrderFormData>({
         resolver: zodResolver(orderSchema),
         defaultValues: {
             quantity: 1,
-            paymentMethod: "cod",
+            paymentMethod: "upi",
         },
     });
 
     const paymentMethod = watch("paymentMethod");
     const quantity = watch("quantity") || 1;
+    const phoneNumber = watch("customerPhone");
     const totalPrice = quantity * PRODUCT_PRICE;
+
+    const copyPhoneToWhatsApp = () => {
+        if (phoneNumber && phoneNumber.length === 10) {
+            setValue("whatsappNumber", phoneNumber);
+            toast.success("Phone number copied to WhatsApp field!");
+        } else {
+            toast.error("Please enter a valid phone number first");
+        }
+    };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -58,8 +69,12 @@ export function OrderForm({ studentId }: OrderFormProps) {
             const formData = new FormData();
             formData.append("customerName", data.customerName);
             formData.append("customerPhone", data.customerPhone);
+            formData.append("whatsappNumber", data.whatsappNumber);
             formData.append("customerEmail", data.customerEmail || "");
-            formData.append("customerAddress", data.customerAddress);
+
+            // Combine address fields
+            const fullAddress = `${data.houseBuilding}, ${data.town}, ${data.post}, ${data.city}, ${data.district}, ${data.state} - ${data.pincode}`;
+            formData.append("customerAddress", fullAddress);
             formData.append("quantity", data.quantity.toString());
             formData.append("totalPrice", totalPrice.toString());
             formData.append("paymentMethod", data.paymentMethod);
@@ -98,10 +113,10 @@ export function OrderForm({ studentId }: OrderFormProps) {
 
     if (isSuccess) {
         return (
-            <Card className="max-w-2xl mx-auto glass border-emerald-300 dark:border-emerald-700">
+            <Card className="max-w-2xl mx-auto glass border-primary/30 dark:border-primary/20 rounded-3xl">
                 <CardContent className="pt-12 pb-12 text-center space-y-6">
                     <div className="flex justify-center">
-                        <CheckCircle2 className="w-24 h-24 text-emerald-500 animate-bounce" />
+                        <CheckCircle2 className="w-24 h-24 text-primary animate-bounce" />
                     </div>
                     <div className="space-y-2">
                         <h2 className="text-3xl font-bold text-foreground">Thank You!</h2>
@@ -110,7 +125,7 @@ export function OrderForm({ studentId }: OrderFormProps) {
                         </p>
                         <p className="text-sm text-muted-foreground max-w-md mx-auto">
                             Our admin team will verify your payment and confirm your order soon.
-                            You&apos;ll receive updates via phone.
+                            You&apos;ll receive updates via phone or Whatsapp.
                         </p>
                     </div>
                     <Button onClick={() => setIsSuccess(false)} variant="outline">
@@ -122,9 +137,9 @@ export function OrderForm({ studentId }: OrderFormProps) {
     }
 
     return (
-        <Card className="max-w-2xl mx-auto glass-strong">
+        <Card className="max-w-2xl mx-auto glass-strong rounded-3xl">
             <CardHeader>
-                <CardTitle className="text-3xl">Order عطر الجنّة</CardTitle>
+                <CardTitle className="text-3xl">Order Attar al-Jannah</CardTitle>
                 <CardDescription>
                     Fill in your details to place an order. {studentId && "This order will be credited to your student account."}
                 </CardDescription>
@@ -158,6 +173,32 @@ export function OrderForm({ studentId }: OrderFormProps) {
                         )}
                     </div>
 
+                    {/* WhatsApp Number */}
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="whatsappNumber">WhatsApp Number *</Label>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={copyPhoneToWhatsApp}
+                                className="h-7 text-xs"
+                            >
+                                <Copy className="mr-1 h-3 w-3" />
+                                Same as Phone
+                            </Button>
+                        </div>
+                        <Input
+                            id="whatsappNumber"
+                            placeholder="10-digit WhatsApp number"
+                            maxLength={10}
+                            {...register("whatsappNumber")}
+                        />
+                        {errors.whatsappNumber && (
+                            <p className="text-sm text-destructive">{errors.whatsappNumber.message}</p>
+                        )}
+                    </div>
+
                     {/* Email (Optional) */}
                     <div className="space-y-2">
                         <Label htmlFor="customerEmail">Email (Optional)</Label>
@@ -172,18 +213,104 @@ export function OrderForm({ studentId }: OrderFormProps) {
                         )}
                     </div>
 
-                    {/* Address */}
-                    <div className="space-y-2">
-                        <Label htmlFor="customerAddress">Delivery Address *</Label>
-                        <Textarea
-                            id="customerAddress"
-                            placeholder="Enter your complete address with pincode"
-                            rows={3}
-                            {...register("customerAddress")}
-                        />
-                        {errors.customerAddress && (
-                            <p className="text-sm text-destructive">{errors.customerAddress.message}</p>
-                        )}
+                    {/* Address Fields */}
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-foreground">Delivery Address</h3>
+
+                        {/* House/Building */}
+                        <div className="space-y-2">
+                            <Label htmlFor="houseBuilding">House/Building Name *</Label>
+                            <Input
+                                id="houseBuilding"
+                                placeholder="House/Flat No., Building Name"
+                                {...register("houseBuilding")}
+                            />
+                            {errors.houseBuilding && (
+                                <p className="text-sm text-destructive">{errors.houseBuilding.message}</p>
+                            )}
+                        </div>
+
+                        {/* Town and Post */}
+                        <div className="grid md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="town">Town *</Label>
+                                <Input
+                                    id="town"
+                                    placeholder="Town/Locality"
+                                    {...register("town")}
+                                />
+                                {errors.town && (
+                                    <p className="text-sm text-destructive">{errors.town.message}</p>
+                                )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="post">Post Office *</Label>
+                                <Input
+                                    id="post"
+                                    placeholder="Post Office"
+                                    {...register("post")}
+                                />
+                                {errors.post && (
+                                    <p className="text-sm text-destructive">{errors.post.message}</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* City and Pincode */}
+                        <div className="grid md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="city">City *</Label>
+                                <Input
+                                    id="city"
+                                    placeholder="City"
+                                    {...register("city")}
+                                />
+                                {errors.city && (
+                                    <p className="text-sm text-destructive">{errors.city.message}</p>
+                                )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="pincode">Pincode *</Label>
+                                <Input
+                                    id="pincode"
+                                    placeholder="6-digit pincode"
+                                    maxLength={6}
+                                    {...register("pincode")}
+                                />
+                                {errors.pincode && (
+                                    <p className="text-sm text-destructive">{errors.pincode.message}</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* District and State */}
+                        <div className="grid md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="district">District *</Label>
+                                <Input
+                                    id="district"
+                                    placeholder="District"
+                                    {...register("district")}
+                                />
+                                {errors.district && (
+                                    <p className="text-sm text-destructive">{errors.district.message}</p>
+                                )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="state">State *</Label>
+                                <Input
+                                    id="state"
+                                    placeholder="State"
+                                    {...register("state")}
+                                />
+                                {errors.state && (
+                                    <p className="text-sm text-destructive">{errors.state.message}</p>
+                                )}
+                            </div>
+                        </div>
                     </div>
 
                     {/* Quantity */}
@@ -215,8 +342,8 @@ export function OrderForm({ studentId }: OrderFormProps) {
 
                     {/* UPI Payment Details */}
                     {paymentMethod === "upi" && (
-                        <div className="space-y-4 p-4 rounded-lg bg-gradient-to-r from-emerald-50 to-gold-50 dark:from-emerald-950/20 dark:to-gold-950/20 border border-emerald-200 dark:border-emerald-800">
-                            <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+                        <div className="space-y-4 p-4 rounded-2xl bg-gradient-to-r from-primary/10 to-gold-500/10 border border-primary/30 dark:border-primary/20">
+                            <div className="flex items-center gap-2 text-primary dark:text-primary">
                                 <QrCode className="w-5 h-5" />
                                 <h3 className="font-semibold">UPI Payment Information</h3>
                             </div>
@@ -232,14 +359,22 @@ export function OrderForm({ studentId }: OrderFormProps) {
                                 </div>
                                 <div>
                                     <p className="text-muted-foreground">Amount to Pay:</p>
-                                    <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">₹{totalPrice}</p>
+                                    <p className="text-2xl font-bold text-primary dark:text-primary">₹{totalPrice}</p>
                                 </div>
                             </div>
 
-                            {/* QR Code Placeholder */}
-                            <div className="bg-white p-4 rounded-lg w-48 h-48 mx-auto flex items-center justify-center border-2 border-dashed border-emerald-300">
-                                <p className="text-center text-sm text-muted-foreground">QR Code<br />Placeholder</p>
+                            {/* UPI Payment QR Code */}
+                            <div className="bg-white p-4 rounded-lg w-64 h-64 mx-auto flex items-center justify-center border-2 border-primary/30 shadow-lg">
+                                <div className="relative w-full h-full">
+                                    <Image
+                                        src="/assets/payment QR.svg"
+                                        alt="UPI Payment QR Code"
+                                        fill
+                                        className="object-contain"
+                                    />
+                                </div>
                             </div>
+                            <p className="text-center text-sm text-muted-foreground">Scan to pay ₹{totalPrice}</p>
 
                             {/* Upload Screenshot */}
                             <div className="space-y-2">
@@ -273,7 +408,7 @@ export function OrderForm({ studentId }: OrderFormProps) {
                     <Button
                         type="submit"
                         size="lg"
-                        className="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600"
+                        className="w-full bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600 rounded-2xl"
                         disabled={isSubmitting}
                     >
                         {isSubmitting ? (

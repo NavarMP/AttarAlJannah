@@ -1,6 +1,9 @@
 import { HeroSection } from "@/components/sections/hero-section";
 import { ProductDetails } from "@/components/sections/product-details";
-import { ActionButtons } from "@/components/sections/action-buttons";
+import { AboutDars } from "@/components/sections/about-dars";
+import { TrackOrder } from "@/components/sections/track-order";
+import { ShareButtons } from "@/components/sections/share-buttons";
+import { Footer } from "@/components/sections/footer";
 import { ThemeToggle } from "@/components/custom/theme-toggle";
 
 export default function Home() {
@@ -11,14 +14,23 @@ export default function Home() {
                 <ThemeToggle />
             </div>
 
-            {/* Hero Section */}
+            {/* Hero: Photo, Logo, Subtitle, Price, Order Button */}
             <HeroSection />
 
-            {/* Product Details */}
+            {/* About and Features */}
             <ProductDetails />
 
-            {/* Action Buttons */}
-            <ActionButtons />
+            {/* About Dars */}
+            <AboutDars />
+
+            {/* Track Order */}
+            <TrackOrder />
+
+            {/* Share Buttons */}
+            <ShareButtons />
+
+            {/* Copyright */}
+            <Footer />
         </main>
     );
 }

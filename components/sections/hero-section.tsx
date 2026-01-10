@@ -4,16 +4,23 @@ import { useEffect, useRef } from "react";
 import Image from "next/image";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { Button } from "@/components/ui/button";
+import { ShoppingCart } from "lucide-react";
+import { useRouter } from "next/navigation";
+import Link from 'next/link';
 
 gsap.registerPlugin(ScrollTrigger);
 
 export function HeroSection() {
+    const router = useRouter();
     const imageRef = useRef<HTMLDivElement>(null);
-    const titleRef = useRef<HTMLHeadingElement>(null);
+    const logoRef = useRef<HTMLDivElement>(null);
     const subtitleRef = useRef<HTMLParagraphElement>(null);
+    const priceRef = useRef<HTMLDivElement>(null);
+    const buttonRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (!imageRef.current || !titleRef.current || !subtitleRef.current) return;
+        if (!imageRef.current || !logoRef.current || !subtitleRef.current || !priceRef.current || !buttonRef.current) return;
 
         // Floating animation for product image
         gsap.to(imageRef.current, {
@@ -37,9 +44,9 @@ export function HeroSection() {
             opacity: 0.7,
         });
 
-        // Title reveal animation
+        // Logo reveal animation
         gsap.fromTo(
-            titleRef.current,
+            logoRef.current,
             { opacity: 0, y: 50, scale: 0.9 },
             { opacity: 1, y: 0, scale: 1, duration: 1, ease: "back.out(1.7)" }
         );
@@ -50,67 +57,96 @@ export function HeroSection() {
             { opacity: 0, y: 30 },
             { opacity: 1, y: 0, duration: 0.8, delay: 0.3, ease: "power2.out" }
         );
+
+        // Price reveal with delay
+        gsap.fromTo(
+            priceRef.current,
+            { opacity: 0, scale: 0.8 },
+            { opacity: 1, scale: 1, duration: 0.6, delay: 0.5, ease: "back.out(1.7)" }
+        );
+
+        // Button reveal with delay
+        gsap.fromTo(
+            buttonRef.current,
+            { opacity: 0, y: 20 },
+            { opacity: 1, y: 0, duration: 0.6, delay: 0.7, ease: "power2.out" }
+        );
     }, []);
 
-    return (
-        <section className="relative min-h-screen flex flex-col items-center justify-center px-4 py-20 overflow-hidden islamic-pattern">
-            {/* Background decorative elements */}
-            <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/5 via-transparent to-gold-500/5 pointer-events-none" />
+    const scrollToOrder = () => {
+        router.push("/order");
+    };
 
+    return (
+        <section className="relative min-h-screen flex flex-col items-center justify-center px-4 py-12 overflow-hidden">
             {/* Content Container */}
-            <div className="relative z-10 max-w-6xl mx-auto text-center space-y-12">
-                {/* Arabic Title */}
-                <h1
-                    ref={titleRef}
-                    className="arabic-text text-7xl md:text-9xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 via-gold-500 to-emerald-600 drop-shadow-2xl"
-                >
-                    عطر الجنّة
-                </h1>
+            <div className="relative z-10 max-w-6xl mx-auto text-center">
+                {/* Product Image - Positioned Above Title */}
+                <div ref={imageRef} className="relative w-72 h-72 md:w-96 md:h-96 mx-auto mb-8">
+                    <div className="relative w-full h-full">
+                        <Image
+                            src="/assets/attar.svg"
+                            alt="Attar Al Jannah"
+                            fill
+                            className="object-contain drop-shadow-2xl"
+                            priority
+                        />
+                        {/* Shimmer overlay */}
+                        <div className="absolute inset-0 shimmer opacity-20 pointer-events-none" />
+                    </div>
+                    {/* Decorative glow */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-primary/30 to-transparent blur-3xl -z-10" />
+                </div>
+
+                {/* Typography Logo */}
+                <div ref={logoRef} className="mb-6 flex justify-center">
+                    <div className="relative w-full max-w-3xl h-36 md:h-48">
+                        <Image
+                            src="/assets/typography.svg"
+                            alt="عطر الجنّة - Attar Al Jannah"
+                            fill
+                            className="object-contain drop-shadow-lg"
+                            priority
+                        />
+                    </div>
+                </div>
 
                 {/* Subtitle */}
                 <p
                     ref={subtitleRef}
-                    className="text-xl md:text-2xl text-muted-foreground font-light tracking-wide"
+                    className="text-xl md:text-2xl text-muted-foreground font-light tracking-wide mb-6"
                 >
                     From the House of <span className="font-semibold text-foreground">Minhajul Jannah</span>
                 </p>
 
-                {/* Product Image with Animation */}
-                <div ref={imageRef} className="relative w-full max-w-md mx-auto">
-                    <div className="relative aspect-square rounded-2xl overflow-hidden shadow-2xl">
-                        <Image
-                            src="/assets/attar.png"
-                            alt="Attar Al Jannah"
-                            fill
-                            className="object-cover"
-                            priority
-                        />
-                        {/* Shimmer overlay */}
-                        <div className="absolute inset-0 shimmer opacity-30" />
+                {/* Price and Order Button - Horizontal Layout */}
+                <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-6 max-w-4xl mx-auto">
+                    {/* Price */}
+                    <div ref={priceRef}>
+                        <div className="inline-flex items-center px-8 h-20 rounded-2xl bg-gradient-to-r from-primary/20 to-gold-500/20 border-2 border-primary/50 shadow-2xl hover:shadow-3xl transition-all duration-300 transform hover:scale-105">
+                            <div className="flex items-baseline gap-2">
+                                <p className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-gold-400">
+                                    ₹499
+                                </p>
+                                <p className="text-xs text-muted-foreground">/10ml</p>
+                            </div>
+                        </div>
                     </div>
 
-                    {/* Decorative glow */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-emerald-500/20 to-transparent blur-3xl -z-10" />
-                </div>
-
-                {/* Scroll Indicator */}
-                <div className="animate-bounce mt-12">
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-8 w-8 mx-auto text-emerald-600"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 14l-7 7m0 0l-7-7m7 7V3"
-                        />
-                    </svg>
+                    {/* Order Button */}
+                    <div ref={buttonRef}>
+                        <Link href="/order">
+                            <Button
+                                size="lg"
+                                className="w-full md:w-auto px-8 h-20 text-xl md:text-2xl font-bold bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600 shadow-2xl hover:shadow-3xl transition-all duration-300 transform hover:scale-105 rounded-2xl"
+                            >
+                                Order Now
+                            </Button>
+                        </Link>
+                    </div>
                 </div>
             </div>
         </section>
     );
 }
+
