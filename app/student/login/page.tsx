@@ -2,55 +2,57 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { studentLoginSchema, type StudentLoginData } from "@/lib/validations/auth-schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, GraduationCap } from "lucide-react";
 import { toast } from "sonner";
+import Link from "next/link";
 
 export default function StudentLoginPage() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
+    const [studentId, setStudentId] = useState("");
+    const [password, setPassword] = useState("");
 
-    const {
-        register,
-        handleSubmit,
-        formState: { errors },
-    } = useForm<StudentLoginData>({
-        resolver: zodResolver(studentLoginSchema),
-    });
+    const onSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
 
-    const onSubmit = async (data: StudentLoginData) => {
+        if (!studentId || !password) {
+            toast.error("Please enter both Student ID and Password");
+            return;
+        }
+
         setIsLoading(true);
 
         try {
-            const response = await fetch("/api/student/auth", {
+            const response = await fetch("/api/student/auth/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(data),
+                body: JSON.stringify({
+                    studentId: studentId.toUpperCase(),
+                    password: password,
+                }),
             });
-
-            if (!response.ok) {
-                throw new Error("Authentication failed");
-            }
 
             const result = await response.json();
 
+            if (!response.ok) {
+                throw new Error(result.error || "Authentication failed");
+            }
+
             if (result.success) {
                 toast.success("Login successful!");
-                // Store student info in session/local storage
-                localStorage.setItem("studentId", result.studentId);
-                localStorage.setItem("studentName", result.studentName);
+                // Store student info in localStorage to match dashboard expectations
+                localStorage.setItem("studentId", result.student.studentId);
+                localStorage.setItem("studentName", result.student.name);
                 router.push("/student/dashboard");
             } else {
-                toast.error(result.message || "Student not found");
+                toast.error(result.error || "Login failed");
             }
-        } catch (error) {
-            toast.error("Failed to login. Please check your credentials.");
+        } catch (error: any) {
+            toast.error(error.message || "Failed to login. Please check your credentials.");
             console.error(error);
         } finally {
             setIsLoading(false);
@@ -58,10 +60,10 @@ export default function StudentLoginPage() {
     };
 
     return (
-        <main className="min-h-screen flex items-center justify-center px-4 py-12 islamic-pattern">
-            <Card className="max-w-md w-full glass-strong">
+        <main className="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-background via-blue-500/5 to-purple-500/10">
+            <Card className="max-w-md w-full glass-strong rounded-3xl">
                 <CardHeader className="text-center space-y-4">
-                    <div className="mx-auto w-16 h-16 bg-gradient-to-br from-emerald-500 to-gold-500 rounded-full flex items-center justify-center">
+                    <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
                         <GraduationCap className="w-8 h-8 text-white" />
                     </div>
                     <div>
@@ -72,23 +74,38 @@ export default function StudentLoginPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                    <form onSubmit={onSubmit} className="space-y-6">
                         <div className="space-y-2">
-                            <Label htmlFor="identifier">Phone Number or Student ID</Label>
+                            <Label htmlFor="studentId">Student ID</Label>
                             <Input
-                                id="identifier"
-                                placeholder="Enter your phone or student ID"
-                                {...register("identifier")}
+                                id="studentId"
+                                type="text"
+                                placeholder="STU001"
+                                value={studentId}
+                                onChange={(e) => setStudentId(e.target.value.toUpperCase())}
+                                disabled={isLoading}
+                                className="uppercase"
+                                required
                             />
-                            {errors.identifier && (
-                                <p className="text-sm text-destructive">{errors.identifier.message}</p>
-                            )}
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="password">Password</Label>
+                            <Input
+                                id="password"
+                                type="password"
+                                placeholder="Enter your password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                disabled={isLoading}
+                                required
+                            />
                         </div>
 
                         <Button
                             type="submit"
                             size="lg"
-                            className="w-full bg-gradient-to-r from-emerald-600 to-emerald-500"
+                            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-2xl"
                             disabled={isLoading}
                         >
                             {isLoading ? (
@@ -101,9 +118,18 @@ export default function StudentLoginPage() {
                             )}
                         </Button>
 
-                        <div className="text-center text-sm text-muted-foreground">
-                            <p>Don&apos;t have access?</p>
-                            <p>Contact your admin to get registered as a student</p>
+                        <div className="text-center space-y-2">
+                            <p className="text-sm text-muted-foreground">
+                                Don't have access?
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                                Contact your admin to get registered as a student
+                            </p>
+                            <Link href="/login">
+                                <Button variant="ghost" size="sm" className="rounded-xl mt-2">
+                                    ← Back to login options
+                                </Button>
+                            </Link>
                         </div>
                     </form>
                 </CardContent>

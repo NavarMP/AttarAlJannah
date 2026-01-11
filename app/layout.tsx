@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { SmoothScrollProvider } from "@/components/providers/smooth-scroll-provider";
 import { AuthProvider } from "@/lib/contexts/auth-context";
+import { CustomerAuthProvider } from "@/lib/contexts/customer-auth-context";
 import { Toaster } from "sonner";
 import { CustomCursor } from "@/components/custom/custom-cursor";
 
@@ -50,11 +51,13 @@ export default function RootLayout({
                     disableTransitionOnChange
                 >
                     <AuthProvider>
-                        <SmoothScrollProvider>
-                            <CustomCursor />
-                            {children}
-                            <Toaster richColors position="top-center" />
-                        </SmoothScrollProvider>
+                        <CustomerAuthProvider>
+                            <SmoothScrollProvider>
+                                <CustomCursor />
+                                {children}
+                                <Toaster richColors position="top-center" />
+                            </SmoothScrollProvider>
+                        </CustomerAuthProvider>
                     </AuthProvider>
                 </ThemeProvider>
             </body>

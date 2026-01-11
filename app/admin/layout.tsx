@@ -2,9 +2,9 @@
 
 import { useAuth } from "@/lib/contexts/auth-context";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { LogOut, LayoutDashboard, Package } from "lucide-react";
+import { LogOut, LayoutDashboard, Package, Menu, X, Users } from "lucide-react";
 import { ThemeToggle } from "@/components/custom/theme-toggle";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -17,6 +17,7 @@ export default function AdminLayout({
     const { user, loading, signOut } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     // Don't apply layout protection to login page
     const isLoginPage = pathname === "/admin/login";
@@ -26,6 +27,11 @@ export default function AdminLayout({
             router.push("/admin/login");
         }
     }, [user, loading, router, isLoginPage]);
+
+    // Close sidebar when route changes on mobile
+    useEffect(() => {
+        setSidebarOpen(false);
+    }, [pathname]);
 
     const handleLogout = async () => {
         try {
@@ -59,13 +65,38 @@ export default function AdminLayout({
 
     return (
         <div className="min-h-screen flex">
+            {/* Mobile Overlay */}
+            {sidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+                    onClick={() => setSidebarOpen(false)}
+                />
+            )}
+
             {/* Sidebar */}
-            <aside className="w-64 bg-card border-r border-border flex flex-col">
-                <div className="p-6 border-b border-border">
-                    <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-gold-500">
-                        عطر الجنّة
-                    </h1>
-                    <p className="text-sm text-muted-foreground mt-1">Admin Panel</p>
+            <aside
+                className={`
+                    fixed lg:static inset-y-0 left-0 z-50
+                    w-64 bg-card border-r border-border flex flex-col
+                    transition-transform duration-300 ease-in-out
+                    ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+                `}
+            >
+                <div className="p-6 border-b border-border flex items-center justify-between">
+                    <div>
+                        <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-gold-500">
+                            عطر الجنّة
+                        </h1>
+                        <p className="text-sm text-muted-foreground mt-1">Admin Panel</p>
+                    </div>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="lg:hidden rounded-xl"
+                        onClick={() => setSidebarOpen(false)}
+                    >
+                        <X className="h-5 w-5" />
+                    </Button>
                 </div>
 
                 <nav className="flex-1 p-4 space-y-2">
@@ -73,6 +104,12 @@ export default function AdminLayout({
                         <Button variant="ghost" className="w-full justify-start rounded-xl">
                             <LayoutDashboard className="mr-2 h-5 w-5" />
                             Dashboard
+                        </Button>
+                    </Link>
+                    <Link href="/admin/students">
+                        <Button variant="ghost" className="w-full justify-start rounded-xl">
+                            <Users className="mr-2 h-5 w-5" />
+                            Students
                         </Button>
                     </Link>
                     <Link href="/admin/orders">
@@ -100,15 +137,25 @@ export default function AdminLayout({
             </aside>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col">
+            <div className="flex-1 flex flex-col min-w-0">
                 {/* Header */}
-                <header className="h-16 border-b border-border flex items-center justify-between px-6">
-                    <h2 className="text-xl font-semibold">Admin Dashboard</h2>
+                <header className="h-16 border-b border-border flex items-center justify-between px-4 lg:px-6">
+                    <div className="flex items-center gap-4">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="lg:hidden rounded-xl"
+                            onClick={() => setSidebarOpen(true)}
+                        >
+                            <Menu className="h-5 w-5" />
+                        </Button>
+                        <h2 className="text-xl font-semibold">Admin Dashboard</h2>
+                    </div>
                     <ThemeToggle />
                 </header>
 
                 {/* Page Content */}
-                <main className="flex-1 overflow-auto p-6 bg-background">
+                <main className="flex-1 overflow-auto p-4 lg:p-6 bg-background">
                     {children}
                 </main>
             </div>

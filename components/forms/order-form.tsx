@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { orderSchema, type OrderFormData } from "@/lib/validations/order-schema";
@@ -10,20 +10,34 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, CheckCircle2, Upload, QrCode, Copy } from "lucide-react";
+import { Loader2, CheckCircle2, Upload, QrCode, Copy, Camera } from "lucide-react";
 import { toast } from "sonner";
 import Image from "next/image";
+import { CameraCapture } from "@/components/ui/camera-capture";
+
+interface CustomerProfile {
+    id: string;
+    phone: string;
+    name: string | null;
+    email: string | null;
+    default_address: string | null;
+    total_orders: number;
+}
 
 interface OrderFormProps {
     studentId?: string;
+    prefillData?: any;
+    customerProfile?: CustomerProfile | null;
 }
 
-const PRODUCT_PRICE = 499;
+const PRODUCT_PRICE = 313;
 
-export function OrderForm({ studentId }: OrderFormProps) {
+export function OrderForm({ studentId, prefillData, customerProfile }: OrderFormProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [showCamera, setShowCamera] = useState(false);
+    const [capturedFile, setCapturedFile] = useState<File | null>(null);
 
     const {
         register,
@@ -39,6 +53,30 @@ export function OrderForm({ studentId }: OrderFormProps) {
             paymentMethod: "upi",
         },
     });
+
+    // Auto-fill from customer profile or prefill data
+    useEffect(() => {
+        if (prefillData) {
+            // Reorder scenario
+            setValue("customerName", prefillData.customerName);
+            setValue("customerPhone", prefillData.customerPhone);
+            setValue("whatsappNumber", prefillData.whatsappNumber);
+            setValue("customerEmail", prefillData.customerEmail);
+            setValue("quantity", prefillData.quantity);
+
+            // Parse address if available
+            if (prefillData.customerAddress) {
+                toast.info("Form prefilled with your previous order details!");
+            }
+        } else if (customerProfile) {
+            // Logged in customer scenario
+            if (customerProfile.name) setValue("customerName", customerProfile.name);
+            if (customerProfile.phone) setValue("customerPhone", customerProfile.phone.replace('+91', ''));
+            if (customerProfile.email) setValue("customerEmail", customerProfile.email);
+
+            toast.success("Welcome back! Your details are prefilled.");
+        }
+    }, [prefillData, customerProfile, setValue]);
 
     const paymentMethod = watch("paymentMethod");
     const quantity = watch("quantity") || 1;
@@ -59,7 +97,15 @@ export function OrderForm({ studentId }: OrderFormProps) {
         if (file) {
             const url = URL.createObjectURL(file);
             setPreviewUrl(url);
+            setCapturedFile(file);
         }
+    };
+
+    const handleCameraCapture = (file: File) => {
+        setCapturedFile(file);
+        const url = URL.createObjectURL(file);
+        setPreviewUrl(url);
+        setShowCamera(false);
     };
 
     const onSubmit = async (data: OrderFormData) => {
@@ -82,8 +128,10 @@ export function OrderForm({ studentId }: OrderFormProps) {
                 formData.append("referredBy", studentId);
             }
 
-            // Handle file upload
-            if (data.paymentScreenshot && data.paymentScreenshot[0]) {
+            // Handle file upload - use captured file if available, otherwise use form file input
+            if (capturedFile) {
+                formData.append("paymentScreenshot", capturedFile);
+            } else if (data.paymentScreenshot && data.paymentScreenshot[0]) {
                 formData.append("paymentScreenshot", data.paymentScreenshot[0]);
             }
 
@@ -100,6 +148,7 @@ export function OrderForm({ studentId }: OrderFormProps) {
             toast.success("Order submitted successfully!");
             reset();
             setPreviewUrl(null);
+            setCapturedFile(null);
 
             // Reset success after 5 seconds
             setTimeout(() => setIsSuccess(false), 5000);
@@ -376,20 +425,39 @@ export function OrderForm({ studentId }: OrderFormProps) {
                             </div>
                             <p className="text-center text-sm text-muted-foreground">Scan to pay ₹{totalPrice}</p>
 
-                            {/* Upload Screenshot */}
-                            <div className="space-y-2">
-                                <Label htmlFor="paymentScreenshot">Upload Payment Screenshot *</Label>
-                                <div className="flex items-center gap-4">
-                                    <Input
-                                        id="paymentScreenshot"
-                                        type="file"
-                                        accept="image/*"
-                                        {...register("paymentScreenshot")}
-                                        onChange={handleFileChange}
-                                        className="cursor-pointer"
-                                    />
-                                    <Upload className="w-5 h-5 text-muted-foreground" />
+                            {/* Upload or Capture Screenshot */}
+                            <div className="space-y-3">
+                                <Label htmlFor="paymentScreenshot">Payment Screenshot *</Label>
+
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    {/* File Upload */}
+                                    <div className="flex-1">
+                                        <Input
+                                            id="paymentScreenshot"
+                                            type="file"
+                                            accept="image/*"
+                                            {...register("paymentScreenshot")}
+                                            onChange={handleFileChange}
+                                            className="cursor-pointer"
+                                        />
+                                    </div>
+
+                                    {/* Camera Button */}
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setShowCamera(true)}
+                                        className="sm:w-auto w-full"
+                                    >
+                                        <Camera className="mr-2 h-4 w-4" />
+                                        Take Photo
+                                    </Button>
                                 </div>
+
+                                <p className="text-xs text-muted-foreground">
+                                    Upload from gallery or use camera to capture payment screen
+                                </p>
+
                                 {previewUrl && (
                                     <div className="relative w-full h-48 rounded-md overflow-hidden border">
                                         <Image
@@ -425,7 +493,16 @@ export function OrderForm({ studentId }: OrderFormProps) {
                         * Orders will be confirmed after admin verification {paymentMethod === "upi" && "of payment screenshot"}
                     </p>
                 </form>
+
+                {/* Camera Modal */}
+                {showCamera && (
+                    <CameraCapture
+                        onCapture={handleCameraCapture}
+                        onClose={() => setShowCamera(false)}
+                    />
+                )}
             </CardContent>
         </Card>
     );
 }
+

@@ -1,6 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Share2, Facebook, Twitter, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -49,46 +48,42 @@ export function ShareButtons() {
                     </p>
                 </div>
 
-                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <Button
-                        size="lg"
-                        variant="secondary"
-                        className="w-full h-14 text-base font-semibold shadow-md hover:shadow-lg transition-all duration-300 rounded-2xl"
+                <div className="flex justify-center items-center gap-4">
+                    {/* Share Button */}
+                    <button
                         onClick={handleShare}
+                        className="group w-14 h-14 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 flex items-center justify-center shadow-md hover:shadow-lg transition-all duration-300 hover:scale-110"
+                        aria-label="Share"
                     >
-                        <Share2 className="mr-2 h-5 w-5" />
-                        Share
-                    </Button>
+                        <Share2 className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+                    </button>
 
-                    <Button
-                        size="lg"
-                        variant="outline"
-                        className="w-full h-14 text-base font-semibold border-2 shadow-md hover:shadow-lg transition-all duration-300 rounded-2xl bg-[#25D366] hover:bg-[#20BA5A] text-white border-[#25D366] hover:border-[#20BA5A]"
+                    {/* WhatsApp */}
+                    <button
                         onClick={shareToWhatsApp}
+                        className="group w-14 h-14 rounded-full bg-[#25D366] hover:bg-[#20BA5A] flex items-center justify-center shadow-md hover:shadow-lg transition-all duration-300 hover:scale-110"
+                        aria-label="Share on WhatsApp"
                     >
-                        <MessageCircle className="mr-2 h-5 w-5" />
-                        WhatsApp
-                    </Button>
+                        <MessageCircle className="w-6 h-6 text-white" />
+                    </button>
 
-                    <Button
-                        size="lg"
-                        variant="outline"
-                        className="w-full h-14 text-base font-semibold border-2 shadow-md hover:shadow-lg transition-all duration-300 rounded-2xl bg-[#1877F2] hover:bg-[#0C63D4] text-white border-[#1877F2] hover:border-[#0C63D4]"
+                    {/* Facebook */}
+                    <button
                         onClick={shareToFacebook}
+                        className="group w-14 h-14 rounded-full bg-[#1877F2] hover:bg-[#0C63D4] flex items-center justify-center shadow-md hover:shadow-lg transition-all duration-300 hover:scale-110"
+                        aria-label="Share on Facebook"
                     >
-                        <Facebook className="mr-2 h-5 w-5" />
-                        Facebook
-                    </Button>
+                        <Facebook className="w-6 h-6 text-white" />
+                    </button>
 
-                    <Button
-                        size="lg"
-                        variant="outline"
-                        className="w-full h-14 text-base font-semibold border-2 shadow-md hover:shadow-lg transition-all duration-300 rounded-2xl bg-black hover:bg-gray-800 text-white border-black hover:border-gray-800 dark:bg-white dark:hover:bg-gray-200 dark:text-black dark:border-white dark:hover:border-gray-200"
+                    {/* Twitter/X */}
+                    <button
                         onClick={shareToTwitter}
+                        className="group w-14 h-14 rounded-full bg-black hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-200 flex items-center justify-center shadow-md hover:shadow-lg transition-all duration-300 hover:scale-110"
+                        aria-label="Share on Twitter"
                     >
-                        <Twitter className="mr-2 h-5 w-5" />
-                        Twitter
-                    </Button>
+                        <Twitter className="w-6 h-6 text-white dark:text-black" />
+                    </button>
                 </div>
             </div>
         </section>
