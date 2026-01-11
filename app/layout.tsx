@@ -20,7 +20,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
     title: "عطر الجنّة | Attar Al Jannah",
-    description: "Premium Attar from Minhajul Jannah - Join the sales challenge",
+    description: "Premium Attar from Minhajul Janna - Join the sales challenge",
     manifest: "/manifest.json",
     appleWebApp: {
         capable: true,

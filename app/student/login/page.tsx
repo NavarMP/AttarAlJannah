@@ -120,7 +120,7 @@ export default function StudentLoginPage() {
 
                         <div className="text-center space-y-2">
                             <p className="text-sm text-muted-foreground">
-                                Don't have access?
+                                Do not have access?
                             </p>
                             <p className="text-sm text-muted-foreground">
                                 Contact your admin to get registered as a student

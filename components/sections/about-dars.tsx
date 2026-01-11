@@ -38,7 +38,7 @@ export function AboutDars() {
                 {/* Title */}
                 <div className="text-center space-y-4">
                     <h2 className="text-4xl md:text-5xl font-bold text-foreground">
-                        About Minhajul Jannah Dars
+                        About  Dars
                     </h2>
                     <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
                         A sacred journey of knowledge and spiritual enlightenment
@@ -50,7 +50,7 @@ export function AboutDars() {
                     <CardContent className="p-8 md:p-12">
                         <div className="space-y-8">
                             <p className="text-lg text-muted-foreground leading-relaxed text-center">
-                                Minhajul Jannah Dars is a dedicated Islamic educational institution committed to spreading
+                                Minhajul Janna Dars is a dedicated Islamic educational institution committed to spreading
                                 authentic knowledge and nurturing spiritual growth. Through comprehensive programs and
                                 community-driven initiatives, we strive to illuminate the path towards Paradise.
                             </p>

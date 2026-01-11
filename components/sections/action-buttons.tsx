@@ -13,7 +13,7 @@ export function ActionButtons() {
             try {
                 await navigator.share({
                     title: "عطر الجنّة | Attar Al Jannah",
-                    text: "Check out this amazing Attar from Minhajul Jannah!",
+                    text: "Check out this amazing Attar from Minhajul Janna!",
                     url: window.location.href,
                 });
             } catch (error) {

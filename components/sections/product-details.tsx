@@ -13,7 +13,7 @@ export function ProductDetails() {
                         About & Features
                     </h2>
                     <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                        Experience the divine essence brought to you by Minhajul Jannah Dars.
+                        Experience the divine essence brought to you by Minhajul Janna Dars.
                         A fragrance from Paradise.
                     </p>
                 </div>
@@ -43,7 +43,7 @@ export function ProductDetails() {
                         </CardHeader>
                         <CardContent>
                             <p className="text-muted-foreground">
-                                Each bottle is carefully prepared by our dedicated team at Minhajul Jannah with utmost care.
+                                Each bottle is carefully prepared by our dedicated team at Minhajul Janna with utmost care.
                             </p>
                         </CardContent>
                     </Card>

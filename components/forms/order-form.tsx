@@ -404,7 +404,7 @@ export function OrderForm({ studentId, prefillData, customerProfile }: OrderForm
                                 </div>
                                 <div>
                                     <p className="text-muted-foreground">Account Holder:</p>
-                                    <p className="font-semibold text-foreground">Minhajul Jannah</p>
+                                    <p className="font-semibold text-foreground">Minhajul Janna</p>
                                 </div>
                                 <div>
                                     <p className="text-muted-foreground">Amount to Pay:</p>

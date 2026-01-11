@@ -116,7 +116,7 @@ export default function CustomerLoginPage() {
                                     />
                                 </div>
                                 <p className="text-xs text-muted-foreground">
-                                    We'll send you a one-time password
+                                    We will send you a one-time password
                                 </p>
                             </div>
 

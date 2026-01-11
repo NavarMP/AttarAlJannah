@@ -31,7 +31,7 @@ export function Footer() {
                             عطر الجنّة
                         </h3>
                         <p className="text-sm text-muted-foreground">
-                            Essense of Minhajul Jannah
+                            Essense of Minhajul Janna
                         </p>
                         <p className="text-xs text-muted-foreground/70">
                             Made with ❤️ for spreading the fragrance of Paradise
@@ -118,7 +118,7 @@ export function Footer() {
                 {/* Copyright & Developer Credit */}
                 <div className="text-center space-y-2">
                     <p className="text-sm text-muted-foreground">
-                        © {currentYear} Minhajul Jannah Dars. All rights reserved.
+                        © {currentYear} Minhajul Janna Dars. All rights reserved.
                     </p>
                     <p className="text-xs text-muted-foreground/70">
                         Developed by{" "}

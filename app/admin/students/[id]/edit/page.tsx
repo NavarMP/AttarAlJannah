@@ -11,7 +11,12 @@ import { ArrowLeft, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 
-export default function EditStudentPage({ params }: { params: { id: string } }) {
+export default async function EditStudentPage({ params }: { params: Promise<{ id: string }> }) {
+    const resolvedParams = await params;
+    return <EditStudentPageClient studentId={resolvedParams.id} />;
+}
+
+function EditStudentPageClient({ studentId }: { studentId: string }) {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,12 +37,13 @@ export default function EditStudentPage({ params }: { params: { id: string } }) 
 
     useEffect(() => {
         fetchStudent();
-    }, [params.id]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [studentId]);
 
     const fetchStudent = async () => {
         try {
             setIsLoading(true);
-            const response = await fetch(`/api/admin/students/${params.id}`);
+            const response = await fetch(`/api/admin/students/${studentId}`);
             if (!response.ok) throw new Error("Failed to fetch student");
 
             const data = await response.json();
@@ -103,7 +109,7 @@ export default function EditStudentPage({ params }: { params: { id: string } }) 
                 updateData.password = formData.password;
             }
 
-            const response = await fetch(`/api/admin/students/${params.id}`, {
+            const response = await fetch(`/api/admin/students/${studentId}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(updateData),

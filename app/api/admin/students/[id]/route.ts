@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const supabase = await createClient();
@@ -18,7 +18,7 @@ export async function GET(
             );
         }
 
-        const studentId = params.id;
+        const { id: studentId } = await params;
 
         // Get student by ID
         const { data: student, error: studentError } = await supabase
@@ -77,7 +77,7 @@ export async function GET(
 
 export async function PUT(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const supabase = await createClient();
@@ -92,7 +92,7 @@ export async function PUT(
             );
         }
 
-        const studentId = params.id;
+        const { id: studentId } = await params;
         const body = await request.json();
         const { name, email, phone, address, student_id, goal, password } = body;
 
@@ -178,7 +178,7 @@ export async function PUT(
 
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const supabase = await createClient();
@@ -193,7 +193,7 @@ export async function DELETE(
             );
         }
 
-        const studentId = params.id;
+        const { id: studentId } = await params;
 
         // Check if student exists
         const { data: student, error: fetchError } = await supabase
