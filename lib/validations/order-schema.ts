@@ -22,6 +22,18 @@ export const orderSchema = z.object({
     quantity: z.number().min(1, "Quantity must be at least 1").max(50, "Maximum 50 bottles per order"),
     paymentMethod: z.enum(["cod", "upi"]),
     paymentScreenshot: z.any().optional(),
-});
+}).refine(
+    (data) => {
+        // If payment method is UPI, screenshot is required
+        if (data.paymentMethod === "upi" && !data.paymentScreenshot) {
+            return false;
+        }
+        return true;
+    },
+    {
+        message: "Payment screenshot is required for UPI payments",
+        path: ["paymentScreenshot"],
+    }
+);
 
 export type OrderFormData = z.infer<typeof orderSchema>;

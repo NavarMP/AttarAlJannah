@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function AdminLoginPage() {
     const [email, setEmail] = useState("");
@@ -94,7 +95,13 @@ export default function AdminLoginPage() {
                         </Button>
                     </form>
 
-                    <p className="text-center text-sm text-muted-foreground mt-6">
+                    <div className="text-center mt-6">
+                        <Link href="/login" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                            ← Back to Login Options
+                        </Link>
+                    </div>
+
+                    <p className="text-center text-sm text-muted-foreground mt-4">
                         عطر الجنّة Admin Panel
                     </p>
                 </CardContent>

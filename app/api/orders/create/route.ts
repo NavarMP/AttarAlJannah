@@ -55,6 +55,26 @@ export async function POST(request: NextRequest) {
             }
         }
 
+        // If referredBy is provided, look up the student's UUID from their student_id
+        let referredByUuid: string | null = null;
+        if (referredBy) {
+            console.log("🔍 Looking up student with ID:", referredBy);
+            const { data: student, error: studentError } = await supabase
+                .from("users")
+                .select("id")
+                .eq("student_id", referredBy)
+                .eq("user_role", "student")
+                .single();
+
+            if (studentError) {
+                console.error("⚠️ Student lookup error:", studentError.message);
+                // Continue without referral if student not found
+            } else if (student) {
+                referredByUuid = student.id;
+                console.log("✅ Found student UUID:", referredByUuid);
+            }
+        }
+
         // Create order
         console.log("💾 Inserting order into database...");
         const { data: orderData, error: orderError } = await supabase
@@ -72,7 +92,7 @@ export async function POST(request: NextRequest) {
                 payment_status: paymentMethod === "cod" ? "pending" : "paid",
                 order_status: "pending",
                 payment_screenshot_url: paymentScreenshotUrl,
-                referred_by: referredBy,
+                referred_by: referredByUuid,
             })
             .select()
             .single();

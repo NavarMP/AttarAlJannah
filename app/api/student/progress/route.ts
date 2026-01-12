@@ -15,6 +15,23 @@ export async function GET(request: NextRequest) {
 
         const supabase = await createClient();
 
+        // First, get the student's database UUID from their student_id
+        const { data: student, error: studentError } = await supabase
+            .from("users")
+            .select("id")
+            .eq("student_id", studentId)
+            .eq("user_role", "student")
+            .single();
+
+        if (studentError || !student) {
+            return NextResponse.json(
+                { error: "Student not found" },
+                { status: 404 }
+            );
+        }
+
+        const studentUuid = student.id;
+
         // Get challenge progress
         const { data: progress } = await supabase
             .from("challenge_progress")
@@ -22,11 +39,11 @@ export async function GET(request: NextRequest) {
             .eq("student_id", studentId)
             .single();
 
-        // Get order statistics
+        // Get order statistics using the student's UUID (not student_id)
         const { data: orders } = await supabase
             .from("orders")
             .select("*")
-            .eq("referred_by", studentId);
+            .eq("referred_by", studentUuid);
 
         const verifiedSales = orders?.filter(
             (o) => o.payment_status === "verified" && o.order_status !== "pending"
@@ -36,15 +53,15 @@ export async function GET(request: NextRequest) {
             (o) => o.payment_status !== "verified" || o.order_status === "pending"
         ).length || 0;
 
-        const totalEarnings = orders
+        const totalRevenue = orders
             ?.filter((o) => o.payment_status === "verified")
-            .reduce((sum, o) => sum + (o.total_price * 0.1), 0) || 0; // 10% commission
+            .reduce((sum, o) => sum + o.total_price, 0) || 0; // Total revenue
 
         return NextResponse.json({
             verifiedSales: progress?.verified_sales || verifiedSales,
             goal: progress?.goal || 20,
             pendingOrders,
-            totalEarnings: Math.round(totalEarnings),
+            totalRevenue: Math.round(totalRevenue),
         });
     } catch (error) {
         console.error("Progress error:", error);

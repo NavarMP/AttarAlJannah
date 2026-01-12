@@ -8,16 +8,6 @@ export async function GET(
     try {
         const supabase = await createClient();
 
-        // Check if user is authenticated and is admin
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-        if (authError || !user) {
-            return NextResponse.json(
-                { error: "Unauthorized" },
-                { status: 401 }
-            );
-        }
-
         const { id } = await params;
         const studentId = id;
 
@@ -82,16 +72,6 @@ export async function PUT(
 ) {
     try {
         const supabase = await createClient();
-
-        // Check if user is authenticated and is admin
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-        if (authError || !user) {
-            return NextResponse.json(
-                { error: "Unauthorized" },
-                { status: 401 }
-            );
-        }
 
         const { id } = await params;
         const studentId = id;
@@ -184,16 +164,6 @@ export async function DELETE(
 ) {
     try {
         const supabase = await createClient();
-
-        // Check if user is authenticated and is admin
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-        if (authError || !user) {
-            return NextResponse.json(
-                { error: "Unauthorized" },
-                { status: 401 }
-            );
-        }
 
         const { id } = await params;
         const studentId = id;

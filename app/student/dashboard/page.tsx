@@ -13,7 +13,7 @@ interface DashboardStats {
     verifiedSales: number;
     goal: number;
     pendingOrders: number;
-    totalEarnings: number;
+    totalRevenue: number;
 }
 
 export default function StudentDashboardPage() {
@@ -24,7 +24,7 @@ export default function StudentDashboardPage() {
         verifiedSales: 0,
         goal: 20,
         pendingOrders: 0,
-        totalEarnings: 0,
+        totalRevenue: 0,
     });
     const [isLoading, setIsLoading] = useState(true);
 
@@ -116,7 +116,7 @@ export default function StudentDashboardPage() {
                         {stats.verifiedSales >= stats.goal ? (
                             <div className="p-4 bg-gradient-to-r from-gold-500/20 to-emerald-500/20 rounded-lg border border-gold-300 dark:border-gold-700">
                                 <p className="text-lg font-bold text-center">
-                                    🎉 Congratulations! You&apos;ve achieved your goal! 🎉
+                                    🎉 Goal Achieved! Keep going for more sales! 🚀
                                 </p>
                             </div>
                         ) : (
@@ -150,15 +150,15 @@ export default function StudentDashboardPage() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-lg">
                                 <TrendingUp className="w-5 h-5 text-emerald-500" />
-                                Total Earnings
+                                Total Revenue
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
                             <p className="text-3xl font-bold text-foreground">
-                                ₹{stats.totalEarnings.toLocaleString()}
+                                ₹{stats.totalRevenue.toLocaleString()}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
-                                From verified sales
+                                From all your sales
                             </p>
                         </CardContent>
                     </Card>

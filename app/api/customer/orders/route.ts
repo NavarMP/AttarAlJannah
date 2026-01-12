@@ -12,16 +12,29 @@ export async function GET(request: NextRequest) {
 
         const supabase = await createClient();
 
+        console.log("Fetching orders for phone:", phone);
+
+        // Normalize phone number - try multiple formats
+        const phoneVariations = [
+            phone,                              // As provided
+            phone.replace('+91', ''),          // Without country code
+            phone.replace(/\D/g, '').slice(-10) // Last 10 digits only
+        ];
+
+        console.log("Trying phone variations:", phoneVariations);
+
         const { data: orders, error } = await supabase
             .from("orders")
             .select("*")
-            .eq("customer_phone", phone)
+            .in("customer_phone", phoneVariations)
             .order("created_at", { ascending: false });
 
         if (error) {
             console.error("Orders fetch error:", error);
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
+
+        console.log(`Found ${orders?.length || 0} orders`);
 
         return NextResponse.json({ orders: orders || [] });
     } catch (error) {

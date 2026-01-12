@@ -5,16 +5,6 @@ export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient();
 
-        // Check if user is authenticated and is admin
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-        if (authError || !user) {
-            return NextResponse.json(
-                { error: "Unauthorized" },
-                { status: 401 }
-            );
-        }
-
         // Get query parameters for pagination and search
         const searchParams = request.nextUrl.searchParams;
         const page = parseInt(searchParams.get("page") || "1");
@@ -84,16 +74,6 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     try {
         const supabase = await createClient();
-
-        // Check if user is authenticated and is admin
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-        if (authError || !user) {
-            return NextResponse.json(
-                { error: "Unauthorized" },
-                { status: 401 }
-            );
-        }
 
         const body = await request.json();
         const { name, email, phone, password, address, student_id, goal = 20 } = body;

@@ -23,8 +23,11 @@ export default function AdminLayout({
     const isLoginPage = pathname === "/admin/login";
 
     useEffect(() => {
-        if (!loading && !user && !isLoginPage) {
-            router.push("/admin/login");
+        if (!loading && !isLoginPage) {
+            // Check if user exists and has admin role
+            if (!user || user.role !== "admin") {
+                router.push("/admin/login");
+            }
         }
     }, [user, loading, router, isLoginPage]);
 

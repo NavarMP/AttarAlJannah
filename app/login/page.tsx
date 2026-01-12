@@ -38,7 +38,7 @@ export default function LoginSelectorPage() {
                                     • One-click checkout
                                 </p>
                                 <Button className="w-full mt-4 bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600 rounded-2xl">
-                                    Login with OTP
+                                    Login
                                 </Button>
                             </CardContent>
                         </Card>
@@ -65,7 +65,7 @@ export default function LoginSelectorPage() {
                                     • View leaderboard rank
                                 </p>
                                 <Button className="w-full mt-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-2xl">
-                                    Login with Student ID
+                                    Login
                                 </Button>
                             </CardContent>
                         </Card>
@@ -92,7 +92,7 @@ export default function LoginSelectorPage() {
                                     • Dashboard analytics
                                 </p>
                                 <Button className="w-full mt-4 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 rounded-2xl">
-                                    Admin Login
+                                    Login
                                 </Button>
                             </CardContent>
                         </Card>

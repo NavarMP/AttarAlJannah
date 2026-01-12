@@ -109,6 +109,12 @@ export function OrderForm({ studentId, prefillData, customerProfile }: OrderForm
     };
 
     const onSubmit = async (data: OrderFormData) => {
+        // Validate UPI payment screenshot before submission
+        if (data.paymentMethod === "upi" && !capturedFile && (!data.paymentScreenshot || !data.paymentScreenshot[0])) {
+            toast.error("Please upload a payment screenshot for UPI payments");
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
@@ -149,9 +155,6 @@ export function OrderForm({ studentId, prefillData, customerProfile }: OrderForm
             reset();
             setPreviewUrl(null);
             setCapturedFile(null);
-
-            // Reset success after 5 seconds
-            setTimeout(() => setIsSuccess(false), 5000);
         } catch (error) {
             toast.error("Failed to submit order. Please try again.");
             console.error(error);

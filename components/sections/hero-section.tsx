@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, LogIn, User } from "lucide-react";
+import { ShoppingCart, LogIn, User, GraduationCap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from 'next/link';
 import { useCustomerAuth } from "@/lib/contexts/customer-auth-context";
@@ -160,47 +160,62 @@ function LoginButton() {
     const { user: customerUser } = useCustomerAuth();
     const { user: adminUser } = useAuth();
     const router = useRouter();
+    const [studentLoggedIn, setStudentLoggedIn] = useState(false);
 
-    // Check if any user is logged in
-    const isLoggedIn = !!(customerUser || adminUser);
+    // Check if student is logged in via localStorage
+    useEffect(() => {
+        const studentId = localStorage.getItem("studentId");
+        setStudentLoggedIn(!!studentId);
+    }, []);
 
-    const handleClick = () => {
-        if (adminUser) {
-            router.push("/admin/dashboard");
-        } else if (customerUser) {
-            router.push("/customer/dashboard");
-        } else {
-            router.push("/login");
-        }
-    };
+    // If no user is logged in, show login button
+    if (!customerUser && !adminUser && !studentLoggedIn) {
+        return (
+            <div className="fixed top-6 right-6 z-50">
+                <Button
+                    onClick={() => router.push("/login")}
+                    className="rounded-2xl shadow-lg bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600"
+                    size="lg"
+                >
+                    <LogIn className="w-5 h-5 mr-2" />
+                    Login
+                </Button>
+            </div>
+        );
+    }
 
-    // Determine button text based on user type
-    const getButtonText = () => {
-        if (adminUser) return "Admin Panel";
-        if (customerUser) return "My Account";
-        return "Login";
-    };
-
+    // If users are logged in, show icon-only buttons
     return (
-        <div className="fixed top-6 right-6 z-50">
-            <Button
-                onClick={handleClick}
-                className="rounded-2xl shadow-lg bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600"
-                size="lg"
-            >
-                {isLoggedIn ? (
-                    <>
-                        <User className="w-5 h-5 mr-2" />
-                        {getButtonText()}
-                    </>
-                ) : (
-                    <>
-                        <LogIn className="w-5 h-5 mr-2" />
-                        Login
-                    </>
-                )}
-            </Button>
+        <div className="fixed top-6 right-6 z-50 flex gap-2">
+            {adminUser && (
+                <Button
+                    onClick={() => router.push("/admin/dashboard")}
+                    className="rounded-full shadow-lg bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600 w-12 h-12 p-0"
+                    title="Admin Panel"
+                >
+                    <ShoppingCart className="w-5 h-5" />
+                </Button>
+            )}
+            {studentLoggedIn && (
+                <Button
+                    onClick={() => router.push("/student/dashboard")}
+                    className="rounded-full shadow-lg bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 w-12 h-12 p-0"
+                    title="Student Dashboard"
+                >
+                    <GraduationCap className="w-5 h-5" />
+                </Button>
+            )}
+            {customerUser && (
+                <Button
+                    onClick={() => router.push("/customer/dashboard")}
+                    className="rounded-full shadow-lg bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 w-12 h-12 p-0"
+                    title="My Account"
+                >
+                    <User className="w-5 h-5" />
+                </Button>
+            )}
         </div>
     );
 }
+
 

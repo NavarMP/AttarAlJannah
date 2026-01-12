@@ -1,8 +1,13 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { User } from "@supabase/supabase-js";
-import { createClient } from "@/lib/supabase/client";
+
+interface User {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+}
 
 interface AuthContextType {
     user: User | null;
@@ -16,36 +21,36 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
-    const supabase = createClient();
 
     useEffect(() => {
-        // Check active session
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setUser(session?.user ?? null);
-            setLoading(false);
-        });
-
-        // Listen for auth changes
-        const {
-            data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user ?? null);
-        });
-
-        return () => subscription.unsubscribe();
-    }, [supabase.auth]);
+        // Check if user is stored in localStorage
+        const storedUser = localStorage.getItem("admin_user");
+        if (storedUser) {
+            setUser(JSON.parse(storedUser));
+        }
+        setLoading(false);
+    }, []);
 
     const signIn = async (email: string, password: string) => {
-        const { error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
+        const response = await fetch("/api/admin/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
         });
-        if (error) throw error;
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || "Login failed");
+        }
+
+        const { user: userData } = await response.json();
+        setUser(userData);
+        localStorage.setItem("admin_user", JSON.stringify(userData));
     };
 
     const signOut = async () => {
-        const { error } = await supabase.auth.signOut();
-        if (error) throw error;
+        setUser(null);
+        localStorage.removeItem("admin_user");
     };
 
     return (
