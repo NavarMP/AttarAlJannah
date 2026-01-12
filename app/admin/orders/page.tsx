@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+export const dynamic = "force-dynamic";
+import { useEffect, useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -27,11 +28,7 @@ export default function OrdersPage() {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
 
-    useEffect(() => {
-        fetchOrders();
-    }, [search, statusFilter, page]);
-
-    const fetchOrders = async () => {
+    const fetchOrders = useCallback(async () => {
         setLoading(true);
         try {
             const params = new URLSearchParams({
@@ -49,7 +46,11 @@ export default function OrdersPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [page, statusFilter, search]);
+
+    useEffect(() => {
+        fetchOrders();
+    }, [search, statusFilter, page, fetchOrders]);
 
     const getStatusColor = (status: string) => {
         switch (status) {

@@ -18,7 +18,8 @@ export async function GET(
             );
         }
 
-        const { id: studentId } = await params;
+        const { id } = await params;
+        const studentId = id;
 
         // Get student by ID
         const { data: student, error: studentError } = await supabase
@@ -92,7 +93,8 @@ export async function PUT(
             );
         }
 
-        const { id: studentId } = await params;
+        const { id } = await params;
+        const studentId = id;
         const body = await request.json();
         const { name, email, phone, address, student_id, goal, password } = body;
 
@@ -193,7 +195,8 @@ export async function DELETE(
             );
         }
 
-        const { id: studentId } = await params;
+        const { id } = await params;
+        const studentId = id;
 
         // Check if student exists
         const { data: student, error: fetchError } = await supabase

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 
@@ -32,6 +32,18 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(true);
     const supabase = createClient();
 
+    const fetchCustomerProfile = useCallback(async (phone: string) => {
+        try {
+            const response = await fetch(`/api/customer/profile?phone=${encodeURIComponent(phone)}`);
+            if (response.ok) {
+                const profile = await response.json();
+                setCustomerProfile(profile);
+            }
+        } catch (error) {
+            console.error("Failed to fetch customer profile:", error);
+        }
+    }, []);
+
     useEffect(() => {
         // Check active session
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -55,19 +67,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         });
 
         return () => subscription.unsubscribe();
-    }, []);
-
-    const fetchCustomerProfile = async (phone: string) => {
-        try {
-            const response = await fetch(`/api/customer/profile?phone=${encodeURIComponent(phone)}`);
-            if (response.ok) {
-                const profile = await response.json();
-                setCustomerProfile(profile);
-            }
-        } catch (error) {
-            console.error("Failed to fetch customer profile:", error);
-        }
-    };
+    }, [supabase.auth, fetchCustomerProfile]);
 
     const signInWithPhone = async (phone: string) => {
         const { error } = await supabase.auth.signInWithOtp({

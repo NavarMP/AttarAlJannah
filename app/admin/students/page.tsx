@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+export const dynamic = "force-dynamic";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,16 +56,7 @@ export default function StudentsPage() {
         topPerformer: null as Student | null,
     });
 
-    useEffect(() => {
-        setCurrentPage(1); // Reset to page 1 when search changes
-        fetchStudents();
-    }, [searchQuery]);
-
-    useEffect(() => {
-        fetchStudents();
-    }, [currentPage]);
-
-    const fetchStudents = async () => {
+    const fetchStudents = useCallback(async () => {
         try {
             setIsLoading(true);
             const params = new URLSearchParams();
@@ -95,7 +87,16 @@ export default function StudentsPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [currentPage, searchQuery]);
+
+    useEffect(() => {
+        setCurrentPage(1); // Reset to page 1 when search changes
+        fetchStudents();
+    }, [searchQuery, fetchStudents]);
+
+    useEffect(() => {
+        fetchStudents();
+    }, [currentPage, fetchStudents]);
 
     const handleDelete = async () => {
         if (!deleteId) return;

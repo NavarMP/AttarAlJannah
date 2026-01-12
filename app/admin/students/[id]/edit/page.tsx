@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, use } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,12 +11,8 @@ import { ArrowLeft, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 
-export default async function EditStudentPage({ params }: { params: Promise<{ id: string }> }) {
-    const resolvedParams = await params;
-    return <EditStudentPageClient studentId={resolvedParams.id} />;
-}
-
-function EditStudentPageClient({ studentId }: { studentId: string }) {
+export default function EditStudentPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = use(params);
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,15 +31,10 @@ function EditStudentPageClient({ studentId }: { studentId: string }) {
         verifiedOrders: 0,
     });
 
-    useEffect(() => {
-        fetchStudent();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [studentId]);
-
-    const fetchStudent = async () => {
+    const fetchStudent = useCallback(async () => {
         try {
             setIsLoading(true);
-            const response = await fetch(`/api/admin/students/${studentId}`);
+            const response = await fetch(`/api/admin/students/${id}`);
             if (!response.ok) throw new Error("Failed to fetch student");
 
             const data = await response.json();
@@ -71,7 +62,11 @@ function EditStudentPageClient({ studentId }: { studentId: string }) {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [id, router]);
+
+    useEffect(() => {
+        fetchStudent();
+    }, [fetchStudent]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -109,7 +104,7 @@ function EditStudentPageClient({ studentId }: { studentId: string }) {
                 updateData.password = formData.password;
             }
 
-            const response = await fetch(`/api/admin/students/${studentId}`, {
+            const response = await fetch(`/api/admin/students/${id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(updateData),

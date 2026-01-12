@@ -1,5 +1,6 @@
 "use client";
 
+export const dynamic = "force-dynamic";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -116,7 +117,7 @@ export default function CustomerLoginPage() {
                                     />
                                 </div>
                                 <p className="text-xs text-muted-foreground">
-                                    We will send you a one-time password
+                                    We&apos;ll send you a one-time password
                                 </p>
                             </div>
 

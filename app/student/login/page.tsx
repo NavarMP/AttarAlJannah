@@ -1,5 +1,6 @@
 "use client";
 
+export const dynamic = "force-dynamic";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -120,7 +121,7 @@ export default function StudentLoginPage() {
 
                         <div className="text-center space-y-2">
                             <p className="text-sm text-muted-foreground">
-                                Do not have access?
+                                Don&apos;t have access?
                             </p>
                             <p className="text-sm text-muted-foreground">
                                 Contact your admin to get registered as a student

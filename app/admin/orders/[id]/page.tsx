@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,11 +36,7 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
     const [updating, setUpdating] = useState(false);
     const [newStatus, setNewStatus] = useState("");
 
-    useEffect(() => {
-        fetchOrder();
-    }, [id]);
-
-    const fetchOrder = async () => {
+    const fetchOrder = useCallback(async () => {
         try {
             const response = await fetch(`/api/admin/orders/${id}`);
             if (!response.ok) {
@@ -56,7 +52,11 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
         } finally {
             setLoading(false);
         }
-    };
+    }, [id, router]);
+
+    useEffect(() => {
+        fetchOrder();
+    }, [fetchOrder]);
 
     const handleStatusUpdate = async () => {
         if (!order || newStatus === order.order_status) return;

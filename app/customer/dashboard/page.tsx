@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+export const dynamic = "force-dynamic";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useCustomerAuth } from "@/lib/contexts/customer-auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,15 +28,7 @@ export default function CustomerDashboard() {
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
-    useEffect(() => {
-        if (!authLoading && !user) {
-            router.push("/customer/login");
-        } else if (user?.phone) {
-            fetchOrders();
-        }
-    }, [user, authLoading, router]);
-
-    const fetchOrders = async () => {
+    const fetchOrders = useCallback(async () => {
         if (!user?.phone) return;
 
         setLoading(true);
@@ -49,7 +42,15 @@ export default function CustomerDashboard() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [user?.phone]);
+
+    useEffect(() => {
+        if (!authLoading && !user) {
+            router.push("/customer/login");
+        } else if (user?.phone) {
+            fetchOrders();
+        }
+    }, [user, authLoading, router, fetchOrders]);
 
     const handleLogout = async () => {
         try {

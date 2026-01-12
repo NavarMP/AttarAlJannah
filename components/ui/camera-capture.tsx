@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Camera, X, RotateCcw, Check } from "lucide-react";
 import { toast } from "sonner";
@@ -19,14 +20,7 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        startCamera();
-        return () => {
-            stopCamera();
-        };
-    }, []);
-
-    const startCamera = async () => {
+    const startCamera = useCallback(async () => {
         try {
             setIsLoading(true);
             setError(null);
@@ -55,14 +49,21 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
             setIsLoading(false);
             toast.error("Camera access denied or unavailable");
         }
-    };
+    }, []);
 
-    const stopCamera = () => {
+    const stopCamera = useCallback(() => {
         if (stream) {
             stream.getTracks().forEach((track) => track.stop());
             setStream(null);
         }
-    };
+    }, [stream]);
+
+    useEffect(() => {
+        startCamera();
+        return () => {
+            stopCamera();
+        };
+    }, [startCamera, stopCamera]);
 
     const capturePhoto = () => {
         if (!videoRef.current || !canvasRef.current) return;
@@ -172,11 +173,15 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
                                         className="w-full h-full object-cover"
                                     />
                                 ) : (
-                                    <img
-                                        src={capturedImage}
-                                        alt="Captured screenshot"
-                                        className="w-full h-full object-contain"
-                                    />
+                                    <div className="relative w-full h-full">
+                                        <Image
+                                            src={capturedImage}
+                                            alt="Captured screenshot"
+                                            fill
+                                            className="object-contain"
+                                            unoptimized
+                                        />
+                                    </div>
                                 )}
 
                                 <canvas ref={canvasRef} className="hidden" />

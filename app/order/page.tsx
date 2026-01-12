@@ -1,37 +1,22 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { OrderForm } from "@/components/forms/order-form";
 import { Footer } from "@/components/sections/footer";
 import { ThemeToggle } from "@/components/custom/theme-toggle";
 import { useCustomerAuth } from "@/lib/contexts/customer-auth-context";
 import { Card, CardContent } from "@/components/ui/card";
-import { Phone, MessageCircle, Loader2 } from "lucide-react";
+import { Phone, MessageCircle } from "lucide-react";
 import Link from "next/link";
 
-function OrderPageContent() {
+export default function OrderPage() {
     const searchParams = useSearchParams();
     const { user, customerProfile } = useCustomerAuth();
     const [prefillData, setPrefillData] = useState<any>(null);
     const [referralCode, setReferralCode] = useState<string | null>(null);
 
-    useEffect(() => {
-        // Get referral code from URL
-        const ref = searchParams.get("ref");
-        if (ref) {
-            setReferralCode(ref);
-        }
-
-        // Get reorder ID from URL
-        const reorderId = searchParams.get("reorder");
-        if (reorderId) {
-            fetchOrderForReorder(reorderId);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchParams]);
-
-    const fetchOrderForReorder = async (orderId: string) => {
+    const fetchOrderForReorder = useCallback(async (orderId: string) => {
         try {
             const response = await fetch(`/api/customer/orders?phone=${encodeURIComponent(user?.phone || '')}`);
             const data = await response.json();
@@ -50,10 +35,29 @@ function OrderPageContent() {
         } catch (error) {
             console.error("Failed to fetch order for reorder:", error);
         }
-    };
+    }, [user?.phone]);
+
+    useEffect(() => {
+        // Get referral code from URL
+        const ref = searchParams.get("ref");
+        if (ref) {
+            setReferralCode(ref);
+        }
+
+        // Get reorder ID from URL
+        const reorderId = searchParams.get("reorder");
+        if (reorderId) {
+            fetchOrderForReorder(reorderId);
+        }
+    }, [searchParams, fetchOrderForReorder]);
 
     return (
-        <>
+        <main className="min-h-screen" id="order-form">
+            {/* Theme Toggle */}
+            <div className="fixed top-6 left-6 z-50">
+                <ThemeToggle />
+            </div>
+
             <div className="py-12 px-4">
                 <div className="max-w-4xl mx-auto space-y-8">
                     <div className="text-center space-y-2">
@@ -111,27 +115,9 @@ function OrderPageContent() {
                     />
                 </div>
             </div>
+
             {/* Footer */}
             <Footer />
-        </>
-    );
-}
-
-export default function OrderPage() {
-    return (
-        <main className="min-h-screen" id="order-form">
-            {/* Theme Toggle */}
-            <div className="fixed top-6 left-6 z-50">
-                <ThemeToggle />
-            </div>
-
-            <Suspense fallback={
-                <div className="min-h-screen flex items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-            }>
-                <OrderPageContent />
-            </Suspense>
         </main>
     );
 }
