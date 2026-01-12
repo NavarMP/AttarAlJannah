@@ -35,7 +35,7 @@ export default function AdminDashboard() {
             const response = await fetch("/api/admin/stats");
             const data = await response.json();
             setStats(data.stats);
-            setRecentOrders(data.recentOrders);
+            setRecentOrders(data.recentOrders || []);
         } catch (error) {
             console.error("Failed to fetch stats:", error);
         } finally {
@@ -111,7 +111,7 @@ export default function AdminDashboard() {
                     <CardTitle>Recent Orders</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {recentOrders.length === 0 ? (
+                    {!recentOrders || recentOrders.length === 0 ? (
                         <p className="text-center text-muted-foreground py-8">No orders yet</p>
                     ) : (
                         <div className="space-y-4">

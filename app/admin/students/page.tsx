@@ -212,7 +212,7 @@ export default function StudentsPage() {
                         <div className="flex items-center justify-center py-12">
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
                         </div>
-                    ) : students.length === 0 ? (
+                    ) : !students || students.length === 0 ? (
                         <div className="text-center py-12">
                             <Users className="mx-auto h-12 w-12 text-muted-foreground opacity-50" />
                             <p className="mt-4 text-lg font-medium">No students found</p>

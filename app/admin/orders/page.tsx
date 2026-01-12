@@ -39,8 +39,8 @@ export default function OrdersPage() {
 
             const response = await fetch(`/api/admin/orders?${params}`);
             const data = await response.json();
-            setOrders(data.orders);
-            setTotalPages(data.totalPages);
+            setOrders(data.orders || []);
+            setTotalPages(data.totalPages || 1);
         } catch (error) {
             console.error("Failed to fetch orders:", error);
         } finally {
@@ -101,7 +101,7 @@ export default function OrdersPage() {
             <Card className="rounded-3xl overflow-hidden">
                 {loading ? (
                     <div className="text-center py-12">Loading orders...</div>
-                ) : orders.length === 0 ? (
+                ) : !orders || orders.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">No orders found</div>
                 ) : (
                     <div className="overflow-x-auto">
