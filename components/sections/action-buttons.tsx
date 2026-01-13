@@ -49,15 +49,15 @@ export function ActionButtons() {
                         Buy Now
                     </Button>
 
-                    {/* Student Login */}
+                    {/* Volunteer Login */}
                     <Button
                         size="lg"
                         variant="outline"
                         className="w-full h-16 text-lg font-semibold border-2 border-gold-500 text-gold-600 hover:bg-gold-50 dark:hover:bg-gold-950/20 shadow-md hover:shadow-lg transition-all duration-300"
-                        onClick={() => router.push("/student/login")}
+                        onClick={() => router.push("/volunteer/login")}
                     >
                         <LogIn className="mr-2 h-5 w-5" />
-                        Student Login
+                        Volunteer Login
                     </Button>
 
                     {/* Track Order */}

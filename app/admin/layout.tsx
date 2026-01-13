@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/contexts/auth-context";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { LogOut, LayoutDashboard, Package, Menu, X, Users } from "lucide-react";
+import { LogOut, LayoutDashboard, Package, Menu, X, Users, Trophy } from "lucide-react";
 import { ThemeToggle } from "@/components/custom/theme-toggle";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -109,10 +109,16 @@ export default function AdminLayout({
                             Dashboard
                         </Button>
                     </Link>
-                    <Link href="/admin/students">
+                    <Link href="/admin/volunteers">
                         <Button variant="ghost" className="w-full justify-start rounded-xl">
                             <Users className="mr-2 h-5 w-5" />
-                            Students
+                            Volunteers
+                        </Button>
+                    </Link>
+                    <Link href="/admin/leaderboard">
+                        <Button variant="ghost" className="w-full justify-start rounded-xl">
+                            <Trophy className="mr-2 h-5 w-5" />
+                            Leaderboard
                         </Button>
                     </Link>
                     <Link href="/admin/orders">

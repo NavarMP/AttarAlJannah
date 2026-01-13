@@ -5,7 +5,7 @@ import Image from "next/image";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, LogIn, User, GraduationCap } from "lucide-react";
+import { ShoppingCart, LogIn, User, Award } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from 'next/link';
 import { useCustomerAuth } from "@/lib/contexts/customer-auth-context";
@@ -160,29 +160,16 @@ function LoginButton() {
     const { user: customerUser } = useCustomerAuth();
     const { user: adminUser } = useAuth();
     const router = useRouter();
-    const [studentLoggedIn, setStudentLoggedIn] = useState(false);
+    const [volunteerLoggedIn, setVolunteerLoggedIn] = useState(false);
 
-    // Check if student is logged in via localStorage
+    // Check if volunteer is logged in via localStorage
     useEffect(() => {
-        const studentId = localStorage.getItem("studentId");
-        setStudentLoggedIn(!!studentId);
+        const volunteerId = localStorage.getItem("volunteerId");
+        setVolunteerLoggedIn(!!volunteerId);
     }, []);
 
-    // If no user is logged in, show login button
-    if (!customerUser && !adminUser && !studentLoggedIn) {
-        return (
-            <div className="fixed top-6 right-6 z-50">
-                <Button
-                    onClick={() => router.push("/login")}
-                    className="rounded-2xl shadow-lg bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600"
-                    size="lg"
-                >
-                    <LogIn className="w-5 h-5 mr-2" />
-                    Login
-                </Button>
-            </div>
-        );
-    }
+    // Show login button if ANY of the three user types is NOT logged in
+    const allLoggedIn = customerUser && adminUser && volunteerLoggedIn;
 
     // If users are logged in, show icon-only buttons
     return (
@@ -196,13 +183,13 @@ function LoginButton() {
                     <ShoppingCart className="w-5 h-5" />
                 </Button>
             )}
-            {studentLoggedIn && (
+            {volunteerLoggedIn && (
                 <Button
-                    onClick={() => router.push("/student/dashboard")}
+                    onClick={() => router.push("/volunteer/dashboard")}
                     className="rounded-full shadow-lg bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 w-12 h-12 p-0"
-                    title="Student Dashboard"
+                    title="Volunteer Dashboard"
                 >
-                    <GraduationCap className="w-5 h-5" />
+                    <Award className="w-5 h-5" />
                 </Button>
             )}
             {customerUser && (
@@ -212,6 +199,16 @@ function LoginButton() {
                     title="My Account"
                 >
                     <User className="w-5 h-5" />
+                </Button>
+            )}
+            {!allLoggedIn && (
+                <Button
+                    onClick={() => router.push("/login")}
+                    className="rounded-2xl shadow-lg bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600"
+                    size="lg"
+                >
+                    <LogIn className="w-5 h-5 mr-2" />
+                    Login
                 </Button>
             )}
         </div>

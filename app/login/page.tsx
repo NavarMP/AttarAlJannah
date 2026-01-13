@@ -44,14 +44,14 @@ export default function LoginSelectorPage() {
                         </Card>
                     </Link>
 
-                    {/* Student Login */}
-                    <Link href="/student/login">
+                    {/* Volunteer Login */}
+                    <Link href="/volunteer/login">
                         <Card className="glass-strong rounded-3xl hover:border-primary transition-all duration-300 hover:scale-105 cursor-pointer h-full">
                             <CardHeader className="text-center">
                                 <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center mb-4">
                                     <GraduationCap className="w-8 h-8 text-blue-600" />
                                 </div>
-                                <CardTitle className="text-2xl">Student</CardTitle>
+                                <CardTitle className="text-2xl">Volunteer</CardTitle>
                                 <CardDescription>Access your dashboard</CardDescription>
                             </CardHeader>
                             <CardContent className="text-center space-y-2">

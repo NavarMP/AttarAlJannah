@@ -13,25 +13,25 @@ export async function DELETE(request: NextRequest) {
 
         const supabase = await createClient();
 
-        // Try to determine if this is a student ID or customer phone
-        // Check if it's a student by looking up the student_id
-        const { data: student } = await supabase
+        // Try to determine if this is a volunteer ID or customer phone
+        // Check if it's a volunteer by looking up the volunteer_id
+        const { data: volunteer } = await supabase
             .from("users")
             .select("id")
-            .eq("student_id", phone)
-            .eq("user_role", "student")
+            .eq("volunteer_id", phone)
+            .eq("user_role", "volunteer")
             .maybeSingle();
 
         let order;
         let fetchError;
 
-        if (student) {
-            // This is a student - check referred_by
+        if (volunteer) {
+            // This is a volunteer - check referred_by
             const result = await supabase
                 .from("orders")
                 .select("*")
                 .eq("id", orderId)
-                .eq("referred_by", student.id)
+                .eq("referred_by", volunteer.id)
                 .maybeSingle();
 
             order = result.data;

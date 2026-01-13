@@ -73,8 +73,8 @@ export function OrderBill({ order }: OrderBillProps) {
     return (
         <div className="space-y-4">
             {/* Bill Container */}
-            <Card className="glass-strong rounded-3xl overflow-hidden">
-                <div ref={billRef} className="p-8 bg-background">
+            <Card className="rounded-3xl overflow-hidden border-2 border-border">
+                <div ref={billRef} className="p-8 bg-white" style={{ backgroundColor: '#ffffff' }}>
                     {/* Header */}
                     <div className="flex items-center justify-between mb-8 pb-6 border-b-2 border-primary/30">
                         <div>

@@ -1,6 +1,6 @@
 -- =====================================================
--- Attar Al Jannah Database Schema
--- Complete setup including WhatsApp number field
+-- Attar Al Jannah Database Schema - Volunteer System
+-- Complete setup with volunteer referrals and leaderboard
 -- =====================================================
 
 -- =====================================================
@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
   phone TEXT UNIQUE NOT NULL,
-  role TEXT CHECK (role IN ('admin', 'student', 'customer')) DEFAULT 'customer',
+  role TEXT CHECK (role IN ('admin', 'volunteer', 'customer')) DEFAULT 'customer',
   address TEXT,
   total_sales INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -55,18 +55,19 @@ CREATE INDEX IF NOT EXISTS idx_orders_order_status ON orders(order_status);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
 
 -- =====================================================
--- 3. CHALLENGE PROGRESS TABLE
+-- 3. VOLUNTEER PROGRESS TABLE
 -- =====================================================
 CREATE TABLE IF NOT EXISTS challenge_progress (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  student_id UUID REFERENCES users(id) UNIQUE NOT NULL,
-  verified_sales INTEGER DEFAULT 0,
+  volunteer_id UUID REFERENCES users(id) UNIQUE NOT NULL,
+  confirmed_orders INTEGER DEFAULT 0,
   goal INTEGER DEFAULT 20,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Create index
-CREATE INDEX IF NOT EXISTS idx_challenge_progress_student_id ON challenge_progress(student_id);
+-- Create indexes
+CREATE INDEX IF NOT EXISTS idx_challenge_progress_volunteer_id ON challenge_progress(volunteer_id);
+CREATE INDEX IF NOT EXISTS idx_challenge_progress_confirmed_orders ON challenge_progress(confirmed_orders DESC);
 
 -- =====================================================
 -- 4. TIMESTAMP TRIGGERS
@@ -113,20 +114,20 @@ INSERT INTO users (name, phone, role, address)
 VALUES ('Admin User', '9999999999', 'admin', 'Admin Office')
 ON CONFLICT (phone) DO NOTHING;
 
--- Create Sample Students
+-- Create Sample Volunteers
 INSERT INTO users (name, phone, role, address)
 VALUES 
-  ('Student One', '9876543210', 'student', 'Student Address 1'),
-  ('Student Two', '9876543211', 'student', 'Student Address 2')
+  ('Volunteer One', '9876543210', 'volunteer', 'Volunteer Address 1'),
+  ('Volunteer Two', '9876543211', 'volunteer', 'Volunteer Address 2')
 ON CONFLICT (phone) DO NOTHING;
 
--- Initialize Challenge Progress for Students
-INSERT INTO challenge_progress (student_id, verified_sales, goal)
+-- Initialize Challenge Progress for Volunteers
+INSERT INTO challenge_progress (volunteer_id, confirmed_orders, goal)
 SELECT id, 0, 20
 FROM users
-WHERE role = 'student'
-  AND id NOT IN (SELECT student_id FROM challenge_progress)
-ON CONFLICT (student_id) DO NOTHING;
+WHERE role = 'volunteer'
+  AND id NOT IN (SELECT volunteer_id FROM challenge_progress)
+ON CONFLICT (volunteer_id) DO NOTHING;
 
 -- =====================================================
 -- STORAGE BUCKET SETUP (Run separately in Storage section)

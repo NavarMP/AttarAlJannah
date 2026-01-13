@@ -14,7 +14,7 @@ export type Database = {
                     id: string
                     name: string
                     phone: string
-                    role: "admin" | "student" | "customer"
+                    role: "admin" | "volunteer" | "customer"
                     address: string | null
                     total_sales: number
                     created_at: string
@@ -23,7 +23,7 @@ export type Database = {
                     id?: string
                     name: string
                     phone: string
-                    role?: "admin" | "student" | "customer"
+                    role?: "admin" | "volunteer" | "customer"
                     address?: string | null
                     total_sales?: number
                     created_at?: string
@@ -32,7 +32,7 @@ export type Database = {
                     id?: string
                     name?: string
                     phone?: string
-                    role?: "admin" | "student" | "customer"
+                    role?: "admin" | "volunteer" | "customer"
                     address?: string | null
                     total_sales?: number
                     created_at?: string
@@ -54,6 +54,7 @@ export type Database = {
                     customer_phone: string
                     customer_email: string | null
                     customer_address: string
+                    whatsapp_number: string
                     created_at: string
                     updated_at: string
                 }
@@ -72,6 +73,7 @@ export type Database = {
                     customer_phone: string
                     customer_email?: string | null
                     customer_address: string
+                    whatsapp_number: string
                     created_at?: string
                     updated_at?: string
                 }
@@ -90,6 +92,7 @@ export type Database = {
                     customer_phone?: string
                     customer_email?: string | null
                     customer_address?: string
+                    whatsapp_number?: string
                     created_at?: string
                     updated_at?: string
                 }
@@ -97,22 +100,22 @@ export type Database = {
             challenge_progress: {
                 Row: {
                     id: string
-                    student_id: string
-                    verified_sales: number
+                    volunteer_id: string
+                    confirmed_orders: number
                     goal: number
                     updated_at: string
                 }
                 Insert: {
                     id?: string
-                    student_id: string
-                    verified_sales?: number
+                    volunteer_id: string
+                    confirmed_orders?: number
                     goal?: number
                     updated_at?: string
                 }
                 Update: {
                     id?: string
-                    student_id?: string
-                    verified_sales?: number
+                    volunteer_id?: string
+                    confirmed_orders?: number
                     goal?: number
                     updated_at?: string
                 }

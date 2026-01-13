@@ -26,20 +26,27 @@ interface CustomerProfile {
 }
 
 interface OrderFormProps {
-    studentId?: string;
+    volunteerId?: string;
     prefillData?: any;
     customerProfile?: CustomerProfile | null;
 }
 
 const PRODUCT_PRICE = 313;
 
-export function OrderForm({ studentId, prefillData, customerProfile }: OrderFormProps) {
+export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFormProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [showCamera, setShowCamera] = useState(false);
     const [capturedFile, setCapturedFile] = useState<File | null>(null);
     const [screenshotError, setScreenshotError] = useState<string | null>(null);
+
+    // Volunteer referral state
+    const [volunteerReferralId, setVolunteerReferralId] = useState<string>(volunteerId || "");
+    const [volunteerName, setVolunteerName] = useState<string>("");
+    const [isValidatingVolunteer, setIsValidatingVolunteer] = useState(false);
+    const [volunteerValidationError, setVolunteerValidationError] = useState<string>("");
+    const [isVolunteerValidated, setIsVolunteerValidated] = useState(!!volunteerId);
 
     const {
         register,
@@ -106,6 +113,49 @@ export function OrderForm({ studentId, prefillData, customerProfile }: OrderForm
             toast.error("Please enter a valid phone number first");
         }
     };
+
+    // Validate volunteer ID
+    const validateVolunteerId = async (id: string) => {
+        if (!id || id.trim() === "") {
+            setVolunteerName("");
+            setVolunteerValidationError("");
+            setIsVolunteerValidated(false);
+            return;
+        }
+
+        setIsValidatingVolunteer(true);
+        setVolunteerValidationError("");
+
+        try {
+            const response = await fetch(`/api/volunteer/validate?volunteerId=${encodeURIComponent(id)}`);
+            const data = await response.json();
+
+            if (data.valid && data.volunteer) {
+                setVolunteerName(data.volunteer.name);
+                setIsVolunteerValidated(true);
+                setVolunteerValidationError("");
+                toast.success(`Referred by: ${data.volunteer.name}`);
+            } else {
+                setVolunteerName("");
+                setIsVolunteerValidated(false);
+                setVolunteerValidationError("Invalid volunteer ID");
+            }
+        } catch (error) {
+            setVolunteerName("");
+            setIsVolunteerValidated(false);
+            setVolunteerValidationError("Failed to validate volunteer ID");
+        } finally {
+            setIsValidatingVolunteer(false);
+        }
+    };
+
+    // Auto-validate if volunteerId is passed via props
+    useEffect(() => {
+        if (volunteerId) {
+            setVolunteerReferralId(volunteerId);
+            validateVolunteerId(volunteerId);
+        }
+    }, [volunteerId]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -184,8 +234,11 @@ export function OrderForm({ studentId, prefillData, customerProfile }: OrderForm
             formData.append("quantity", data.quantity.toString());
             formData.append("totalPrice", totalPrice.toString());
             formData.append("paymentMethod", data.paymentMethod);
-            if (studentId) {
-                formData.append("referredBy", studentId);
+            // Add referred_by if volunteer ID is provided and validated
+            if (volunteerId) {
+                formData.append("referredBy", volunteerId);
+            } else if (isVolunteerValidated && volunteerReferralId.trim()) {
+                formData.append("referredBy", volunteerReferralId.trim());
             }
 
             // Handle file upload - use captured file if available, otherwise use form file input
@@ -227,15 +280,16 @@ export function OrderForm({ studentId, prefillData, customerProfile }: OrderForm
     };
 
     return (
-        <Card className="max-w-2xl mx-auto glass-strong rounded-3xl">
-            <CardHeader>
-                <CardTitle className="text-3xl">Order Attar al-Jannah</CardTitle>
-                <CardDescription>
-                    Fill in your details to place an order. {studentId && "This order will be credited to your student account."}
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-w-2xl mx-auto">
+            {/* Contact Details */}
+            <Card className="glass-strong rounded-3xl">
+                <CardHeader>
+                    <CardTitle className="text-3xl">Order Attar al-Jannah</CardTitle>
+                    <CardDescription>
+                        Fill in your details to place an order. {volunteerId && "This order will be credited to your volunteer account."}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
                     {/* Customer Name */}
                     <div className="space-y-2">
                         <Label htmlFor="customerName">Full Name *</Label>
@@ -276,10 +330,10 @@ export function OrderForm({ studentId, prefillData, customerProfile }: OrderForm
                                 variant="outline"
                                 size="sm"
                                 onClick={copyPhoneToWhatsApp}
-                                className="h-7 text-xs"
+                                className="text-xs"
                             >
-                                <Copy className="mr-1 h-3 w-3" />
-                                Same as Phone
+                                <Copy className="w-3 h-3 mr-1" />
+                                Same as phone
                             </Button>
                         </div>
                         <Input
@@ -310,6 +364,80 @@ export function OrderForm({ studentId, prefillData, customerProfile }: OrderForm
                             <p className="text-sm text-destructive">{errors.customerEmail.message}</p>
                         )}
                     </div>
+                </CardContent>
+            </Card>
+
+            {/* Volunteer Referral Section */}
+            <Card className="glass-strong border-gold-300 dark:border-gold-700">
+                <CardHeader>
+                    <CardTitle className="text-lg">Volunteer Referral (Optional)</CardTitle>
+                    <CardDescription>
+                        If you were referred by a volunteer, enter their ID to credit them for this order
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-2">
+                        <div className="flex gap-2">
+                            <div className="flex-1">
+                                <Input
+                                    id="volunteerReferral"
+                                    type="text"
+                                    placeholder="Enter Volunteer ID"
+                                    value={volunteerReferralId}
+                                    onChange={(e) => setVolunteerReferralId(e.target.value)}
+                                    readOnly={!!volunteerId}
+                                    disabled={isValidatingVolunteer}
+                                    className={
+                                        volunteerValidationError
+                                            ? "border-destructive"
+                                            : isVolunteerValidated
+                                                ? "border-emerald-500"
+                                                : ""
+                                    }
+                                />
+                                {isVolunteerValidated && volunteerName && (
+                                    <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
+                                        <CheckCircle2 className="w-4 h-4" />
+                                        Referred by: <span className="font-semibold">{volunteerName}</span>
+                                    </p>
+                                )}
+                                {volunteerValidationError && (
+                                    <p className="text-sm text-destructive mt-1">{volunteerValidationError}</p>
+                                )}
+                                {!!volunteerId && (
+                                    <p className="text-sm text-muted-foreground mt-1">
+                                        This order will be credited to the referring volunteer
+                                    </p>
+                                )}
+                            </div>
+                            {!volunteerId && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => validateVolunteerId(volunteerReferralId)}
+                                    disabled={isValidatingVolunteer || !volunteerReferralId.trim()}
+                                >
+                                    {isValidatingVolunteer ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                            Validating...
+                                        </>
+                                    ) : (
+                                        "Validate"
+                                    )}
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Order Details */}
+            <Card className="glass-strong">
+                <CardHeader>
+                    <CardTitle className="text-lg">Order & Delivery Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
 
                     {/* Address Section */}
                     <div className="space-y-4">
@@ -584,17 +712,16 @@ export function OrderForm({ studentId, prefillData, customerProfile }: OrderForm
                     <p className="text-xs text-center text-muted-foreground">
                         * Orders will be confirmed after admin verification {paymentMethod === "upi" && "of payment screenshot"}
                     </p>
-                </form>
+                </CardContent>
+            </Card>
 
-                {/* Camera Modal */}
-                {showCamera && (
-                    <CameraCapture
-                        onCapture={handleCameraCapture}
-                        onClose={() => setShowCamera(false)}
-                    />
-                )}
-            </CardContent>
-        </Card>
+            {/* Camera Modal */}
+            {showCamera && (
+                <CameraCapture
+                    onCapture={handleCameraCapture}
+                    onClose={() => setShowCamera(false)}
+                />
+            )}
+        </form>
     );
 }
-

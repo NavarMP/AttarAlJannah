@@ -21,7 +21,7 @@ interface Order {
     order_status: string;
     created_at: string;
     referred_by?: string;
-    student_name?: string;
+    volunteer_name?: string;
 }
 
 export default function OrdersPage() {
@@ -145,7 +145,7 @@ export default function OrdersPage() {
                                 <tr>
                                     <th className="px-6 py-4 text-left text-sm font-semibold">Customer</th>
                                     <th className="px-6 py-4 text-left text-sm font-semibold">Phone</th>
-                                    <th className="px-6 py-4 text-left text-sm font-semibold">Student</th>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold">Volunteer</th>
                                     <th className="px-6 py-4 text-left text-sm font-semibold">Quantity</th>
                                     <th className="px-6 py-4 text-left text-sm font-semibold">Total</th>
                                     <th className="px-6 py-4 text-left text-sm font-semibold">Payment</th>
@@ -168,9 +168,9 @@ export default function OrdersPage() {
                                             {order.customer_phone}
                                         </td>
                                         <td className="px-6 py-4">
-                                            {order.student_name ? (
+                                            {order.volunteer_name ? (
                                                 <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">
-                                                    {order.student_name}
+                                                    {order.volunteer_name}
                                                 </span>
                                             ) : (
                                                 <span className="text-sm text-muted-foreground">-</span>

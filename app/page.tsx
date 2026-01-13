@@ -1,4 +1,5 @@
 import { HeroSection } from "@/components/sections/hero-section";
+import { PromoVideoSection } from "@/components/sections/promo-video-section";
 import { ProductDetails } from "@/components/sections/product-details";
 import { AboutDars } from "@/components/sections/about-dars";
 import { ShareButtons } from "@/components/sections/share-buttons";
@@ -15,6 +16,9 @@ export default function Home() {
 
             {/* Hero: Photo, Logo, Subtitle, Price, Order Button, Login (top right) */}
             <HeroSection />
+
+            {/* Promo Video */}
+            <PromoVideoSection />
 
             {/* About and Features */}
             <ProductDetails />

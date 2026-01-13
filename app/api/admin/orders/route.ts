@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
             .from("orders")
             .select(`
                 *,
-                student:users!orders_referred_by_fkey(name)
+                volunteer:users!orders_referred_by_fkey(name)
             `, { count: "exact" })
             .order("created_at", { ascending: false });
 
@@ -37,11 +37,11 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        // Transform the data to include student_name
+        // Transform the data to include volunteer_name
         const transformedOrders = orders?.map(order => ({
             ...order,
-            student_name: order.student?.name || null,
-            student: undefined, // Remove the nested object
+            volunteer_name: order.volunteer?.name || null,
+            volunteer: undefined, // Remove the nested object
         }));
 
         return NextResponse.json({

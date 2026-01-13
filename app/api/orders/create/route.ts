@@ -55,23 +55,23 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // If referredBy is provided, look up the student's UUID from their student_id
+        // If referredBy is provided, look up the volunteer's UUID from their volunteer_id
         let referredByUuid: string | null = null;
         if (referredBy) {
-            console.log("🔍 Looking up student with ID:", referredBy);
-            const { data: student, error: studentError } = await supabase
+            console.log("🔍 Looking up volunteer with ID:", referredBy);
+            const { data: volunteer, error: volunteerError } = await supabase
                 .from("users")
                 .select("id")
-                .eq("student_id", referredBy)
-                .eq("user_role", "student")
+                .eq("volunteer_id", referredBy)
+                .eq("user_role", "volunteer")
                 .single();
 
-            if (studentError) {
-                console.error("⚠️ Student lookup error:", studentError.message);
-                // Continue without referral if student not found
-            } else if (student) {
-                referredByUuid = student.id;
-                console.log("✅ Found student UUID:", referredByUuid);
+            if (volunteerError) {
+                console.error("⚠️ Volunteer lookup error:", volunteerError.message);
+                // Continue without referral if volunteer not found
+            } else if (volunteer) {
+                referredByUuid = volunteer.id;
+                console.log("✅ Found volunteer UUID:", referredByUuid);
             }
         }
 

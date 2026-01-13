@@ -1,10 +1,10 @@
 import { z } from "zod";
 
-export const studentLoginSchema = z.object({
-    identifier: z.string().min(1, "Please enter your phone number or student ID"),
+export const volunteerLoginSchema = z.object({
+    identifier: z.string().min(1, "Please enter your phone number or volunteer ID"),
 });
 
-export type StudentLoginData = z.infer<typeof studentLoginSchema>;
+export type VolunteerLoginData = z.infer<typeof volunteerLoginSchema>;
 
 export const otpSchema = z.object({
     otp: z.string().length(6, "OTP must be 6 digits"),
