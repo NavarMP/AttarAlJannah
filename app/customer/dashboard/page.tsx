@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCustomerAuth } from "@/lib/contexts/customer-auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Package, RefreshCw, ShoppingCart, LogOut, User } from "lucide-react";
+import { Package, RefreshCw, ShoppingCart, LogOut, User, Edit2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -60,6 +60,33 @@ export default function CustomerDashboard() {
         } catch (error) {
             toast.error("Failed to log out");
         }
+    };
+
+    const handleDeleteOrder = async (orderId: string) => {
+        if (!confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/orders/delete?orderId=${orderId}&phone=${encodeURIComponent(user?.phone || '')}`, {
+                method: "DELETE",
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || "Failed to delete order");
+            }
+
+            toast.success("Order deleted successfully");
+            fetchOrders(); // Refresh the orders list
+        } catch (error: any) {
+            toast.error(error.message || "Failed to delete order");
+            console.error(error);
+        }
+    };
+
+    const handleEditOrder = (orderId: string) => {
+        router.push(`/order?edit=${orderId}`);
     };
 
     const getStatusColor = (status: string) => {
@@ -205,7 +232,8 @@ export default function CustomerDashboard() {
                                 {orders.map((order) => (
                                     <div
                                         key={order.id}
-                                        className="p-4 rounded-2xl border border-border hover:bg-accent/50 transition-colors"
+                                        onClick={() => router.push(`/customer/orders/${order.id}`)}
+                                        className="p-4 rounded-2xl border border-border hover:bg-accent/50 transition-colors cursor-pointer"
                                     >
                                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                             <div className="space-y-1">
@@ -226,14 +254,38 @@ export default function CustomerDashboard() {
                                                 <div className="text-right">
                                                     <p className="text-2xl font-bold text-primary">₹{order.total_price}</p>
                                                 </div>
-                                                {order.order_status === "delivered" && (
-                                                    <Link href={`/order?reorder=${order.id}`}>
-                                                        <Button variant="outline" size="sm" className="rounded-xl">
-                                                            <RefreshCw className="w-4 h-4 mr-1" />
-                                                            Reorder
-                                                        </Button>
-                                                    </Link>
-                                                )}
+                                                <div className="flex gap-2">
+                                                    {order.order_status === "pending" && (
+                                                        <>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => handleEditOrder(order.id)}
+                                                                className="rounded-xl"
+                                                            >
+                                                                <Edit2 className="w-4 h-4 mr-1" />
+                                                                Edit
+                                                            </Button>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => handleDeleteOrder(order.id)}
+                                                                className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                                            >
+                                                                <Trash2 className="w-4 h-4 mr-1" />
+                                                                Delete
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                    {order.order_status === "delivered" && (
+                                                        <Link href={`/order?reorder=${order.id}`}>
+                                                            <Button variant="outline" size="sm" className="rounded-xl">
+                                                                <RefreshCw className="w-4 h-4 mr-1" />
+                                                                Reorder
+                                                            </Button>
+                                                        </Link>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

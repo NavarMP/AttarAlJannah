@@ -5,6 +5,7 @@ export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const studentId = searchParams.get("studentId");
+        const orderId = searchParams.get("orderId");
 
         if (!studentId) {
             return NextResponse.json(
@@ -30,19 +31,37 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Get all orders referred by this student
-        const { data: orders, error: ordersError } = await supabase
+        // If orderId is provided, fetch single order
+        if (orderId) {
+            const { data: order, error } = await supabase
+                .from("orders")
+                .select("*")
+                .eq("id", orderId)
+                .eq("referred_by", student.id)
+                .single();
+
+            if (error) {
+                console.error("Order fetch error:", error);
+                return NextResponse.json({ error: error.message }, { status: 500 });
+            }
+
+            if (!order) {
+                return NextResponse.json({ error: "Order not found" }, { status: 404 });
+            }
+
+            return NextResponse.json({ order });
+        }
+
+        // Otherwise fetch all orders referred by this student
+        const { data: orders, error } = await supabase
             .from("orders")
             .select("*")
             .eq("referred_by", student.id)
             .order("created_at", { ascending: false });
 
-        if (ordersError) {
-            console.error("Orders fetch error:", ordersError);
-            return NextResponse.json(
-                { error: "Failed to fetch orders" },
-                { status: 500 }
-            );
+        if (error) {
+            console.error("Orders fetch error:", error);
+            return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
         return NextResponse.json({ orders: orders || [] });

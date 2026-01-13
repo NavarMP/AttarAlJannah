@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, CheckCircle2, Upload, QrCode, Copy, Camera } from "lucide-react";
+import { Loader2, CheckCircle2, Upload, QrCode, Copy, Camera, X, AlertTriangle } from "lucide-react";
+import { LocationPicker } from "@/components/ui/location-picker";
 import { toast } from "sonner";
 import Image from "next/image";
 import { CameraCapture } from "@/components/ui/camera-capture";
@@ -38,6 +39,7 @@ export function OrderForm({ studentId, prefillData, customerProfile }: OrderForm
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [showCamera, setShowCamera] = useState(false);
     const [capturedFile, setCapturedFile] = useState<File | null>(null);
+    const [screenshotError, setScreenshotError] = useState<string | null>(null);
 
     const {
         register,
@@ -57,15 +59,28 @@ export function OrderForm({ studentId, prefillData, customerProfile }: OrderForm
     // Auto-fill from customer profile or prefill data
     useEffect(() => {
         if (prefillData) {
-            // Reorder scenario
+            // Reorder or Edit scenario
             setValue("customerName", prefillData.customerName);
             setValue("customerPhone", prefillData.customerPhone);
             setValue("whatsappNumber", prefillData.whatsappNumber);
             setValue("customerEmail", prefillData.customerEmail);
             setValue("quantity", prefillData.quantity);
 
-            // Parse address if available
-            if (prefillData.customerAddress) {
+            // Parse address if available (for edit mode with individual fields)
+            if (prefillData.houseBuilding) {
+                setValue("houseBuilding", prefillData.houseBuilding);
+                setValue("town", prefillData.town);
+                setValue("post", prefillData.post);
+                setValue("city", prefillData.city);
+                setValue("district", prefillData.district);
+                setValue("state", prefillData.state);
+                setValue("pincode", prefillData.pincode);
+            }
+
+            // Show a message if data was prefilled
+            if (prefillData.orderId) {
+                toast.info("Editing your order. Update the details and submit.");
+            } else if (prefillData.customerAddress) {
                 toast.info("Form prefilled with your previous order details!");
             }
         } else if (customerProfile) {
@@ -95,9 +110,40 @@ export function OrderForm({ studentId, prefillData, customerProfile }: OrderForm
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            // Validate file type
+            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic'];
+            if (!validTypes.includes(file.type.toLowerCase())) {
+                toast.error('Please upload a valid image file (JPG, PNG, WEBP, or HEIC)');
+                e.target.value = ''; // Clear the input
+                return;
+            }
+
+            // Validate file size (10MB max)
+            const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+            if (file.size > maxSize) {
+                toast.error('Image size must be less than 10MB');
+                e.target.value = ''; // Clear the input
+                return;
+            }
+
             const url = URL.createObjectURL(file);
             setPreviewUrl(url);
             setCapturedFile(file);
+            setScreenshotError(null); // Clear error when file is selected
+        }
+    };
+
+    const handleRemoveFile = () => {
+        // Clear preview and file
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+        }
+        setPreviewUrl(null);
+        setCapturedFile(null);
+        // Reset the file input
+        const fileInput = document.getElementById('paymentScreenshot') as HTMLInputElement;
+        if (fileInput) {
+            fileInput.value = '';
         }
     };
 
@@ -106,12 +152,20 @@ export function OrderForm({ studentId, prefillData, customerProfile }: OrderForm
         const url = URL.createObjectURL(file);
         setPreviewUrl(url);
         setShowCamera(false);
+        setScreenshotError(null); // Clear error when file is captured
     };
 
     const onSubmit = async (data: OrderFormData) => {
         // Validate UPI payment screenshot before submission
         if (data.paymentMethod === "upi" && !capturedFile && (!data.paymentScreenshot || !data.paymentScreenshot[0])) {
-            toast.error("Please upload a payment screenshot for UPI payments");
+            setScreenshotError("Please upload a payment screenshot for UPI payments");
+            // Scroll to the payment screenshot field
+            const screenshotField = document.getElementById('paymentScreenshot');
+            if (screenshotField) {
+                screenshotField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Focus on the field to draw attention
+                setTimeout(() => screenshotField.focus(), 300);
+            }
             return;
         }
 
@@ -150,11 +204,20 @@ export function OrderForm({ studentId, prefillData, customerProfile }: OrderForm
                 throw new Error("Failed to submit order");
             }
 
-            setIsSuccess(true);
-            toast.success("Order submitted successfully!");
-            reset();
-            setPreviewUrl(null);
-            setCapturedFile(null);
+            const result = await response.json();
+            const orderId = result.order?.id;
+
+            if (orderId) {
+                toast.success("Order submitted successfully!");
+                // Show loading toast during redirect
+                toast.loading("Preparing your order details...", { duration: Infinity });
+                // Small delay to ensure toast shows
+                await new Promise(resolve => setTimeout(resolve, 300));
+                // Redirect to thanks page with order ID
+                window.location.href = `/thanks?orderId=${orderId}`;
+            } else {
+                throw new Error("Order ID not received");
+            }
         } catch (error) {
             toast.error("Failed to submit order. Please try again.");
             console.error(error);
@@ -162,31 +225,6 @@ export function OrderForm({ studentId, prefillData, customerProfile }: OrderForm
             setIsSubmitting(false);
         }
     };
-
-    if (isSuccess) {
-        return (
-            <Card className="max-w-2xl mx-auto glass border-primary/30 dark:border-primary/20 rounded-3xl">
-                <CardContent className="pt-12 pb-12 text-center space-y-6">
-                    <div className="flex justify-center">
-                        <CheckCircle2 className="w-24 h-24 text-primary animate-bounce" />
-                    </div>
-                    <div className="space-y-2">
-                        <h2 className="text-3xl font-bold text-foreground">Thank You!</h2>
-                        <p className="text-lg text-muted-foreground">
-                            Your order has been received successfully.
-                        </p>
-                        <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                            Our admin team will verify your payment and confirm your order soon.
-                            You&apos;ll receive updates via phone or Whatsapp.
-                        </p>
-                    </div>
-                    <Button onClick={() => setIsSuccess(false)} variant="outline">
-                        Place Another Order
-                    </Button>
-                </CardContent>
-            </Card>
-        );
-    }
 
     return (
         <Card className="max-w-2xl mx-auto glass-strong rounded-3xl">
@@ -216,8 +254,12 @@ export function OrderForm({ studentId, prefillData, customerProfile }: OrderForm
                         <Label htmlFor="customerPhone">Mobile Number *</Label>
                         <Input
                             id="customerPhone"
+                            type="number"
                             placeholder="10-digit mobile number"
                             maxLength={10}
+                            onInput={(e: React.FormEvent<HTMLInputElement>) => {
+                                e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '').slice(0, 10);
+                            }}
                             {...register("customerPhone")}
                         />
                         {errors.customerPhone && (
@@ -242,8 +284,12 @@ export function OrderForm({ studentId, prefillData, customerProfile }: OrderForm
                         </div>
                         <Input
                             id="whatsappNumber"
+                            type="number"
                             placeholder="10-digit WhatsApp number"
                             maxLength={10}
+                            onInput={(e: React.FormEvent<HTMLInputElement>) => {
+                                e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '').slice(0, 10);
+                            }}
                             {...register("whatsappNumber")}
                         />
                         {errors.whatsappNumber && (
@@ -265,9 +311,24 @@ export function OrderForm({ studentId, prefillData, customerProfile }: OrderForm
                         )}
                     </div>
 
-                    {/* Address Fields */}
+                    {/* Address Section */}
                     <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-foreground">Delivery Address</h3>
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-semibold">Delivery Address</h3>
+                        </div>
+
+                        {/* Location Picker */}
+                        <LocationPicker
+                            onLocationSelect={(address) => {
+                                setValue("houseBuilding", address.houseBuilding);
+                                setValue("town", address.town);
+                                setValue("post", address.post);
+                                setValue("city", address.city);
+                                setValue("district", address.district);
+                                setValue("state", address.state);
+                                setValue("pincode", address.pincode);
+                            }}
+                        />
 
                         {/* House/Building */}
                         <div className="space-y-2">
@@ -327,8 +388,12 @@ export function OrderForm({ studentId, prefillData, customerProfile }: OrderForm
                                 <Label htmlFor="pincode">Pincode *</Label>
                                 <Input
                                     id="pincode"
+                                    type="number"
                                     placeholder="6-digit pincode"
                                     maxLength={6}
+                                    onInput={(e: React.FormEvent<HTMLInputElement>) => {
+                                        e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '').slice(0, 6);
+                                    }}
                                     {...register("pincode")}
                                 />
                                 {errors.pincode && (
@@ -419,7 +484,7 @@ export function OrderForm({ studentId, prefillData, customerProfile }: OrderForm
                             <div className="bg-white p-4 rounded-lg w-64 h-64 mx-auto flex items-center justify-center border-2 border-primary/30 shadow-lg">
                                 <div className="relative w-full h-full">
                                     <Image
-                                        src="/assets/payment QR.svg"
+                                        src="/assets/Payment QR.webp"
                                         alt="UPI Payment QR Code"
                                         fill
                                         className="object-contain"
@@ -432,45 +497,69 @@ export function OrderForm({ studentId, prefillData, customerProfile }: OrderForm
                             <div className="space-y-3">
                                 <Label htmlFor="paymentScreenshot">Payment Screenshot *</Label>
 
-                                <div className="flex flex-col sm:flex-row gap-3">
-                                    {/* File Upload */}
-                                    <div className="flex-1">
-                                        <Input
-                                            id="paymentScreenshot"
-                                            type="file"
-                                            accept="image/*"
-                                            {...register("paymentScreenshot")}
-                                            onChange={handleFileChange}
-                                            className="cursor-pointer"
-                                        />
+                                <div className={`p-4 rounded-xl border-2 transition-colors ${screenshotError
+                                    ? 'border-red-500 bg-red-50 dark:bg-red-950/20'
+                                    : 'border-border bg-background'
+                                    }`}>
+                                    <div className="flex flex-col sm:flex-row gap-3">
+                                        {/* File Upload */}
+                                        <div className="flex-1">
+                                            <Input
+                                                id="paymentScreenshot"
+                                                type="file"
+                                                accept="image/*"
+                                                {...register("paymentScreenshot")}
+                                                onChange={handleFileChange}
+                                                className="cursor-pointer"
+                                            />
+                                        </div>
+
+                                        {/* Camera Button */}
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => setShowCamera(true)}
+                                            className="sm:w-auto w-full"
+                                        >
+                                            <Camera className="mr-2 h-4 w-4" />
+                                            Take Photo
+                                        </Button>
                                     </div>
 
-                                    {/* Camera Button */}
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => setShowCamera(true)}
-                                        className="sm:w-auto w-full"
-                                    >
-                                        <Camera className="mr-2 h-4 w-4" />
-                                        Take Photo
-                                    </Button>
+                                    <p className="text-xs text-muted-foreground mt-2">
+                                        Upload from gallery or use camera to capture payment screen
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        <strong>Supported:</strong> JPG, PNG, WEBP, HEIC • <strong>Max size:</strong> 10 MB
+                                    </p>
+
+                                    {screenshotError && (
+                                        <p className="text-sm text-red-500 font-medium mt-2 flex items-center gap-1">
+                                            <span className="text-red-500">⚠</span>
+                                            {screenshotError}
+                                        </p>
+                                    )}
+
+                                    {previewUrl && (
+                                        <div className="relative w-full h-48 rounded-md overflow-hidden border mt-3">
+                                            <Image
+                                                src={previewUrl}
+                                                alt="Payment screenshot preview"
+                                                fill
+                                                className="object-contain"
+                                            />
+                                            {/* Remove Button */}
+                                            <button
+                                                type="button"
+                                                onClick={handleRemoveFile}
+                                                className="absolute top-2 right-2 p-1.5 rounded-full bg-red-500 hover:bg-red-600 text-white shadow-lg transition-colors z-10"
+                                                aria-label="Remove screenshot"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
-
-                                <p className="text-xs text-muted-foreground">
-                                    Upload from gallery or use camera to capture payment screen
-                                </p>
-
-                                {previewUrl && (
-                                    <div className="relative w-full h-48 rounded-md overflow-hidden border">
-                                        <Image
-                                            src={previewUrl}
-                                            alt="Payment screenshot preview"
-                                            fill
-                                            className="object-contain"
-                                        />
-                                    </div>
-                                )}
                             </div>
                         </div>
                     )}

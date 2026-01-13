@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Package, ArrowLeft, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { Package, ArrowLeft, CheckCircle2, Clock, XCircle, Edit2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Order {
@@ -49,6 +49,34 @@ export default function StudentOrdersPage() {
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleDeleteOrder = async (orderId: string) => {
+        if (!confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
+            return;
+        }
+
+        try {
+            // Use student ID instead of phone for authentication
+            const response = await fetch(`/api/orders/delete?orderId=${orderId}&phone=${studentId}`, {
+                method: "DELETE",
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || "Failed to delete order");
+            }
+
+            toast.success("Order deleted successfully");
+            if (studentId) fetchOrders(studentId); // Refresh the orders list
+        } catch (error: any) {
+            toast.error(error.message || "Failed to delete order");
+            console.error(error);
+        }
+    };
+
+    const handleEditOrder = (orderId: string) => {
+        router.push(`/student/new-order?edit=${orderId}`);
     };
 
     const getStatusIcon = (paymentStatus: string, orderStatus: string) => {
@@ -113,7 +141,11 @@ export default function StudentOrdersPage() {
                 ) : (
                     <div className="space-y-4">
                         {orders.map((order) => (
-                            <Card key={order.id} className="glass hover:border-primary/50 transition-colors">
+                            <Card
+                                key={order.id}
+                                onClick={() => router.push(`/student/orders/${order.id}`)}
+                                className="glass hover:border-primary/50 transition-colors cursor-pointer"
+                            >
                                 <CardContent className="p-6">
                                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                         <div className="space-y-2 flex-1">
@@ -151,13 +183,37 @@ export default function StudentOrdersPage() {
                                                     ₹{order.total_price.toLocaleString()}
                                                 </p>
                                             </div>
-                                            <div className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusText(order.payment_status, order.order_status) === "Completed"
+                                            <div className="flex gap-2 items-center">
+                                                {order.order_status === "pending" && (
+                                                    <>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => handleEditOrder(order.id)}
+                                                            className="rounded-xl"
+                                                        >
+                                                            <Edit2 className="w-4 h-4 mr-1" />
+                                                            Edit
+                                                        </Button>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => handleDeleteOrder(order.id)}
+                                                            className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                                        >
+                                                            <Trash2 className="w-4 h-4 mr-1" />
+                                                            Delete
+                                                        </Button>
+                                                    </>
+                                                )}
+                                                <div className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusText(order.payment_status, order.order_status) === "Completed"
                                                     ? "bg-emerald-500/20 text-emerald-500"
                                                     : getStatusText(order.payment_status, order.order_status) === "Cancelled"
                                                         ? "bg-red-500/20 text-red-500"
                                                         : "bg-yellow-500/20 text-yellow-500"
-                                                }`}>
-                                                {getStatusText(order.payment_status, order.order_status)}
+                                                    }`}>
+                                                    {getStatusText(order.payment_status, order.order_status)}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

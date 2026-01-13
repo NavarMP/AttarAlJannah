@@ -33,15 +33,15 @@ export async function GET(
             .eq("student_id", student.student_id)
             .single();
 
-        // Get order statistics
+        // Get order statistics using UUID (required_by is UUID)
         const { data: orders } = await supabase
             .from("orders")
             .select("*")
-            .eq("referred_by", student.student_id);
+            .eq("referred_by", student.id);
 
         const totalOrders = orders?.length || 0;
-        const verifiedOrders = orders?.filter(o => o.payment_status === "verified").length || 0;
-        const pendingOrders = orders?.filter(o => o.payment_status === "pending").length || 0;
+        const verifiedOrders = orders?.filter(o => o.payment_status === "verified" && (o.order_status === "confirmed" || o.order_status === "delivered")).length || 0;
+        const pendingOrders = orders?.filter(o => o.payment_status !== "verified" || o.order_status === "pending").length || 0;
 
         return NextResponse.json({
             student: {

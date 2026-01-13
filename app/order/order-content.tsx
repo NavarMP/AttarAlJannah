@@ -1,18 +1,30 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { OrderForm } from "@/components/forms/order-form";
 import { useCustomerAuth } from "@/lib/contexts/customer-auth-context";
 import { Card, CardContent } from "@/components/ui/card";
-import { Phone, MessageCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Phone, MessageCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 
 export function OrderContent() {
     const searchParams = useSearchParams();
+    const router = useRouter();
     const { user, customerProfile } = useCustomerAuth();
     const [prefillData, setPrefillData] = useState<any>(null);
     const [referralCode, setReferralCode] = useState<string | null>(null);
+
+    const handleBack = () => {
+        // Go to customer dashboard if logged in, otherwise go to home
+        if (user && customerProfile) {
+            router.push("/customer/dashboard");
+        } else {
+            router.push("/");
+        }
+    };
 
     const fetchOrderForReorder = useCallback(async (orderId: string) => {
         try {
@@ -35,6 +47,38 @@ export function OrderContent() {
         }
     }, [user?.phone]);
 
+    const fetchOrderForEdit = useCallback(async (orderId: string) => {
+        try {
+            const response = await fetch(`/api/customer/orders?phone=${encodeURIComponent(user?.phone || '')}&orderId=${orderId}`);
+            const data = await response.json();
+            const order = data.order;
+
+            if (order) {
+                // Parse address from the combined string
+                const addressParts = order.customer_address.split(', ');
+                setPrefillData({
+                    customerName: order.customer_name,
+                    customerPhone: order.customer_phone,
+                    whatsappNumber: order.whatsapp_number,
+                    customerEmail: order.customer_email || '',
+                    quantity: order.quantity,
+                    orderId: order.id, // Include orderId for the edit flow
+                    // Parse address parts
+                    houseBuilding: addressParts[0] || '',
+                    town: addressParts[1] || '',
+                    post: addressParts[2] || '',
+                    city: addressParts[3] || '',
+                    district: addressParts[4] || '',
+                    state: addressParts[5]?.split(' - ')[0] || '',
+                    pincode: addressParts[5]?.split(' - ')[1] || '',
+                });
+            }
+        } catch (error) {
+            console.error("Failed to fetch order for edit:", error);
+            toast.error("Failed to load order details");
+        }
+    }, [user?.phone]);
+
     useEffect(() => {
         // Get referral code from URL
         const ref = searchParams.get("ref");
@@ -47,10 +91,26 @@ export function OrderContent() {
         if (reorderId) {
             fetchOrderForReorder(reorderId);
         }
-    }, [searchParams, fetchOrderForReorder]);
+
+        // Get edit ID from URL
+        const editId = searchParams.get("edit");
+        if (editId) {
+            fetchOrderForEdit(editId);
+        }
+    }, [searchParams, fetchOrderForReorder, fetchOrderForEdit]);
 
     return (
         <div className="max-w-4xl mx-auto space-y-8">
+            {/* Back Button */}
+            <Button
+                variant="ghost"
+                onClick={handleBack}
+                className="rounded-xl -ml-2"
+            >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back
+            </Button>
+
             <div className="text-center space-y-2">
                 <h1 className="text-4xl md:text-5xl font-bold text-foreground">
                     Place Your Order

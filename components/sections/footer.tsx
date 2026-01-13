@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Phone, Mail, MapPin, Instagram, Youtube, MessageCircle } from "lucide-react";
 
 export function Footer() {
@@ -11,8 +12,8 @@ export function Footer() {
         email: 'minhajuljanna786@gmail.com',
         locations: [
             { name: 'Naduvannur', mapUrl: 'https://maps.app.goo.gl/BYZHabQxUYFXC7Kq7' },
-            { name: 'Narikkuni', mapUrl: 'https://maps.app.goo.gl/xD3xHCh1UmSB4djK6' },
-            { name: 'Poonoor', mapUrl: 'https://maps.app.goo.gl/YhCFU8WCFeAffRH8A' }
+            { name: 'Pullaloor', mapUrl: 'https://maps.app.goo.gl/xD3xHCh1UmSB4djK6' },
+            { name: 'Koduvally', mapUrl: 'https://maps.app.goo.gl/YhCFU8WCFeAffRH8A' }
         ],
         social: [
             { name: 'Instagram', icon: Instagram, url: 'https://instagram.com/minhajul_janna_/' },
@@ -25,13 +26,22 @@ export function Footer() {
         <footer className="relative py-12 px-4 border-t border-border bg-gradient-to-b from-background to-primary/5 dark:to-primary/10">
             <div className="max-w-6xl mx-auto">
                 <div className="grid md:grid-cols-4 gap-8 mb-8">
-                    {/* Brand Section */}
+                    {/* Brand Section with Logo */}
                     <div className="md:col-span-1 space-y-3">
-                        <h3 className="arabic-text text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-gold-500">
+                        <div className="flex justify-center md:justify-start">
+                            <Image
+                                src="/assets/dars logo.svg"
+                                alt="Minhajul Janna Dars"
+                                width={120}
+                                height={120}
+                                className="w-24 h-auto dark:brightness-[180%] dark:contrast-75 transition-all"
+                            />
+                        </div>
+                        <h3 className=" arabic-text text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-gold-500">
                             عطر الجنّة
                         </h3>
                         <p className="text-sm text-muted-foreground">
-                            Essense of Minhajul Janna
+                            Essence of Minhajul Janna
                         </p>
                         <p className="text-xs text-muted-foreground/70">
                             Made with ❤️ for spreading the fragrance of Paradise

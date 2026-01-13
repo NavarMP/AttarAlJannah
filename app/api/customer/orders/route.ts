@@ -5,6 +5,7 @@ export async function GET(request: NextRequest) {
     try {
         const searchParams = request.nextUrl.searchParams;
         const phone = searchParams.get("phone");
+        const orderId = searchParams.get("orderId");
 
         if (!phone) {
             return NextResponse.json({ error: "Phone number required" }, { status: 400 });
@@ -23,6 +24,24 @@ export async function GET(request: NextRequest) {
 
         console.log("Trying phone variations:", phoneVariations);
 
+        // If orderId is provided, fetch single order
+        if (orderId) {
+            const { data: order, error } = await supabase
+                .from("orders")
+                .select("*")
+                .eq("id", orderId)
+                .in("customer_phone", phoneVariations)
+                .single();
+
+            if (error) {
+                console.error("Order fetch error:", error);
+                return NextResponse.json({ error: error.message }, { status: 500 });
+            }
+
+            return NextResponse.json({ order });
+        }
+
+        // Otherwise fetch all orders for the customer
         const { data: orders, error } = await supabase
             .from("orders")
             .select("*")

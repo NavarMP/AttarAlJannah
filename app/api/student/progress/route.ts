@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
             .eq("referred_by", studentUuid);
 
         const verifiedSales = orders?.filter(
-            (o) => o.payment_status === "verified" && o.order_status !== "pending"
+            (o) => o.payment_status === "verified" && (o.order_status === "confirmed" || o.order_status === "delivered")
         ).length || 0;
 
         const pendingOrders = orders?.filter(

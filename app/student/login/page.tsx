@@ -81,11 +81,10 @@ export default function StudentLoginPage() {
                             <Input
                                 id="studentId"
                                 type="text"
-                                placeholder="STU001"
+                                placeholder="STU001 (case-insensitive)"
                                 value={studentId}
-                                onChange={(e) => setStudentId(e.target.value.toUpperCase())}
+                                onChange={(e) => setStudentId(e.target.value)}
                                 disabled={isLoading}
-                                className="uppercase"
                                 required
                             />
                         </div>

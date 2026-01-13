@@ -121,7 +121,7 @@ export function HeroSection() {
                     ref={subtitleRef}
                     className="text-xl md:text-2xl text-muted-foreground font-light tracking-wide mb-6"
                 >
-                    Essense <span className="font-semibold text-foreground">Minhajul Janna</span>
+                    Essense of <span className="font-semibold text-foreground">Minhajul Janna</span>
                 </p>
 
                 {/* Price and Order Button - Horizontal Layout */}

@@ -13,7 +13,10 @@ export async function GET(request: NextRequest) {
 
         let query = supabase
             .from("orders")
-            .select("*", { count: "exact" })
+            .select(`
+                *,
+                student:users!orders_referred_by_fkey(name)
+            `, { count: "exact" })
             .order("created_at", { ascending: false });
 
         if (status && status !== "all") {
@@ -34,8 +37,15 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
+        // Transform the data to include student_name
+        const transformedOrders = orders?.map(order => ({
+            ...order,
+            student_name: order.student?.name || null,
+            student: undefined, // Remove the nested object
+        }));
+
         return NextResponse.json({
-            orders: orders || [],
+            orders: transformedOrders || [],
             totalCount: count || 0,
             page,
             pageSize,

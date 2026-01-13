@@ -16,11 +16,11 @@ const contactInfo = {
             mapUrl: 'https://maps.app.goo.gl/BYZHabQxUYFXC7Kq7'
         },
         {
-            name: 'Narikkuni',
+            name: 'Pullaloor',
             mapUrl: 'https://maps.app.goo.gl/xD3xHCh1UmSB4djK6'
         },
         {
-            name: 'Poonoor',
+            name: 'Koduvally',
             mapUrl: 'https://maps.app.goo.gl/YhCFU8WCFeAffRH8A'
         }
     ],
@@ -35,11 +35,19 @@ export function AboutDars() {
     return (
         <section className="relative py-20 px-4 bg-gradient-to-b from-primary/5 to-background dark:from-primary/10">
             <div className="max-w-6xl mx-auto space-y-12">
-                {/* Title */}
-                <div className="text-center space-y-4">
-                    <h2 className="text-4xl md:text-5xl font-bold text-foreground">
-                        About  Dars
-                    </h2>
+                {/* Title with Dars Logo */}
+                <div className="text-center space-y-6">
+                    {/* Dars Logo-Calligraphy */}
+                    <div className="flex justify-center">
+                        <Image
+                            src="/assets/dars logo-calligraphy.svg"
+                            alt="Minhajul Janna Dars"
+                            width={500}
+                            height={150}
+                            className="w-full max-w-2xl h-auto dark:brightness-[200%] dark:contrast-75 transition-all"
+                            priority
+                        />
+                    </div>
                     <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
                         A sacred journey of knowledge and spiritual enlightenment
                     </p>
@@ -72,7 +80,7 @@ export function AboutDars() {
                                     </div>
                                     <h3 className="font-semibold text-foreground">Community</h3>
                                     <p className="text-sm text-muted-foreground">
-                                        Building a strong brotherhood and sisterhood
+                                        Building a strong brotherhood
                                     </p>
                                 </div>
 
@@ -108,10 +116,10 @@ export function AboutDars() {
                             <div className="flex-1 text-center md:text-left space-y-4">
                                 <div>
                                     <h3 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-gold-500">
-                                        About Our Teacher
+                                        About Mudarris
                                     </h3>
                                     <p className="text-xl font-semibold text-foreground mt-2">
-                                        Jaleel Baqawi Parannur
+                                        Usthad PP Abdul Jaleel Baqavi Parannur
                                     </p>
                                 </div>
                                 <p className="text-muted-foreground leading-relaxed">

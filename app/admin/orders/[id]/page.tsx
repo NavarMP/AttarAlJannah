@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Phone, MessageCircle, Image as ImageIcon } from "lucide-react";
+import { ArrowLeft, Phone, MessageCircle, Image as ImageIcon, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -35,6 +36,8 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
     const [newStatus, setNewStatus] = useState("");
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     const fetchOrder = useCallback(async () => {
         try {
@@ -81,6 +84,33 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
         }
     };
 
+    const handleDelete = async () => {
+        if (!order) return;
+
+        setDeleting(true);
+        try {
+            const response = await fetch("/api/admin/orders/delete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ orderId: order.id }),
+            });
+
+            if (response.ok) {
+                toast.success("Order deleted successfully");
+                router.push("/admin/orders");
+            } else {
+                const data = await response.json();
+                toast.error(data.error || "Failed to delete order");
+            }
+        } catch (error) {
+            console.error("Delete error:", error);
+            toast.error("An error occurred while deleting the order");
+        } finally {
+            setDeleting(false);
+            setDeleteDialogOpen(false);
+        }
+    };
+
     if (loading) {
         return <div className="text-center py-12">Loading order details...</div>;
     }
@@ -91,7 +121,7 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
 
     return (
         <div className="space-y-6 max-w-5xl">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 relative">
                 <Link href="/admin/orders">
                     <Button variant="outline" size="icon" className="rounded-xl">
                         <ArrowLeft className="h-4 w-4" />
@@ -101,6 +131,15 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                     <h1 className="text-3xl font-bold">Order Details</h1>
                     <p className="text-muted-foreground">Order ID: {order.id.slice(0, 8)}</p>
                 </div>
+
+                <Button
+                    variant="destructive"
+                    className="absolute right-0 top-1 md:static md:ml-auto rounded-xl"
+                    onClick={() => setDeleteDialogOpen(true)}
+                >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Order
+                </Button>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
@@ -186,26 +225,28 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
             </div>
 
             {/* Payment Screenshot */}
-            {order.payment_screenshot_url && (
-                <Card className="rounded-3xl">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <ImageIcon className="h-5 w-5" />
-                            Payment Screenshot
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="relative w-full max-w-md h-96 rounded-2xl overflow-hidden border-2 border-border">
-                            <Image
-                                src={order.payment_screenshot_url}
-                                alt="Payment screenshot"
-                                fill
-                                className="object-contain"
-                            />
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
+            {
+                order.payment_screenshot_url && (
+                    <Card className="rounded-3xl">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <ImageIcon className="h-5 w-5" />
+                                Payment Screenshot
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="relative w-full max-w-md h-96 rounded-2xl overflow-hidden border-2 border-border">
+                                <Image
+                                    src={order.payment_screenshot_url}
+                                    alt="Payment screenshot"
+                                    fill
+                                    className="object-contain"
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
+                )
+            }
 
             {/* Status Update */}
             <Card className="rounded-3xl">
@@ -234,6 +275,30 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                     </Button>
                 </CardContent>
             </Card>
-        </div>
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Order</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete this order for <strong>{order.customer_name}</strong>?
+                            <br />
+                            This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={deleting}
+                            className="bg-destructive hover:bg-destructive/90"
+                        >
+                            {deleting ? "Deleting..." : "Delete"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </div >
     );
 }

@@ -14,11 +14,11 @@ export async function POST(request: NextRequest) {
 
         const supabase = await createClient();
 
-        // Find student by student_id
+        // Find student by student_id (case-insensitive)
         const { data: student, error: fetchError } = await supabase
             .from("users")
             .select("*")
-            .eq("student_id", studentId)
+            .ilike("student_id", studentId)
             .eq("user_role", "student")
             .single();
 

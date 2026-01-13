@@ -1,17 +1,51 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { OrderForm } from "@/components/forms/order-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Copy, Share2 } from "lucide-react";
 import { toast } from "sonner";
 
-export default function StudentNewOrderPage() {
+function StudentNewOrderContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [studentId, setStudentId] = useState<string | null>(null);
     const [studentName, setStudentName] = useState<string | null>(null);
+    const [prefillData, setPrefillData] = useState<any>(null);
+
+    const fetchOrderForEdit = useCallback(async (orderId: string, studentIdParam: string) => {
+        try {
+            const response = await fetch(`/api/student/orders?studentId=${studentIdParam}&orderId=${orderId}`);
+            const data = await response.json();
+            const order = data.order;
+
+            if (order) {
+                // Parse address from the combined string
+                const addressParts = order.customer_address.split(', ');
+                setPrefillData({
+                    customerName: order.customer_name,
+                    customerPhone: order.customer_phone,
+                    whatsappNumber: order.whatsapp_number,
+                    customerEmail: order.customer_email || '',
+                    quantity: order.quantity,
+                    orderId: order.id, // Include orderId for the edit flow
+                    // Parse address parts
+                    houseBuilding: addressParts[0] || '',
+                    town: addressParts[1] || '',
+                    post: addressParts[2] || '',
+                    city: addressParts[3] || '',
+                    district: addressParts[4] || '',
+                    state: addressParts[5]?.split(' - ')[0] || '',
+                    pincode: addressParts[5]?.split(' - ')[1] || '',
+                });
+            }
+        } catch (error) {
+            console.error("Failed to fetch order for edit:", error);
+            toast.error("Failed to load order details");
+        }
+    }, []);
 
     useEffect(() => {
         const id = localStorage.getItem("studentId");
@@ -24,7 +58,13 @@ export default function StudentNewOrderPage() {
 
         setStudentId(id);
         setStudentName(name);
-    }, [router]);
+
+        // Check for edit mode
+        const editId = searchParams.get("edit");
+        if (editId && id) {
+            fetchOrderForEdit(editId, id);
+        }
+    }, [router, searchParams, fetchOrderForEdit]);
 
     if (!studentId) {
         return (
@@ -93,8 +133,17 @@ export default function StudentNewOrderPage() {
                     </CardContent>
                 </Card>
 
-                <OrderForm studentId={studentId} />
+
+                <OrderForm studentId={studentId} prefillData={prefillData} />
             </div>
         </main>
+    );
+}
+
+export default function StudentNewOrderPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+            <StudentNewOrderContent />
+        </Suspense>
     );
 }
