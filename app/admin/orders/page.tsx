@@ -26,27 +26,42 @@ interface Order {
 
 export default function OrdersPage() {
     const [orders, setOrders] = useState<Order[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [search, setSearch] = useState("");
-    const [statusFilter, setStatusFilter] = useState("all");
-    const [page, setPage] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
+    const [loading, setLoading] = useState(true);
+    const [page, setPage] = useState(1);
+    const [statusFilter, setStatusFilter] = useState("all");
+    const [search, setSearch] = useState("");
+    const [searchInput, setSearchInput] = useState(""); // For debouncing
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
     const [deleting, setDeleting] = useState(false);
 
+    // Debounce search input
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setSearch(searchInput);
+            setPage(1); // Reset to first page on search
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [searchInput]);
+
     const fetchOrders = useCallback(async () => {
         setLoading(true);
         try {
-            const params = new URLSearchParams({
+            const queryParams = new URLSearchParams({
+                status: statusFilter,
+                search: search,
                 page: page.toString(),
-                ...(statusFilter !== "all" && { status: statusFilter }),
-                ...(search && { search }),
             });
 
-            const response = await fetch(`/api/admin/orders?${params}`);
+            console.log("Fetching orders with search:", search);
+            const response = await fetch(`/api/admin/orders?${queryParams}`);
             const data = await response.json();
+
             setOrders(data.orders || []);
+            setTotalCount(data.totalCount || 0);
             setTotalPages(data.totalPages || 1);
         } catch (error) {
             console.error("Failed to fetch orders:", error);
@@ -57,7 +72,7 @@ export default function OrdersPage() {
 
     useEffect(() => {
         fetchOrders();
-    }, [search, statusFilter, page, fetchOrders]);
+    }, [fetchOrders]);
 
     const handleDelete = async () => {
         if (!orderToDelete) return;
@@ -113,9 +128,9 @@ export default function OrdersPage() {
                     <div className="flex-1 relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
-                            placeholder="Search by customer name or phone..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Search by customer name, phone, or Order ID..."
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
                             className="pl-10"
                         />
                     </div>
@@ -192,18 +207,37 @@ export default function OrdersPage() {
                                             {new Date(order.created_at).toLocaleDateString()}
                                         </td>
                                         <td className="px-6 py-4">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setOrderToDelete(order);
-                                                    setDeleteDialogOpen(true);
-                                                }}
-                                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
+                                            <div className="flex items-center gap-2">
+                                                {order.order_status === 'pending' && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            window.location.href = `/admin/orders/${order.id}`;
+                                                        }}
+                                                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/20"
+                                                        title="Edit Order"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                                                            <path d="m15 5 4 4" />
+                                                        </svg>
+                                                    </Button>
+                                                )}
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setOrderToDelete(order);
+                                                        setDeleteDialogOpen(true);
+                                                    }}
+                                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}

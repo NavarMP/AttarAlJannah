@@ -6,11 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Phone, MessageCircle, Image as ImageIcon, Trash2 } from "lucide-react";
+import { ArrowLeft, Phone, MessageCircle, Image as ImageIcon, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import Image from "next/image";
 import Link from "next/link";
+import { OrderBill } from "@/components/order-bill";
 
 interface Order {
     id: string;
@@ -132,14 +133,26 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                     <p className="text-muted-foreground">Order ID: {order.id.slice(0, 8)}</p>
                 </div>
 
-                <Button
-                    variant="destructive"
-                    className="absolute right-0 top-1 md:static md:ml-auto rounded-xl"
-                    onClick={() => setDeleteDialogOpen(true)}
-                >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete Order
-                </Button>
+                <div className="absolute right-0 top-1 md:static md:ml-auto flex items-center gap-2">
+                    {order.order_status === 'pending' && (
+                        <Button
+                            variant="outline"
+                            className="rounded-xl"
+                            onClick={() => router.push(`/order?edit=${order.id}`)}
+                        >
+                            <Pencil className="w-4 h-4 mr-2" />
+                            Edit Order
+                        </Button>
+                    )}
+                    <Button
+                        variant="destructive"
+                        className="rounded-xl"
+                        onClick={() => setDeleteDialogOpen(true)}
+                    >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete Order
+                    </Button>
+                </div>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
@@ -247,6 +260,12 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                     </Card>
                 )
             }
+
+            {/* Order Bill/Invoice */}
+            <div>
+                <h2 className="text-2xl font-bold text-foreground mb-4">Order Invoice</h2>
+                <OrderBill order={order} />
+            </div>
 
             {/* Status Update */}
             <Card className="rounded-3xl">

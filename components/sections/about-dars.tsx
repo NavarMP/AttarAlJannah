@@ -2,7 +2,8 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Users, Award, Phone, Mail, MapPin, Instagram, Youtube, MessageCircle } from "lucide-react";
+import { BookOpen, Users, Award, Phone, Mail, MapPin } from "lucide-react";
+import { FaInstagram, FaYoutube, FaWhatsapp } from "react-icons/fa";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -13,21 +14,21 @@ const contactInfo = {
     locations: [
         {
             name: 'Naduvannur',
-            mapUrl: 'https://maps.app.goo.gl/BYZHabQxUYFXC7Kq7'
+            mapUrl: 'https://maps.app.goo.gl/gT7RwZSpQqmjpqV38'
         },
         {
             name: 'Pullaloor',
-            mapUrl: 'https://maps.app.goo.gl/xD3xHCh1UmSB4djK6'
+            mapUrl: 'https://maps.app.goo.gl/mXJCQo9cKFyygfqY6'
         },
         {
             name: 'Koduvally',
-            mapUrl: 'https://maps.app.goo.gl/YhCFU8WCFeAffRH8A'
+            mapUrl: 'https://maps.app.goo.gl/17bmxLvf7SXiJLag6'
         }
     ],
     social: [
-        { name: 'Instagram', icon: Instagram, url: 'https://instagram.com/minhajul_janna_/' },
-        { name: 'Youtube', icon: Youtube, url: 'https://youtube.com/@minhajuljanna' },
-        { name: 'WhatsApp', icon: MessageCircle, url: 'https://whatsapp.com/channel/0029VaxowK2DzgTE7cdK4G11' }
+        { name: 'Instagram', icon: FaInstagram, url: 'https://instagram.com/minhajul_janna_/' },
+        { name: 'Youtube', icon: FaYoutube, url: 'https://youtube.com/@minhajuljanna' },
+        { name: 'WhatsApp', icon: FaWhatsapp, url: 'https://whatsapp.com/channel/0029VaxowK2DzgTE7cdK4G11' }
     ]
 };
 

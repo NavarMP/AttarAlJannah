@@ -33,26 +33,30 @@ export async function GET(
             .eq("volunteer_id", volunteer.volunteer_id)
             .single();
 
-        // Get order statistics using UUID (required_by is UUID)
+        // Get order statistics using UUID (referred_by is UUID)
         const { data: orders } = await supabase
             .from("orders")
             .select("*")
             .eq("referred_by", volunteer.id);
 
-        const totalOrders = orders?.length || 0;
-        const verifiedOrders = orders?.filter(o => o.payment_status === "verified" && (o.order_status === "confirmed" || o.order_status === "delivered")).length || 0;
-        const pendingOrders = orders?.filter(o => o.payment_status !== "verified" || o.order_status === "pending").length || 0;
+        const totalBottles = orders?.reduce((sum, o) => sum + (o.quantity || 0), 0) || 0;
+        const confirmedBottles = orders
+            ?.filter(o => o.order_status === "confirmed" || o.order_status === "delivered")
+            .reduce((sum, o) => sum + (o.quantity || 0), 0) || 0;
+        const pendingBottles = orders
+            ?.filter(o => o.order_status === "pending")
+            .reduce((sum, o) => sum + (o.quantity || 0), 0) || 0;
 
         return NextResponse.json({
             volunteer: {
                 ...volunteer,
-                confirmed_orders: progress?.confirmed_orders || 0,
+                confirmed_bottles: confirmedBottles,
                 goal: progress?.goal || 20,
-                progress_percentage: progress ? Math.round((progress.confirmed_orders / progress.goal) * 100) : 0,
+                progress_percentage: progress ? Math.round((confirmedBottles / progress.goal) * 100) : 0,
                 stats: {
-                    totalOrders,
-                    verifiedOrders,
-                    pendingOrders
+                    totalBottles,
+                    confirmedBottles,
+                    pendingBottles
                 }
             }
         });
@@ -139,16 +143,16 @@ export async function PUT(
         // Update goal in challenge_progress if provided
         if (goal !== undefined) {
             // Use upsert to handle both update and insert cases
-            // Use the volunteer_id from the updated record (in case it was changed)
-            const volunteerIdForProgress = updatedVolunteer.volunteer_id;
+            // Use the volunteer's UUID from the updated record
+            const volunteerUuidForProgress = updatedVolunteer.id;
 
-            console.log("Updating goal for volunteer:", volunteerIdForProgress, "to:", goal);
+            console.log("Updating goal for volunteer UUID:", volunteerUuidForProgress, "to:", goal);
 
             const { error: progressError } = await supabase
                 .from("challenge_progress")
                 .upsert(
                     {
-                        volunteer_id: volunteerIdForProgress,
+                        volunteer_id: volunteerUuidForProgress, // Use UUID instead of volunteer_id string
                         goal: parseInt(goal),
                         confirmed_orders: 0 // Default value if inserting
                     },

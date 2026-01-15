@@ -26,9 +26,13 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
         goal: "20",
     });
     const [stats, setStats] = useState({
-        confirmed_orders: 0,
-        totalOrders: 0,
-        verifiedOrders: 0,
+        confirmed_bottles: 0,
+        goal: 20,
+        stats: {
+            totalBottles: 0,
+            confirmedBottles: 0,
+            pendingBottles: 0,
+        },
     });
 
     const fetchVolunteer = useCallback(async () => {
@@ -51,9 +55,13 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
             });
 
             setStats({
-                confirmed_orders: volunteer.confirmed_orders || 0,
-                totalOrders: volunteer.stats?.totalOrders || 0,
-                verifiedOrders: volunteer.stats?.verifiedOrders || 0,
+                confirmed_bottles: volunteer.confirmed_bottles || 0,
+                goal: volunteer.goal || 20,
+                stats: {
+                    totalBottles: volunteer.stats?.totalBottles || 0,
+                    confirmedBottles: volunteer.stats?.confirmedBottles || 0,
+                    pendingBottles: volunteer.stats?.pendingBottles || 0,
+                },
             });
 
         } catch (error) {
@@ -162,22 +170,28 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
             <div className="grid md:grid-cols-3 gap-4">
                 <Card className="glass">
                     <CardContent className="pt-6">
-                        <div className="text-sm text-muted-foreground">Verified Sales</div>
+                        <div className="text-sm text-muted-foreground">Confirmed Bottles</div>
                         <div className="text-2xl font-bold text-emerald-500 mt-1">
-                            {stats.confirmed_orders}
+                            {stats.confirmed_bottles}
                         </div>
                     </CardContent>
                 </Card>
                 <Card className="glass">
                     <CardContent className="pt-6">
-                        <div className="text-sm text-muted-foreground">Total Orders</div>
-                        <div className="text-2xl font-bold mt-1">{stats.totalOrders}</div>
+                        <div className="text-sm text-muted-foreground">Total Bottles</div>
+                        <div className="text-2xl font-bold mt-1">{stats.stats.totalBottles}</div>
                     </CardContent>
                 </Card>
                 <Card className="glass">
                     <CardContent className="pt-6">
-                        <div className="text-sm text-muted-foreground">Verified Orders</div>
-                        <div className="text-2xl font-bold mt-1">{stats.verifiedOrders}</div>
+                        <div className="text-sm text-muted-foreground">Confirmed Bottles</div>
+                        <div className="text-2xl font-bold mt-1">{stats.stats.confirmedBottles}</div>
+                    </CardContent>
+                </Card>
+                <Card className="glass">
+                    <CardContent className="pt-6">
+                        <div className="text-sm text-muted-foreground">Pending Bottles</div>
+                        <div className="text-2xl font-bold mt-1">{stats.stats.pendingBottles}</div>
                     </CardContent>
                 </Card>
             </div>

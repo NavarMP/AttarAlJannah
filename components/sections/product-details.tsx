@@ -13,7 +13,7 @@ export function ProductDetails() {
                         Product Details
                     </h2>
                     <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                        Experience the divine essence - عطر الجنّة
+                        Experience the divine essence - Attar al-Jannah
                     </p>
                 </div>
 

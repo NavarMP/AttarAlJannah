@@ -35,7 +35,7 @@ interface Volunteer {
     phone: string;
     volunteer_id: string;
     address: string | null;
-    confirmed_orders: number;
+    confirmed_bottles: number;
     goal: number;
     progress_percentage: number;
     created_at: string;
@@ -73,9 +73,9 @@ export default function VolunteersPage() {
 
             // Calculate stats
             const total = data.pagination.total;
-            const active = data.volunteers.filter((s: Volunteer) => s.confirmed_orders > 0).length;
+            const active = data.volunteers.filter((s: Volunteer) => s.confirmed_bottles > 0).length;
             const topPerformer = data.volunteers.reduce((top: Volunteer | null, current: Volunteer) =>
-                (!top || current.confirmed_orders > top.confirmed_orders) ? current : top,
+                (!top || current.confirmed_bottles > top.confirmed_bottles) ? current : top,
                 null
             );
 
@@ -163,7 +163,7 @@ export default function VolunteersPage() {
                     <CardContent>
                         <div className="text-2xl font-bold text-emerald-500">{stats.active}</div>
                         <p className="text-xs text-muted-foreground mt-1">
-                            With verified sales
+                            With confirmed bottles
                         </p>
                     </CardContent>
                 </Card>
@@ -180,7 +180,7 @@ export default function VolunteersPage() {
                             <>
                                 <div className="text-lg font-bold truncate">{stats.topPerformer.name}</div>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                    {stats.topPerformer.confirmed_orders} verified sales
+                                    {stats.topPerformer.confirmed_bottles} bottles sold
                                 </p>
                             </>
                         ) : (
@@ -249,7 +249,7 @@ export default function VolunteersPage() {
                                                 {volunteer.phone}
                                             </TableCell>
                                             <TableCell>
-                                                <span className="font-semibold">{volunteer.confirmed_orders}</span>
+                                                <span className="font-semibold">{volunteer.confirmed_bottles}</span>
                                             </TableCell>
                                             <TableCell>{volunteer.goal}</TableCell>
                                             <TableCell>

@@ -4,15 +4,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { User, GraduationCap, ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function LoginSelectorPage() {
     return (
         <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-background via-primary/5 to-gold-500/10">
             <div className="w-full max-w-4xl space-y-8">
-                <div className="text-center space-y-2">
-                    <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-gold-500">
-                        عطر الجنّة
-                    </h1>
+                <div className="text-center space-y-4">
+                    <div className="flex justify-center">
+                        <Image
+                            src="/assets/typography.svg"
+                            alt="عطر الجنّة"
+                            width={300}
+                            height={80}
+                            className="h-16 md:h-20 w-auto"
+                        />
+                    </div>
                     <p className="text-xl text-muted-foreground">Choose your login type</p>
                 </div>
 

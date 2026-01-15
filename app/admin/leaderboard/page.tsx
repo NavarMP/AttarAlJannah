@@ -14,7 +14,7 @@ interface LeaderboardEntry {
     id: string;
     name: string;
     volunteer_id: string;
-    confirmed_orders: number;
+    confirmed_bottles: number;
     total_revenue: number;
 }
 
@@ -81,7 +81,7 @@ export default function AdminLeaderboardPage() {
                         <Trophy className="w-10 h-10 text-yellow-500" />
                         <div>
                             <h1 className="text-4xl font-bold">Volunteer Leaderboard</h1>
-                            <p className="text-muted-foreground">Top performers ranked by confirmed orders</p>
+                            <p className="text-muted-foreground">Top performers ranked by bottles sold</p>
                         </div>
                     </div>
                 </div>
@@ -106,8 +106,12 @@ export default function AdminLeaderboardPage() {
                                     <div
                                         key={entry.id}
                                         className={`flex items-center gap-4 p-4 rounded-xl transition-all ${entry.rank <= 3
-                                                ? getRankBadge(entry.rank) + " shadow-lg"
-                                                : "bg-card border border-border hover:border-primary/50"
+                                            ? "bg-card border-2 " + (
+                                                entry.rank === 1 ? "border-yellow-500 shadow-lg ring-2 ring-yellow-500/20" :
+                                                    entry.rank === 2 ? "border-gray-400 shadow-lg ring-2 ring-gray-400/20" :
+                                                        "border-amber-600 shadow-lg ring-2 ring-amber-600/20"
+                                            )
+                                            : "bg-card border border-border hover:border-primary/50"
                                             }`}
                                     >
                                         {/* Rank */}
@@ -118,14 +122,10 @@ export default function AdminLeaderboardPage() {
                                         {/* Volunteer Info */}
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
-                                                <h3 className={`font-semibold truncate ${entry.rank <= 3 ? "text-white" : "text-foreground"
-                                                    }`}>
+                                                <h3 className="font-semibold truncate text-foreground">
                                                     {entry.name}
                                                 </h3>
-                                                <span className={`text-xs px-2 py-0.5 rounded-full ${entry.rank <= 3
-                                                        ? "bg-white/20 text-white"
-                                                        : "bg-muted text-muted-foreground"
-                                                    }`}>
+                                                <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                                                     {entry.volunteer_id}
                                                 </span>
                                             </div>
@@ -134,22 +134,18 @@ export default function AdminLeaderboardPage() {
                                         {/* Stats */}
                                         <div className="flex items-center gap-6">
                                             <div className="text-right">
-                                                <div className={`text-sm ${entry.rank <= 3 ? "text-white/80" : "text-muted-foreground"
-                                                    }`}>
-                                                    Orders
+                                                <div className="text-sm text-muted-foreground">
+                                                    Bottles
                                                 </div>
-                                                <div className={`text-xl font-bold ${entry.rank <= 3 ? "text-white" : "text-primary"
-                                                    }`}>
-                                                    {entry.confirmed_orders}
+                                                <div className="text-xl font-bold text-primary">
+                                                    {entry.confirmed_bottles}
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <div className={`text-sm ${entry.rank <= 3 ? "text-white/80" : "text-muted-foreground"
-                                                    }`}>
+                                                <div className="text-sm text-muted-foreground">
                                                     Revenue
                                                 </div>
-                                                <div className={`text-xl font-bold ${entry.rank <= 3 ? "text-white" : "text-emerald-600"
-                                                    }`}>
+                                                <div className="text-xl font-bold text-emerald-600">
                                                     ₹{entry.total_revenue.toLocaleString()}
                                                 </div>
                                             </div>

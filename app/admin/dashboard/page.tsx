@@ -6,9 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, Clock, CheckCircle, DollarSign } from "lucide-react";
 
 interface Stats {
-    totalOrders: number;
-    pendingOrders: number;
-    deliveredOrders: number;
+    totalBottles: number;
+    pendingBottles: number;
+    deliveredBottles: number;
     totalRevenue: number;
 }
 
@@ -59,12 +59,12 @@ export default function AdminDashboard() {
                 <Card className="rounded-3xl">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium text-muted-foreground">
-                            Total Orders
+                            Total Bottles
                         </CardTitle>
                         <Package className="h-5 w-5 text-primary" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold">{stats?.totalOrders || 0}</div>
+                        <div className="text-3xl font-bold">{stats?.totalBottles || 0}</div>
                     </CardContent>
                 </Card>
 
@@ -76,7 +76,7 @@ export default function AdminDashboard() {
                         <Clock className="h-5 w-5 text-orange-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold">{stats?.pendingOrders || 0}</div>
+                        <div className="text-3xl font-bold">{stats?.pendingBottles || 0}</div>
                     </CardContent>
                 </Card>
 
@@ -88,7 +88,7 @@ export default function AdminDashboard() {
                         <CheckCircle className="h-5 w-5 text-green-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold">{stats?.deliveredOrders || 0}</div>
+                        <div className="text-3xl font-bold">{stats?.deliveredBottles || 0}</div>
                     </CardContent>
                 </Card>
 

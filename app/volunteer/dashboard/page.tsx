@@ -10,9 +10,9 @@ import { Package, TrendingUp, Trophy, Plus, Share } from "lucide-react";
 import { toast } from "sonner";
 
 interface DashboardStats {
-    confirmedOrders: number;
+    confirmedBottles: number;
     goal: number;
-    pendingOrders: number;
+    pendingBottles: number;
     totalRevenue: number;
 }
 
@@ -21,9 +21,9 @@ export default function VolunteerDashboardPage() {
     const [volunteerName, setVolunteerName] = useState("");
     const [volunteerId, setVolunteerId] = useState("");
     const [stats, setStats] = useState<DashboardStats>({
-        confirmedOrders: 0,
+        confirmedBottles: 0,
         goal: 20,
-        pendingOrders: 0,
+        pendingBottles: 0,
         totalRevenue: 0,
     });
     const [isLoading, setIsLoading] = useState(true);
@@ -64,7 +64,7 @@ export default function VolunteerDashboardPage() {
         router.push("/volunteer/login");
     };
 
-    const progressPercentage = (stats.confirmedOrders / stats.goal) * 100;
+    const progressPercentage = (stats.confirmedBottles / stats.goal) * 100;
 
     if (isLoading) {
         return (
@@ -100,7 +100,7 @@ export default function VolunteerDashboardPage() {
                         <div className="space-y-2">
                             <div className="flex justify-between items-center">
                                 <span className="text-2xl font-bold text-foreground">
-                                    {stats.confirmedOrders} / {stats.goal} Orders
+                                    {stats.confirmedBottles} / {stats.goal} Bottles
                                 </span>
                                 <span className="text-sm text-muted-foreground">
                                     {Math.round(progressPercentage)}% Complete
@@ -109,15 +109,15 @@ export default function VolunteerDashboardPage() {
                             <Progress value={progressPercentage} className="h-4" />
                         </div>
 
-                        {stats.confirmedOrders >= stats.goal ? (
+                        {stats.confirmedBottles >= stats.goal ? (
                             <div className="p-4 bg-gradient-to-r from-gold-500/20 to-emerald-500/20 rounded-lg border border-gold-300 dark:border-gold-700">
                                 <p className="text-lg font-bold text-center">
-                                    🎉 Goal Achieved! Keep going for more orders! 🚀
+                                    🎉 Goal Achieved! Keep going for more bottles! 🚀
                                 </p>
                             </div>
                         ) : (
                             <p className="text-sm text-muted-foreground">
-                                Keep going! {stats.goal - stats.confirmedOrders} more orders to reach your goal.
+                                Keep going! {stats.goal - stats.confirmedBottles} more bottles to reach your goal.
                             </p>
                         )}
                     </CardContent>
@@ -129,12 +129,12 @@ export default function VolunteerDashboardPage() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-lg">
                                 <Package className="w-5 h-5 text-blue-500" />
-                                Pending Orders
+                                Pending Bottles
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
                             <p className="text-3xl font-bold text-foreground">
-                                {stats.pendingOrders}
+                                {stats.pendingBottles}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
                                 Awaiting admin verification

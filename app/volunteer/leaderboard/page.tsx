@@ -14,7 +14,7 @@ interface LeaderboardEntry {
     id: string;
     name: string;
     volunteer_id: string;
-    confirmed_orders: number;
+    confirmed_bottles: number;
     total_revenue: number;
 }
 
@@ -116,7 +116,11 @@ export default function VolunteerLeaderboardPage() {
                                         <div
                                             key={entry.id}
                                             className={`flex items-center gap-4 p-4 rounded-xl transition-all ${entry.rank <= 3 && !isCurrentUser
-                                                ? getRankBadge(entry.rank) + " shadow-lg"
+                                                ? "bg-card border-2 " + (
+                                                    entry.rank === 1 ? "border-yellow-500 shadow-lg ring-2 ring-yellow-500/20" :
+                                                        entry.rank === 2 ? "border-gray-400 shadow-lg ring-2 ring-gray-400/20" :
+                                                            "border-amber-600 shadow-lg ring-2 ring-amber-600/20"
+                                                )
                                                 : isCurrentUser
                                                     ? "bg-primary/10 border-2 border-primary shadow-lg ring-2 ring-primary/20"
                                                     : "bg-card border border-border hover:border-primary/50"
@@ -158,7 +162,7 @@ export default function VolunteerLeaderboardPage() {
                                                             ? "text-primary/80"
                                                             : "text-muted-foreground"
                                                         }`}>
-                                                        Orders
+                                                        Bottles
                                                     </div>
                                                     <div className={`text-xl font-bold ${entry.rank <= 3 && !isCurrentUser
                                                         ? "text-white"
@@ -166,7 +170,7 @@ export default function VolunteerLeaderboardPage() {
                                                             ? "text-primary"
                                                             : "text-primary"
                                                         }`}>
-                                                        {entry.confirmed_orders}
+                                                        {entry.confirmed_bottles}
                                                     </div>
                                                 </div>
                                                 <div className="text-right">

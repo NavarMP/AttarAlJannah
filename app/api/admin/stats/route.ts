@@ -5,30 +5,23 @@ export async function GET() {
     try {
         const supabase = await createClient();
 
-        // Get total orders count
-        const { count: totalOrders } = await supabase
+        // Get all orders to calculate bottle quantities
+        const { data: allOrders } = await supabase
             .from("orders")
-            .select("*", { count: "exact", head: true });
+            .select("quantity, order_status, total_price");
 
-        // Get pending orders count
-        const { count: pendingOrders } = await supabase
-            .from("orders")
-            .select("*", { count: "exact", head: true })
-            .eq("order_status", "pending");
+        const totalBottles = allOrders?.reduce((sum, order) => sum + (order.quantity || 0), 0) || 0;
+        const pendingBottles = allOrders
+            ?.filter(o => o.order_status === "pending")
+            .reduce((sum, order) => sum + (order.quantity || 0), 0) || 0;
+        const deliveredBottles = allOrders
+            ?.filter(o => o.order_status === "delivered")
+            .reduce((sum, order) => sum + (order.quantity || 0), 0) || 0;
 
-        // Get delivered orders count
-        const { count: deliveredOrders } = await supabase
-            .from("orders")
-            .select("*", { count: "exact", head: true })
-            .eq("order_status", "delivered");
-
-        // Get total revenue
-        const { data: revenueData } = await supabase
-            .from("orders")
-            .select("total_price")
-            .eq("order_status", "delivered");
-
-        const totalRevenue = revenueData?.reduce((sum, order) => sum + Number(order.total_price), 0) || 0;
+        // Get total revenue from delivered orders
+        const totalRevenue = allOrders
+            ?.filter(o => o.order_status === "delivered")
+            .reduce((sum, order) => sum + Number(order.total_price), 0) || 0;
 
         // Get recent orders
         const { data: recentOrders } = await supabase
@@ -39,9 +32,9 @@ export async function GET() {
 
         return NextResponse.json({
             stats: {
-                totalOrders: totalOrders || 0,
-                pendingOrders: pendingOrders || 0,
-                deliveredOrders: deliveredOrders || 0,
+                totalBottles,
+                pendingBottles,
+                deliveredBottles,
                 totalRevenue,
             },
             recentOrders: recentOrders || [],

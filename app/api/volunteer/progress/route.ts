@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
         const supabase = await createClient();
 
-        // Get challenge progress
+        // Get challenge progress for goal
         const { data: progress } = await supabase
             .from("challenge_progress")
             .select("*")
@@ -28,24 +28,24 @@ export async function GET(request: NextRequest) {
             .select("*")
             .eq("referred_by", volunteerId);
 
-        // Count confirmed orders (order_status = 'confirmed')
-        const confirmedOrders = orders?.filter(
-            (o) => o.order_status === "confirmed" || o.order_status === "delivered"
-        ).length || 0;
+        // Calculate confirmed bottles (sum of quantities for confirmed/delivered orders)
+        const confirmedBottles = orders
+            ?.filter(o => o.order_status === "confirmed" || o.order_status === "delivered")
+            .reduce((sum, o) => sum + (o.quantity || 0), 0) || 0;
 
-        const pendingOrders = orders?.filter(
-            (o) => o.order_status === "pending"
-        ).length || 0;
+        const pendingBottles = orders
+            ?.filter(o => o.order_status === "pending")
+            .reduce((sum, o) => sum + (o.quantity || 0), 0) || 0;
 
         // Calculate total revenue from confirmed orders
         const totalRevenue = orders
-            ?.filter((o) => o.order_status === "confirmed" || o.order_status === "delivered")
+            ?.filter(o => o.order_status === "confirmed" || o.order_status === "delivered")
             .reduce((sum, o) => sum + o.total_price, 0) || 0;
 
         return NextResponse.json({
-            confirmedOrders: progress?.confirmed_orders || confirmedOrders,
+            confirmedBottles,
             goal: progress?.goal || 20,
-            pendingOrders,
+            pendingBottles,
             totalRevenue: Math.round(totalRevenue),
         });
     } catch (error) {

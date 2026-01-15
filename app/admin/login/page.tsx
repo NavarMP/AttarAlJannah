@@ -101,9 +101,15 @@ export default function AdminLoginPage() {
                         </Link>
                     </div>
 
-                    <p className="text-center text-sm text-muted-foreground mt-4">
-                        عطر الجنّة Admin Panel
-                    </p>
+                    <div className="flex justify-center mt-4">
+                        <Image
+                            src="/assets/typography.svg"
+                            alt="عطر الجنّة Admin Panel"
+                            width={150}
+                            height={40}
+                            className="h-8 w-auto opacity-70"
+                        />
+                    </div>
                 </CardContent>
             </Card>
         </div>

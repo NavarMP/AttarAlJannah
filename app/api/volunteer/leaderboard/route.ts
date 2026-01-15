@@ -5,7 +5,7 @@ export async function GET() {
     try {
         const supabase = await createClient();
 
-        // Get all volunteers with their challenge progress
+        // Get all volunteers
         const { data: volunteers, error: volunteersError } = await supabase
             .from("users")
             .select("id, name, volunteer_id")
@@ -17,41 +17,33 @@ export async function GET() {
             throw volunteersError;
         }
 
-        // Get challenge progress for all volunteers
-        const { data: progressData, error: progressError } = await supabase
-            .from("challenge_progress")
-            .select("volunteer_id, confirmed_orders");
-
-        if (progressError) {
-            console.error("Progress fetch error:", progressError);
-            // Don't throw, just use empty array
-        }
-
-        // Get orders to calculate revenue
+        // Get all orders for volunteers to calculate bottle quantities
         const volunteerIds = volunteers?.map(v => v.id) || [];
         const { data: orders } = await supabase
             .from("orders")
-            .select("referred_by, total_price, order_status")
+            .select("referred_by, quantity, total_price, order_status")
             .in("referred_by", volunteerIds)
             .in("order_status", ["confirmed", "delivered"]);
 
-        // Combine data and calculate rankings
+        // Combine data and calculate rankings based on bottles
         const leaderboardData = volunteers?.map(volunteer => {
-            const progress = progressData?.find(p => p.volunteer_id === volunteer.volunteer_id);
             const volunteerOrders = orders?.filter(o => o.referred_by === volunteer.id) || [];
+
+            // Calculate total bottles (sum of quantities)
+            const confirmedBottles = volunteerOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
             const totalRevenue = volunteerOrders.reduce((sum, o) => sum + o.total_price, 0);
 
             return {
                 id: volunteer.id,
                 name: volunteer.name,
                 volunteer_id: volunteer.volunteer_id,
-                confirmed_orders: progress?.confirmed_orders || 0,
+                confirmed_bottles: confirmedBottles,
                 total_revenue: totalRevenue
             };
         }) || [];
 
-        // Sort by confirmed_orders descending
-        leaderboardData.sort((a, b) => b.confirmed_orders - a.confirmed_orders);
+        // Sort by confirmed_bottles descending
+        leaderboardData.sort((a, b) => b.confirmed_bottles - a.confirmed_bottles);
 
         // Add rank
         const rankedLeaderboard = leaderboardData.map((entry, index) => ({

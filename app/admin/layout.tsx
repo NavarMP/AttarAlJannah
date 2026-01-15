@@ -8,6 +8,7 @@ import { LogOut, LayoutDashboard, Package, Menu, X, Users, Trophy } from "lucide
 import { ThemeToggle } from "@/components/custom/theme-toggle";
 import Link from "next/link";
 import { toast } from "sonner";
+import Image from "next/image";
 
 export default function AdminLayout({
     children,
@@ -86,10 +87,16 @@ export default function AdminLayout({
                 `}
             >
                 <div className="p-6 border-b border-border flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-gold-500">
-                            عطر الجنّة
-                        </h1>
+                    <div className="flex-1">
+                        <div className="flex justify-start mb-2">
+                            <Image
+                                src="/assets/typography.svg"
+                                alt="عطر الجنّة"
+                                width={150}
+                                height={40}
+                                className="h-8 w-auto"
+                            />
+                        </div>
                         <p className="text-sm text-muted-foreground mt-1">Admin Panel</p>
                     </div>
                     <Button

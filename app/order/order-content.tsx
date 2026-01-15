@@ -49,11 +49,11 @@ export function OrderContent() {
 
     const fetchOrderForEdit = useCallback(async (orderId: string) => {
         try {
-            const response = await fetch(`/api/customer/orders?phone=${encodeURIComponent(user?.phone || '')}&orderId=${orderId}`);
-            const data = await response.json();
-            const order = data.order;
+            // Fetch order directly by ID (works for everyone)
+            const response = await fetch(`/api/orders/${orderId}`);
+            const order = await response.json();
 
-            if (order) {
+            if (order && order.id) {
                 // Parse address from the combined string
                 const addressParts = order.customer_address.split(', ');
                 setPrefillData({
@@ -62,6 +62,7 @@ export function OrderContent() {
                     whatsappNumber: order.whatsapp_number,
                     customerEmail: order.customer_email || '',
                     quantity: order.quantity,
+                    paymentMethod: order.payment_method,
                     orderId: order.id, // Include orderId for the edit flow
                     // Parse address parts
                     houseBuilding: addressParts[0] || '',
@@ -72,12 +73,14 @@ export function OrderContent() {
                     state: addressParts[5]?.split(' - ')[0] || '',
                     pincode: addressParts[5]?.split(' - ')[1] || '',
                 });
+            } else {
+                toast.error("Order not found or cannot be edited");
             }
         } catch (error) {
             console.error("Failed to fetch order for edit:", error);
             toast.error("Failed to load order details");
         }
-    }, [user?.phone]);
+    }, []);
 
     useEffect(() => {
         // Get referral code from URL
@@ -116,7 +119,7 @@ export function OrderContent() {
                     Place Your Order
                 </h1>
                 <p className="text-lg text-muted-foreground">
-                    عطر الجنّة - Experience the divine fragrance
+                    Attar al-Jannah - Experience the divine fragrance
                 </p>
                 {user && (
                     <p className="text-sm text-primary">

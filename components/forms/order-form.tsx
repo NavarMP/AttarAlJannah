@@ -15,6 +15,8 @@ import { LocationPicker } from "@/components/ui/location-picker";
 import { toast } from "sonner";
 import Image from "next/image";
 import { CameraCapture } from "@/components/ui/camera-capture";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { INDIAN_STATES, DISTRICTS_BY_STATE } from "@/lib/data/indian-locations";
 
 interface CustomerProfile {
     id: string;
@@ -57,6 +59,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
         reset,
     } = useForm<OrderFormData>({
         resolver: zodResolver(orderSchema),
+        mode: "onChange",
         defaultValues: {
             quantity: 1,
             paymentMethod: "upi",
@@ -103,6 +106,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
     const paymentMethod = watch("paymentMethod");
     const quantity = watch("quantity") || 1;
     const phoneNumber = watch("customerPhone");
+    const selectedState = watch("state");
     const totalPrice = quantity * PRODUCT_PRICE;
 
     const copyPhoneToWhatsApp = () => {
@@ -114,12 +118,13 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
         }
     };
 
-    // Validate volunteer ID
+    // Validate volunteer ID with debouncing
     const validateVolunteerId = async (id: string) => {
         if (!id || id.trim() === "") {
             setVolunteerName("");
             setVolunteerValidationError("");
             setIsVolunteerValidated(false);
+            setIsValidatingVolunteer(false); // Clear validating state
             return;
         }
 
@@ -156,6 +161,35 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
             validateVolunteerId(volunteerId);
         }
     }, [volunteerId]);
+
+    // Debounced validation on input change
+    useEffect(() => {
+        if (!volunteerId) {
+            if (volunteerReferralId.trim()) {
+                const timer = setTimeout(() => {
+                    validateVolunteerId(volunteerReferralId.trim());
+                }, 800); // Validate after 800ms of no typing
+
+                return () => clearTimeout(timer);
+            } else {
+                // Clear validation when field is empty
+                validateVolunteerId("");
+            }
+        }
+    }, [volunteerReferralId, volunteerId]);
+
+    // Clear district when state changes
+    useEffect(() => {
+        if (selectedState) {
+            const currentDistrict = watch("district");
+            const districtsForState = DISTRICTS_BY_STATE[selectedState] || [];
+
+            // If current district is not in the new state's list, clear it
+            if (currentDistrict && !districtsForState.includes(currentDistrict)) {
+                setValue("district", "");
+            }
+        }
+    }, [selectedState, setValue, watch]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -283,6 +317,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-w-2xl mx-auto">
             {/* Contact Details */}
             <Card className="glass-strong rounded-3xl">
+                {/* ... existing header ... */}
                 <CardHeader>
                     <CardTitle className="text-3xl">Order Attar al-Jannah</CardTitle>
                     <CardDescription>
@@ -290,6 +325,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                    {/* ... customer name, phone, whatsapp, email ... */}
                     {/* Customer Name */}
                     <div className="space-y-2">
                         <Label htmlFor="customerName">Full Name *</Label>
@@ -377,57 +413,42 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-2">
-                        <div className="flex gap-2">
-                            <div className="flex-1">
-                                <Input
-                                    id="volunteerReferral"
-                                    type="text"
-                                    placeholder="Enter Volunteer ID"
-                                    value={volunteerReferralId}
-                                    onChange={(e) => setVolunteerReferralId(e.target.value)}
-                                    readOnly={!!volunteerId}
-                                    disabled={isValidatingVolunteer}
-                                    className={
-                                        volunteerValidationError
-                                            ? "border-destructive"
-                                            : isVolunteerValidated
-                                                ? "border-emerald-500"
-                                                : ""
-                                    }
-                                />
-                                {isVolunteerValidated && volunteerName && (
-                                    <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
-                                        <CheckCircle2 className="w-4 h-4" />
-                                        Referred by: <span className="font-semibold">{volunteerName}</span>
-                                    </p>
-                                )}
-                                {volunteerValidationError && (
-                                    <p className="text-sm text-destructive mt-1">{volunteerValidationError}</p>
-                                )}
-                                {!!volunteerId && (
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                        This order will be credited to the referring volunteer
-                                    </p>
-                                )}
-                            </div>
-                            {!volunteerId && (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => validateVolunteerId(volunteerReferralId)}
-                                    disabled={isValidatingVolunteer || !volunteerReferralId.trim()}
-                                >
-                                    {isValidatingVolunteer ? (
-                                        <>
-                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                            Validating...
-                                        </>
-                                    ) : (
-                                        "Validate"
-                                    )}
-                                </Button>
-                            )}
-                        </div>
+                        <Input
+                            id="volunteerReferral"
+                            type="text"
+                            placeholder="Enter Volunteer ID"
+                            value={volunteerReferralId}
+                            onChange={(e) => setVolunteerReferralId(e.target.value)}
+                            readOnly={!!volunteerId}
+                            // REMOVED: disabled={isValidatingVolunteer} - kept generic disabled only if needed
+                            className={
+                                volunteerValidationError
+                                    ? "border-destructive"
+                                    : isVolunteerValidated
+                                        ? "border-emerald-500"
+                                        : ""
+                            }
+                        />
+                        {isValidatingVolunteer && (
+                            <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                Validating volunteer ID...
+                            </p>
+                        )}
+                        {isVolunteerValidated && volunteerName && (
+                            <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
+                                <CheckCircle2 className="w-4 h-4" />
+                                Referred by: <span className="font-semibold">{volunteerName}</span>
+                            </p>
+                        )}
+                        {volunteerValidationError && (
+                            <p className="text-sm text-destructive mt-1">{volunteerValidationError}</p>
+                        )}
+                        {!!volunteerId && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                                This order will be credited to the referring volunteer
+                            </p>
+                        )}
                     </div>
                 </CardContent>
             </Card>
@@ -490,6 +511,10 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                                 <Input
                                     id="post"
                                     placeholder="Post Office"
+                                    onInput={(e: React.FormEvent<HTMLInputElement>) => {
+                                        // Remove digits
+                                        e.currentTarget.value = e.currentTarget.value.replace(/[0-9]/g, '');
+                                    }}
                                     {...register("post")}
                                 />
                                 {errors.post && (
@@ -530,29 +555,44 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                             </div>
                         </div>
 
-                        {/* District and State */}
+                        {/* District and State - Reordered: State First */}
                         <div className="grid md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="district">District *</Label>
-                                <Input
-                                    id="district"
-                                    placeholder="District"
-                                    {...register("district")}
+                                <Label htmlFor="state">State *</Label>
+                                <SearchableSelect
+                                    options={INDIAN_STATES}
+                                    value={watch("state")}
+                                    onChange={(val) => {
+                                        setValue("state", val, { shouldValidate: true });
+                                        // Clear district if state changes (handled by useEffect, but ensuring logic flow)
+                                    }}
+                                    placeholder="Select State"
+                                    searchPlaceholder="Search State..."
                                 />
-                                {errors.district && (
-                                    <p className="text-sm text-destructive">{errors.district.message}</p>
+                                <input type="hidden" {...register("state")} />
+                                {errors.state && (
+                                    <p className="text-sm text-destructive">{errors.state.message}</p>
                                 )}
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="state">State *</Label>
-                                <Input
-                                    id="state"
-                                    placeholder="State"
-                                    {...register("state")}
+                                <Label htmlFor="district">District *</Label>
+                                <SearchableSelect
+                                    options={
+                                        selectedState
+                                            ? (DISTRICTS_BY_STATE[selectedState] || [])
+                                            : []
+                                    }
+                                    value={watch("district")}
+                                    onChange={(val) => setValue("district", val, { shouldValidate: true })}
+                                    placeholder="Select District"
+                                    searchPlaceholder="Search District..."
+                                    disabled={!selectedState}
+                                    emptyMessage={!selectedState ? "Please select a state first" : "No district found"}
                                 />
-                                {errors.state && (
-                                    <p className="text-sm text-destructive">{errors.state.message}</p>
+                                <input type="hidden" {...register("district")} />
+                                {errors.district && (
+                                    <p className="text-sm text-destructive">{errors.district.message}</p>
                                 )}
                             </div>
                         </div>

@@ -8,7 +8,7 @@ export function ShareButtons() {
         if (navigator.share) {
             try {
                 await navigator.share({
-                    title: "عطر الجنّة | Attar Al Jannah",
+                    title: "Attar al-Jannah | عطر الجنّة",
                     text: "Check out this amazing Attar from Minhajul Janna!",
                     url: window.location.href,
                 });
@@ -23,7 +23,7 @@ export function ShareButtons() {
     };
 
     const shareToWhatsApp = () => {
-        const text = encodeURIComponent("Check out عطر الجنّة (Attar Al Jannah) from Minhajul Janna! " + window.location.href);
+        const text = encodeURIComponent("Check out Attar al-Jannah (عطر الجنّة) from Minhajul Janna! " + window.location.href);
         window.open(`https://wa.me/?text=${text}`, "_blank");
     };
 
@@ -33,7 +33,7 @@ export function ShareButtons() {
     };
 
     const shareToTwitter = () => {
-        const text = encodeURIComponent("Check out عطر الجنّة (Attar Al Jannah) from Minhajul Janna!");
+        const text = encodeURIComponent("Check out Attar al-Jannah (عطر الجنّة) from Minhajul Janna!");
         const url = encodeURIComponent(window.location.href);
         window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, "_blank");
     };

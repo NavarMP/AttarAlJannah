@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Phone, Mail, MapPin, Instagram, Youtube, MessageCircle } from "lucide-react";
+import { Phone, Mail, MapPin } from "lucide-react";
+import { FaInstagram, FaYoutube, FaWhatsapp } from "react-icons/fa";
 
 export function Footer() {
     const currentYear = new Date().getFullYear();
@@ -11,14 +12,23 @@ export function Footer() {
         phones: ['+91 907 235 8001', '+91 907 235 8002'],
         email: 'minhajuljanna786@gmail.com',
         locations: [
-            { name: 'Naduvannur', mapUrl: 'https://maps.app.goo.gl/BYZHabQxUYFXC7Kq7' },
-            { name: 'Pullaloor', mapUrl: 'https://maps.app.goo.gl/xD3xHCh1UmSB4djK6' },
-            { name: 'Koduvally', mapUrl: 'https://maps.app.goo.gl/YhCFU8WCFeAffRH8A' }
+            {
+                name: 'Naduvannur',
+                mapUrl: 'https://maps.app.goo.gl/gT7RwZSpQqmjpqV38'
+            },
+            {
+                name: 'Pullaloor',
+                mapUrl: 'https://maps.app.goo.gl/mXJCQo9cKFyygfqY6'
+            },
+            {
+                name: 'Koduvally',
+                mapUrl: 'https://maps.app.goo.gl/17bmxLvf7SXiJLag6'
+            }
         ],
         social: [
-            { name: 'Instagram', icon: Instagram, url: 'https://instagram.com/minhajul_janna_/' },
-            { name: 'Youtube', icon: Youtube, url: 'https://youtube.com/@minhajuljanna' },
-            { name: 'WhatsApp', icon: MessageCircle, url: 'https://whatsapp.com/channel/0029VaxowK2DzgTE7cdK4G11' }
+            { name: 'Instagram', icon: FaInstagram, url: 'https://instagram.com/minhajul_janna_/' },
+            { name: 'Youtube', icon: FaYoutube, url: 'https://youtube.com/@minhajuljanna' },
+            { name: 'WhatsApp', icon: FaWhatsapp, url: 'https://whatsapp.com/channel/0029VaxowK2DzgTE7cdK4G11' }
         ]
     };
 
@@ -37,9 +47,15 @@ export function Footer() {
                                 className="w-24 h-auto dark:brightness-[180%] dark:contrast-75 transition-all"
                             />
                         </div>
-                        <h3 className=" arabic-text text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-gold-500">
-                            عطر الجنّة
-                        </h3>
+                        <div className="flex justify-center md:justify-start">
+                            <Image
+                                src="/assets/typography.svg"
+                                alt="عطر الجنّة"
+                                width={200}
+                                height={60}
+                                className="h-12 w-auto"
+                            />
+                        </div>
                         <p className="text-sm text-muted-foreground">
                             Essence of Minhajul Janna
                         </p>

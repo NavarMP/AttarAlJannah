@@ -5,7 +5,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Package, ArrowLeft, CheckCircle2, Clock, XCircle, Edit2, Trash2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Package, ArrowLeft, CheckCircle2, Clock, XCircle, Edit2, Trash2, Search } from "lucide-react";
 import { toast } from "sonner";
 
 interface Order {
@@ -25,7 +27,10 @@ export default function VolunteerOrdersPage() {
     const router = useRouter();
     const [volunteerId, setVolunteerId] = useState("");
     const [orders, setOrders] = useState<Order[]>([]);
+    const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [search, setSearch] = useState("");
+    const [statusFilter, setStatusFilter] = useState("all");
 
     useEffect(() => {
         const id = localStorage.getItem("volunteerId");
@@ -43,6 +48,7 @@ export default function VolunteerOrdersPage() {
             if (!response.ok) throw new Error("Failed to fetch orders");
             const data = await response.json();
             setOrders(data.orders || []);
+            setFilteredOrders(data.orders || []);
         } catch (error) {
             toast.error("Failed to load orders");
             console.error(error);
@@ -50,6 +56,27 @@ export default function VolunteerOrdersPage() {
             setIsLoading(false);
         }
     };
+
+    // Filter orders based on search and status
+    useEffect(() => {
+        let filtered = orders;
+
+        // Apply search filter
+        if (search) {
+            filtered = filtered.filter(order =>
+                order.customer_name.toLowerCase().includes(search.toLowerCase()) ||
+                order.customer_phone.includes(search) ||
+                order.id.toLowerCase().includes(search.toLowerCase())
+            );
+        }
+
+        // Apply status filter
+        if (statusFilter !== "all") {
+            filtered = filtered.filter(order => order.order_status === statusFilter);
+        }
+
+        setFilteredOrders(filtered);
+    }, [search, statusFilter, orders]);
 
     const handleDeleteOrder = async (orderId: string) => {
         if (!confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
@@ -80,22 +107,19 @@ export default function VolunteerOrdersPage() {
         router.push(`/order?ref=${volunteerId}&edit=${orderId}`);
     };
 
-    const getStatusIcon = (paymentStatus: string, orderStatus: string) => {
-        if (paymentStatus === "verified" && orderStatus === "delivered") {
+    const getStatusIcon = (orderStatus: string) => {
+        if (orderStatus === "delivered") {
             return <CheckCircle2 className="w-5 h-5 text-emerald-500" />;
+        } else if (orderStatus === "confirmed") {
+            return <CheckCircle2 className="w-5 h-5 text-blue-500" />;
         } else if (orderStatus === "cancelled") {
             return <XCircle className="w-5 h-5 text-red-500" />;
         }
         return <Clock className="w-5 h-5 text-yellow-500" />;
     };
 
-    const getStatusText = (paymentStatus: string, orderStatus: string) => {
-        if (paymentStatus === "verified" && orderStatus === "delivered") {
-            return "Completed";
-        } else if (orderStatus === "cancelled") {
-            return "Cancelled";
-        }
-        return "Pending";
+    const getStatusText = (orderStatus: string) => {
+        return orderStatus.charAt(0).toUpperCase() + orderStatus.slice(1);
     };
 
     if (isLoading) {
@@ -124,12 +148,39 @@ export default function VolunteerOrdersPage() {
                     </div>
                 </div>
 
+                {/* Search and Filter */}
+                <Card className="p-4 rounded-3xl">
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <div className="flex-1 relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search by customer name, phone, or Order ID..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="pl-10"
+                            />
+                        </div>
+                        <Select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="w-full md:w-48"
+                        >
+                            <option value="all">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="delivered">Delivered</option>
+                        </Select>
+                    </div>
+                </Card>
+
                 {/* Orders List */}
-                {orders.length === 0 ? (
+                {filteredOrders.length === 0 ? (
                     <Card className="glass-strong">
                         <CardContent className="py-12 text-center">
                             <Package className="w-16 h-16 mx-auto text-muted-foreground opacity-50 mb-4" />
-                            <p className="text-lg text-muted-foreground">No orders yet</p>
+                            <p className="text-lg text-muted-foreground">
+                                {orders.length === 0 ? "No orders yet" : "No orders match your search"}
+                            </p>
                             <p className="text-sm text-muted-foreground mt-2">
                                 Start adding customer orders to see them here
                             </p>
@@ -143,7 +194,7 @@ export default function VolunteerOrdersPage() {
                     </Card>
                 ) : (
                     <div className="space-y-4">
-                        {orders.map((order) => (
+                        {filteredOrders.map((order) => (
                             <Card
                                 key={order.id}
                                 onClick={() => router.push(`/volunteer/orders/${order.id}`)}
@@ -153,7 +204,7 @@ export default function VolunteerOrdersPage() {
                                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                         <div className="space-y-2 flex-1">
                                             <div className="flex items-center gap-3">
-                                                {getStatusIcon(order.payment_status, order.order_status)}
+                                                {getStatusIcon(order.order_status)}
                                                 <div>
                                                     <h3 className="font-semibold text-lg">{order.customer_name}</h3>
                                                     <p className="text-sm text-muted-foreground">{order.customer_phone}</p>
@@ -186,13 +237,15 @@ export default function VolunteerOrdersPage() {
                                                     ₹{order.total_price.toLocaleString()}
                                                 </p>
                                             </div>
-                                            <div className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusText(order.payment_status, order.order_status) === "Completed"
-                                                ? "bg-emerald-500/20 text-emerald-500"
-                                                : getStatusText(order.payment_status, order.order_status) === "Cancelled"
-                                                    ? "bg-red-500/20 text-red-500"
-                                                    : "bg-yellow-500/20 text-yellow-500"
+                                            <div className={`px-3 py-1 rounded-full text-xs font-medium ${order.order_status === "delivered"
+                                                    ? "bg-emerald-500/20 text-emerald-500"
+                                                    : order.order_status === "confirmed"
+                                                        ? "bg-blue-500/20 text-blue-500"
+                                                        : order.order_status === "cancelled"
+                                                            ? "bg-red-500/20 text-red-500"
+                                                            : "bg-yellow-500/20 text-yellow-500"
                                                 }`}>
-                                                {getStatusText(order.payment_status, order.order_status)}
+                                                {getStatusText(order.order_status)}
                                             </div>
                                         </div>
                                     </div>

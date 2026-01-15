@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ThankYouPoster } from "@/components/thank-you-poster";
 import { OrderBill } from "@/components/order-bill";
-import { CheckCircle2, Loader2, ShoppingBag } from "lucide-react";
+import { CheckCircle2, Loader2, ShoppingBag, Pencil } from "lucide-react";
 import Link from "next/link";
 
 interface Order {
@@ -128,6 +128,18 @@ function ThanksContent() {
 
                 {/* Actions */}
                 <div className="flex flex-col sm:flex-row gap-4">
+                    {order.order_status === 'pending' && (
+                        <Link href={`/order?edit=${order.id}`} className="flex-1">
+                            <Button
+                                variant="default"
+                                className="w-full rounded-2xl"
+                                size="lg"
+                            >
+                                <Pencil className="w-4 h-4 mr-2" />
+                                Edit Order
+                            </Button>
+                        </Link>
+                    )}
                     <Link href="/order" className="flex-1">
                         <Button
                             variant="outline"
