@@ -26,11 +26,11 @@ export async function GET(
             );
         }
 
-        // Get challenge progress
+        // Get challenge progress using UUID
         const { data: progress } = await supabase
             .from("challenge_progress")
             .select("*")
-            .eq("volunteer_id", volunteer.volunteer_id)
+            .eq("volunteer_id", volunteer.id)
             .single();
 
         // Get order statistics using UUID (referred_by is UUID)
@@ -97,15 +97,16 @@ export async function PUT(
             );
         }
 
-        // If volunteer_id is being changed, check uniqueness
+        // If volunteer_id is being changed, check uniqueness (case-insensitive)
         if (volunteer_id && volunteer_id !== existingVolunteer.volunteer_id) {
             const { data: duplicateCheck } = await supabase
                 .from("users")
                 .select("id")
-                .eq("volunteer_id", volunteer_id)
-                .single();
+                .eq("user_role", "volunteer")
+                .ilike("volunteer_id", volunteer_id)
+                .neq("id", volunteerId); // Exclude current volunteer
 
-            if (duplicateCheck) {
+            if (duplicateCheck && duplicateCheck.length > 0) {
                 return NextResponse.json(
                     { error: "Volunteer ID already exists" },
                     { status: 400 }
@@ -142,17 +143,17 @@ export async function PUT(
 
         // Update goal in challenge_progress if provided
         if (goal !== undefined) {
-            // Use upsert to handle both update and insert cases
-            // Use the volunteer's UUID from the updated record
-            const volunteerUuidForProgress = updatedVolunteer.id;
+            // Use UUID, not the readable volunteer_id
+            // The challenge_progress.volunteer_id column is a UUID foreign key
+            const volunteerUuid = updatedVolunteer.id;
 
-            console.log("Updating goal for volunteer UUID:", volunteerUuidForProgress, "to:", goal);
+            console.log("Updating goal for volunteer UUID:", volunteerUuid, "to:", goal);
 
             const { error: progressError } = await supabase
                 .from("challenge_progress")
                 .upsert(
                     {
-                        volunteer_id: volunteerUuidForProgress, // Use UUID instead of volunteer_id string
+                        volunteer_id: volunteerUuid, // Use UUID
                         goal: parseInt(goal),
                         confirmed_orders: 0 // Default value if inserting
                     },
@@ -213,11 +214,11 @@ export async function DELETE(
             );
         }
 
-        // Delete challenge_progress entry
+        // Delete challenge_progress entry using UUID
         await supabase
             .from("challenge_progress")
             .delete()
-            .eq("volunteer_id", volunteer.volunteer_id);
+            .eq("volunteer_id", volunteerId); // Use UUID, not readable ID
 
         // Delete user record
         const { error: deleteError } = await supabase

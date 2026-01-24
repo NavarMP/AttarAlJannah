@@ -32,7 +32,7 @@ export default function VolunteerLoginPage() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    volunteerId: volunteerId.toUpperCase(),
+                    volunteerId: volunteerId, // No uppercase conversion - backend is case-insensitive
                     password: password,
                 }),
             });
@@ -48,6 +48,7 @@ export default function VolunteerLoginPage() {
                 // Store volunteer info in localStorage to match dashboard expectations
                 localStorage.setItem("volunteerId", result.volunteer.volunteerId);
                 localStorage.setItem("volunteerName", result.volunteer.name);
+                localStorage.setItem("volunteerUuid", result.volunteer.id);
                 router.push("/volunteer/dashboard");
             } else {
                 toast.error(result.error || "Login failed");

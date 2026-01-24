@@ -1,18 +1,20 @@
 "use client";
 
 export const dynamic = "force-dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Package, TrendingUp, Trophy, Plus, Share } from "lucide-react";
+import { Package, TrendingUp, Trophy, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 interface DashboardStats {
     confirmedBottles: number;
+    confirmedOrders: number;
     goal: number;
     pendingBottles: number;
+    pendingOrders: number;
     totalRevenue: number;
 }
 
@@ -22,15 +24,57 @@ export default function VolunteerDashboardPage() {
     const [volunteerId, setVolunteerId] = useState("");
     const [stats, setStats] = useState<DashboardStats>({
         confirmedBottles: 0,
+        confirmedOrders: 0,
         goal: 20,
         pendingBottles: 0,
+        pendingOrders: 0,
         totalRevenue: 0,
     });
     const [isLoading, setIsLoading] = useState(true);
 
+    const fetchStats = useCallback(async (id: string) => {
+        try {
+            console.log("Fetching stats for ID:", id);
+            const response = await fetch(`/api/volunteer/progress?volunteerId=${id}`);
+            if (!response.ok) throw new Error("Failed to fetch stats");
+
+            const data = await response.json();
+            console.log("Received stats:", data);
+            setStats(data);
+        } catch (error) {
+            toast.error("Failed to load dashboard data");
+            console.error("Stats fetch error:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    const fetchAndStoreUuid = useCallback(async (volunteerId: string) => {
+        try {
+            // Fetch volunteer details to get UUID
+            const response = await fetch(`/api/volunteer/auth?volunteerId=${volunteerId}`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.uuid) {
+                    console.log("Fetched UUID from API:", data.uuid);
+                    localStorage.setItem("volunteerUuid", data.uuid);
+                    fetchStats(data.uuid);
+                    return;
+                }
+            }
+            // Fallback: try with readable ID (might not work but better than nothing)
+            console.warn("Could not fetch UUID, falling back to readable ID:", volunteerId);
+            fetchStats(volunteerId);
+        } catch (error) {
+            console.error("Error fetching UUID:", error);
+            fetchStats(volunteerId);
+        }
+    }, [fetchStats]);
+
     useEffect(() => {
         // Check if logged in
         const id = localStorage.getItem("volunteerId");
+        const uuid = localStorage.getItem("volunteerUuid");
         const name = localStorage.getItem("volunteerName");
 
         if (!id || !name) {
@@ -40,23 +84,16 @@ export default function VolunteerDashboardPage() {
 
         setVolunteerId(id);
         setVolunteerName(name);
-        fetchStats(id);
-    }, [router]);
 
-    const fetchStats = async (id: string) => {
-        try {
-            const response = await fetch(`/api/volunteer/progress?volunteerId=${id}`);
-            if (!response.ok) throw new Error("Failed to fetch stats");
-
-            const data = await response.json();
-            setStats(data);
-        } catch (error) {
-            toast.error("Failed to load dashboard data");
-            console.error(error);
-        } finally {
-            setIsLoading(false);
+        // If UUID is missing, fetch it from the API and store it
+        if (!uuid) {
+            console.log("UUID missing, fetching from API for volunteer:", id);
+            fetchAndStoreUuid(id);
+        } else {
+            console.log("Using stored UUID:", uuid);
+            fetchStats(uuid);
         }
-    };
+    }, [router, fetchAndStoreUuid, fetchStats]);
 
     const handleLogout = () => {
         localStorage.removeItem("volunteerId");
@@ -78,16 +115,15 @@ export default function VolunteerDashboardPage() {
         <main className="min-h-screen py-8 px-4">
             <div className="max-w-6xl mx-auto space-y-8">
                 {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-4xl font-bold text-foreground">
-                            Welcome back, {volunteerName}!
-                        </h1>
-                        <p className="text-muted-foreground mt-2">
-                            Track your progress and manage your orders
-                        </p>
-                    </div>
+                <div>
+                    <h1 className="text-4xl font-bold text-foreground">
+                        Welcome back, {volunteerName}!
+                    </h1>
+                    <p className="text-muted-foreground mt-2">
+                        Track your progress and manage your orders
+                    </p>
                 </div>
+
                 {/* Progress Card */}
                 <Card className="glass-strong border-emerald-300 dark:border-emerald-700">
                     <CardHeader>
@@ -124,17 +160,34 @@ export default function VolunteerDashboardPage() {
                 </Card>
 
                 {/* Stats Grid */}
-                <div className="grid md:grid-cols-3 gap-6">
+                <div className="grid md:grid-cols-4 gap-6">
                     <Card className="glass">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-lg">
                                 <Package className="w-5 h-5 text-blue-500" />
-                                Pending Bottles
+                                Confirmed Orders
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
                             <p className="text-3xl font-bold text-foreground">
-                                {stats.pendingBottles}
+                                {stats.confirmedOrders}
+                            </p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                                Total orders confirmed
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="glass">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-lg">
+                                <Package className="w-5 h-5 text-orange-500" />
+                                Pending Orders
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-3xl font-bold text-foreground">
+                                {stats.pendingOrders}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
                                 Awaiting admin verification

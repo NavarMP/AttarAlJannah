@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import Link from 'next/link';
 import { useCustomerAuth } from "@/lib/contexts/customer-auth-context";
 import { useAuth } from "@/lib/contexts/auth-context";
+import { AutoHideContainer } from "@/components/custom/auto-hide-container";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -168,12 +169,12 @@ function LoginButton() {
         setVolunteerLoggedIn(!!volunteerId);
     }, []);
 
-    // Show login button if ANY of the three user types is NOT logged in
-    const allLoggedIn = customerUser && adminUser && volunteerLoggedIn;
+    // Check if ANY user type is logged in
+    const anyLoggedIn = customerUser || adminUser || volunteerLoggedIn;
 
     // If users are logged in, show icon-only buttons
     return (
-        <div className="fixed top-6 right-6 z-50 flex gap-2">
+        <AutoHideContainer className="fixed top-6 right-6 z-50 flex gap-2">
             {adminUser && (
                 <Button
                     onClick={() => router.push("/admin/dashboard")}
@@ -201,7 +202,7 @@ function LoginButton() {
                     <User className="w-5 h-5" />
                 </Button>
             )}
-            {!allLoggedIn && (
+            {!anyLoggedIn && (
                 <Button
                     onClick={() => router.push("/login")}
                     className="rounded-2xl shadow-lg bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600"
@@ -211,7 +212,7 @@ function LoginButton() {
                     Login
                 </Button>
             )}
-        </div>
+        </AutoHideContainer>
     );
 }
 

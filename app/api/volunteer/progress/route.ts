@@ -28,24 +28,26 @@ export async function GET(request: NextRequest) {
             .select("*")
             .eq("referred_by", volunteerId);
 
-        // Calculate confirmed bottles (sum of quantities for confirmed/delivered orders)
-        const confirmedBottles = orders
-            ?.filter(o => o.order_status === "confirmed" || o.order_status === "delivered")
-            .reduce((sum, o) => sum + (o.quantity || 0), 0) || 0;
+        // Filter confirmed/delivered orders
+        const confirmedOrders = orders?.filter(o => o.order_status === "confirmed" || o.order_status === "delivered") || [];
+        const pendingOrders = orders?.filter(o => o.order_status === "pending") || [];
 
-        const pendingBottles = orders
-            ?.filter(o => o.order_status === "pending")
-            .reduce((sum, o) => sum + (o.quantity || 0), 0) || 0;
+        // Calculate confirmed bottles and orders
+        const confirmedBottles = confirmedOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
+        const confirmedOrdersCount = confirmedOrders.length;
+
+        const pendingBottles = pendingOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
+        const pendingOrdersCount = pendingOrders.length;
 
         // Calculate total revenue from confirmed orders
-        const totalRevenue = orders
-            ?.filter(o => o.order_status === "confirmed" || o.order_status === "delivered")
-            .reduce((sum, o) => sum + o.total_price, 0) || 0;
+        const totalRevenue = confirmedOrders.reduce((sum, o) => sum + o.total_price, 0);
 
         return NextResponse.json({
             confirmedBottles,
+            confirmedOrders: confirmedOrdersCount,
             goal: progress?.goal || 20,
             pendingBottles,
+            pendingOrders: pendingOrdersCount,
             totalRevenue: Math.round(totalRevenue),
         });
     } catch (error) {

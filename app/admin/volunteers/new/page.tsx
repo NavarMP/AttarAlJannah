@@ -29,7 +29,7 @@ export default function NewVolunteerPage() {
         e.preventDefault();
 
         // Validation
-        if (!formData.name || !formData.email || !formData.phone || !formData.password) {
+        if (!formData.name || !formData.phone || !formData.password) {
             toast.error("Please fill in all required fields");
             return;
         }
@@ -125,7 +125,7 @@ export default function NewVolunteerPage() {
                         {/* Email and Phone */}
                         <div className="grid md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="email">Email *</Label>
+                                <Label htmlFor="email">Email (Optional)</Label>
                                 <Input
                                     id="email"
                                     name="email"
@@ -133,7 +133,6 @@ export default function NewVolunteerPage() {
                                     value={formData.email}
                                     onChange={handleChange}
                                     placeholder="volunteer@example.com"
-                                    required
                                 />
                             </div>
                             <div className="space-y-2">
@@ -160,7 +159,6 @@ export default function NewVolunteerPage() {
                                     value={formData.volunteer_id}
                                     onChange={handleChange}
                                     placeholder="Auto-generated (e.g., VOL001)"
-                                    className="uppercase"
                                 />
                                 <p className="text-xs text-muted-foreground">
                                     Leave empty for auto-generation
@@ -178,19 +176,6 @@ export default function NewVolunteerPage() {
                                     required
                                 />
                             </div>
-                        </div>
-
-                        {/* Address */}
-                        <div className="space-y-2">
-                            <Label htmlFor="address">Address (Optional)</Label>
-                            <Textarea
-                                id="address"
-                                name="address"
-                                value={formData.address}
-                                onChange={handleChange}
-                                placeholder="Enter volunteer's address"
-                                rows={3}
-                            />
                         </div>
 
                         {/* Goal */}

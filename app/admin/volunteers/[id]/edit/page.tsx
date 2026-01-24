@@ -80,7 +80,7 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
         e.preventDefault();
 
         // Validation
-        if (!formData.name || !formData.email || !formData.phone) {
+        if (!formData.name || !formData.phone) {
             toast.error("Please fill in all required fields");
             return;
         }
@@ -184,12 +184,6 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
                 </Card>
                 <Card className="glass">
                     <CardContent className="pt-6">
-                        <div className="text-sm text-muted-foreground">Confirmed Bottles</div>
-                        <div className="text-2xl font-bold mt-1">{stats.stats.confirmedBottles}</div>
-                    </CardContent>
-                </Card>
-                <Card className="glass">
-                    <CardContent className="pt-6">
                         <div className="text-sm text-muted-foreground">Pending Bottles</div>
                         <div className="text-2xl font-bold mt-1">{stats.stats.pendingBottles}</div>
                     </CardContent>
@@ -221,14 +215,13 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
                         {/* Email and Phone */}
                         <div className="grid md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="email">Email *</Label>
+                                <Label htmlFor="email">Email (Optional)</Label>
                                 <Input
                                     id="email"
                                     name="email"
                                     type="email"
                                     value={formData.email}
                                     onChange={handleChange}
-                                    required
                                 />
                             </div>
                             <div className="space-y-2">
@@ -253,7 +246,6 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
                                     name="volunteer_id"
                                     value={formData.volunteer_id}
                                     onChange={handleChange}
-                                    className="uppercase"
                                     required
                                 />
                                 <p className="text-xs text-muted-foreground">
@@ -271,18 +263,6 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
                                     placeholder="Leave empty to keep current"
                                 />
                             </div>
-                        </div>
-
-                        {/* Address */}
-                        <div className="space-y-2">
-                            <Label htmlFor="address">Address (Optional)</Label>
-                            <Textarea
-                                id="address"
-                                name="address"
-                                value={formData.address}
-                                onChange={handleChange}
-                                rows={3}
-                            />
                         </div>
 
                         {/* Goal */}

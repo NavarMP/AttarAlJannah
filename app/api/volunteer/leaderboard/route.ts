@@ -45,11 +45,17 @@ export async function GET() {
         // Sort by confirmed_bottles descending
         leaderboardData.sort((a, b) => b.confirmed_bottles - a.confirmed_bottles);
 
-        // Add rank
-        const rankedLeaderboard = leaderboardData.map((entry, index) => ({
-            ...entry,
-            rank: index + 1
-        }));
+        // Add rank with tie handling
+        let currentRank = 1;
+        const rankedLeaderboard = leaderboardData.map((entry, index) => {
+            if (index > 0 && entry.confirmed_bottles < leaderboardData[index - 1].confirmed_bottles) {
+                currentRank = index + 1;
+            }
+            return {
+                ...entry,
+                rank: currentRank
+            };
+        });
 
         return NextResponse.json({ leaderboard: rankedLeaderboard });
 

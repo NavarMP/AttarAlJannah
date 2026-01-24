@@ -4,11 +4,15 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, Clock, CheckCircle, DollarSign } from "lucide-react";
+import { MetricToggle } from "@/components/custom/metric-toggle";
 
 interface Stats {
     totalBottles: number;
+    totalOrders: number;
     pendingBottles: number;
+    pendingOrders: number;
     deliveredBottles: number;
+    deliveredOrders: number;
     totalRevenue: number;
 }
 
@@ -56,17 +60,12 @@ export default function AdminDashboard() {
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <Card className="rounded-3xl">
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">
-                            Total Bottles
-                        </CardTitle>
-                        <Package className="h-5 w-5 text-primary" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-3xl font-bold">{stats?.totalBottles || 0}</div>
-                    </CardContent>
-                </Card>
+                <StatCard
+                    title="Total"
+                    icon={<Package className="h-5 w-5 text-primary" />}
+                    bottles={stats?.totalBottles || 0}
+                    orders={stats?.totalOrders || 0}
+                />
 
                 <Card className="rounded-3xl">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -76,7 +75,14 @@ export default function AdminDashboard() {
                         <Clock className="h-5 w-5 text-orange-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold">{stats?.pendingBottles || 0}</div>
+                        <div className="space-y-2">
+                            <div className="text-3xl font-bold">
+                                {stats?.pendingBottles || 0}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                                {stats?.pendingOrders || 0} orders
+                            </p>
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -88,7 +94,14 @@ export default function AdminDashboard() {
                         <CheckCircle className="h-5 w-5 text-green-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold">{stats?.deliveredBottles || 0}</div>
+                        <div className="space-y-2">
+                            <div className="text-3xl font-bold">
+                                {stats?.deliveredBottles || 0}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                                {stats?.deliveredOrders || 0} orders
+                            </p>
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -136,5 +149,31 @@ export default function AdminDashboard() {
                 </CardContent>
             </Card>
         </div>
+    );
+}
+
+// Stat Card with individual toggle
+function StatCard({ title, icon, bottles, orders }: { title: string; icon: React.ReactNode; bottles: number; orders: number }) {
+    const [showBottles, setShowBottles] = useState(true);
+
+    return (
+        <Card className="rounded-3xl">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                    {title}
+                </CardTitle>
+                {icon}
+            </CardHeader>
+            <CardContent className="space-y-3">
+                <div className="text-3xl font-bold">
+                    {showBottles ? bottles : orders}
+                </div>
+                <MetricToggle
+                    onToggle={setShowBottles}
+                    defaultShowBottles={showBottles}
+                    className="scale-75 origin-left"
+                />
+            </CardContent>
+        </Card>
     );
 }

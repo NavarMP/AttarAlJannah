@@ -33,22 +33,36 @@ export async function GET(request: NextRequest) {
             throw volunteersError;
         }
 
-        // Get challenge progress for each volunteer
-        const volunteerIds = volunteers?.map(s => s.volunteer_id) || [];
-
+        // Get challenge progress for goal using UUID (not readable ID)
+        const volunteerUUIDs = volunteers?.map(s => s.id) || [];
         const { data: progressData } = await supabase
             .from("challenge_progress")
-            .select("*")
-            .in("volunteer_id", volunteerIds);
+            .select("volunteer_id, goal")
+            .in("volunteer_id", volunteerUUIDs);
 
-        // Merge progress data with volunteers
+        // Get orders for bottle count (using UUID)
+        const { data: orders } = await supabase
+            .from("orders")
+            .select("referred_by, quantity, order_status")
+            .in("referred_by", volunteerUUIDs)
+            .in("order_status", ["confirmed", "delivered"]);
+
+        // Merge data
         const volunteersWithProgress = volunteers?.map(volunteer => {
-            const progress = progressData?.find(p => p.volunteer_id === volunteer.volunteer_id);
+            // Match by UUID now
+            const progress = progressData?.find(p => p.volunteer_id === volunteer.id);
+
+            // Calculate bottles from orders
+            const volunteerOrders = orders?.filter(o => o.referred_by === volunteer.id) || [];
+            const confirmedBottles = volunteerOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
+
+            const goal = progress?.goal || 20;
+
             return {
                 ...volunteer,
-                confirmed_orders: progress?.confirmed_orders || 0,
-                goal: progress?.goal || 20,
-                progress_percentage: progress ? Math.round((progress.confirmed_orders / progress.goal) * 100) : 0
+                confirmed_bottles: confirmedBottles,
+                goal: goal,
+                progress_percentage: Math.round((confirmedBottles / goal) * 100)
             };
         });
 
@@ -79,9 +93,9 @@ export async function POST(request: NextRequest) {
         const { name, email, phone, password, address, volunteer_id, goal = 20 } = body;
 
         // Validate required fields
-        if (!name || !email || !phone || !password) {
+        if (!name || !phone || !password) {
             return NextResponse.json(
-                { error: "Name, email, phone, and password are required" },
+                { error: "Name, phone, and password are required" },
                 { status: 400 }
             );
         }
@@ -100,21 +114,21 @@ export async function POST(request: NextRequest) {
 
             if (lastVolunteer && lastVolunteer.volunteer_id) {
                 // Extract number from VOL001 format
-                const lastNumber = parseInt(lastVolunteer.volunteer_id.replace("VOL", ""));
+                const lastNumber = parseInt(lastVolunteer.volunteer_id.replace(/VOL/i, ""));
                 finalVolunteerId = `VOL${String(lastNumber + 1).padStart(3, "0")}`;
             } else {
                 finalVolunteerId = "VOL001";
             }
         }
 
-        // Check if volunteer_id already exists
+        // Check if volunteer_id already exists (case-insensitive)
         const { data: existingVolunteer } = await supabase
             .from("users")
-            .select("id")
-            .eq("volunteer_id", finalVolunteerId)
-            .single();
+            .select("id, volunteer_id")
+            .eq("user_role", "volunteer")
+            .ilike("volunteer_id", finalVolunteerId);
 
-        if (existingVolunteer) {
+        if (existingVolunteer && existingVolunteer.length > 0) {
             return NextResponse.json(
                 { error: "Volunteer ID already exists" },
                 { status: 400 }
@@ -158,11 +172,11 @@ export async function POST(request: NextRequest) {
             throw createError;
         }
 
-        // Create challenge progress entry
+        // Create challenge progress entry using UUID, not readable volunteer_id
         const { error: progressError } = await supabase
             .from("challenge_progress")
             .insert({
-                volunteer_id: finalVolunteerId,
+                volunteer_id: newVolunteer.id, // Use UUID, not the readable string
                 confirmed_orders: 0,
                 goal: goal,
             });

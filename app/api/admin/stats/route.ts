@@ -5,23 +5,24 @@ export async function GET() {
     try {
         const supabase = await createClient();
 
-        // Get all orders to calculate bottle quantities
+        // Get all orders to calculate bottle quantities and order counts
         const { data: allOrders } = await supabase
             .from("orders")
             .select("quantity, order_status, total_price");
 
         const totalBottles = allOrders?.reduce((sum, order) => sum + (order.quantity || 0), 0) || 0;
-        const pendingBottles = allOrders
-            ?.filter(o => o.order_status === "pending")
-            .reduce((sum, order) => sum + (order.quantity || 0), 0) || 0;
-        const deliveredBottles = allOrders
-            ?.filter(o => o.order_status === "delivered")
-            .reduce((sum, order) => sum + (order.quantity || 0), 0) || 0;
+        const totalOrders = allOrders?.length || 0;
+
+        const pendingOrders = allOrders?.filter(o => o.order_status === "pending") || [];
+        const pendingBottles = pendingOrders.reduce((sum, order) => sum + (order.quantity || 0), 0);
+        const pendingOrdersCount = pendingOrders.length;
+
+        const deliveredOrders = allOrders?.filter(o => o.order_status === "delivered") || [];
+        const deliveredBottles = deliveredOrders.reduce((sum, order) => sum + (order.quantity || 0), 0);
+        const deliveredOrdersCount = deliveredOrders.length;
 
         // Get total revenue from delivered orders
-        const totalRevenue = allOrders
-            ?.filter(o => o.order_status === "delivered")
-            .reduce((sum, order) => sum + Number(order.total_price), 0) || 0;
+        const totalRevenue = deliveredOrders.reduce((sum, order) => sum + Number(order.total_price), 0);
 
         // Get recent orders
         const { data: recentOrders } = await supabase
@@ -33,8 +34,11 @@ export async function GET() {
         return NextResponse.json({
             stats: {
                 totalBottles,
+                totalOrders,
                 pendingBottles,
+                pendingOrders: pendingOrdersCount,
                 deliveredBottles,
+                deliveredOrders: deliveredOrdersCount,
                 totalRevenue,
             },
             recentOrders: recentOrders || [],

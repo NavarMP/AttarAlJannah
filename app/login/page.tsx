@@ -1,12 +1,24 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { User, GraduationCap, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { useCustomerAuth } from "@/lib/contexts/customer-auth-context";
+import { useAuth } from "@/lib/contexts/auth-context";
 
 export default function LoginSelectorPage() {
+    const { user: customerUser } = useCustomerAuth();
+    const { user: adminUser } = useAuth();
+    const [volunteerLoggedIn, setVolunteerLoggedIn] = useState(false);
+
+    useEffect(() => {
+        const volunteerId = localStorage.getItem("volunteerId");
+        setVolunteerLoggedIn(!!volunteerId);
+    }, []);
+
     return (
         <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-background via-primary/5 to-gold-500/10">
             <div className="w-full max-w-4xl space-y-8">
@@ -25,7 +37,7 @@ export default function LoginSelectorPage() {
 
                 <div className="grid md:grid-cols-3 gap-6">
                     {/* Customer Login */}
-                    <Link href="/customer/login">
+                    <Link href={customerUser ? "/customer/dashboard" : "/customer/login"}>
                         <Card className="glass-strong rounded-3xl hover:border-primary transition-all duration-300 hover:scale-105 cursor-pointer h-full">
                             <CardHeader className="text-center">
                                 <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-gold-500/20 flex items-center justify-center mb-4">
@@ -45,14 +57,14 @@ export default function LoginSelectorPage() {
                                     • One-click checkout
                                 </p>
                                 <Button className="w-full mt-4 bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600 rounded-2xl">
-                                    Login
+                                    {customerUser ? "Go to Dashboard" : "Login"}
                                 </Button>
                             </CardContent>
                         </Card>
                     </Link>
 
                     {/* Volunteer Login */}
-                    <Link href="/volunteer/login">
+                    <Link href={volunteerLoggedIn ? "/volunteer/dashboard" : "/volunteer/login"}>
                         <Card className="glass-strong rounded-3xl hover:border-primary transition-all duration-300 hover:scale-105 cursor-pointer h-full">
                             <CardHeader className="text-center">
                                 <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center mb-4">
@@ -72,14 +84,14 @@ export default function LoginSelectorPage() {
                                     • View leaderboard rank
                                 </p>
                                 <Button className="w-full mt-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-2xl">
-                                    Login
+                                    {volunteerLoggedIn ? "Go to Dashboard" : "Login"}
                                 </Button>
                             </CardContent>
                         </Card>
                     </Link>
 
                     {/* Admin Login */}
-                    <Link href="/admin/login">
+                    <Link href={adminUser ? "/admin/dashboard" : "/admin/login"}>
                         <Card className="glass-strong rounded-3xl hover:border-primary transition-all duration-300 hover:scale-105 cursor-pointer h-full">
                             <CardHeader className="text-center">
                                 <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-red-500/20 to-orange-500/20 flex items-center justify-center mb-4">
@@ -99,7 +111,7 @@ export default function LoginSelectorPage() {
                                     • Dashboard analytics
                                 </p>
                                 <Button className="w-full mt-4 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 rounded-2xl">
-                                    Login
+                                    {adminUser ? "Go to Dashboard" : "Login"}
                                 </Button>
                             </CardContent>
                         </Card>

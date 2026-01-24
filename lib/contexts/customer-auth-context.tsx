@@ -10,6 +10,7 @@ interface CustomerAuthContextType {
     loading: boolean;
     signInWithPhone: (phone: string) => Promise<void>;
     verifyOTP: (phone: string, otp: string) => Promise<void>;
+    loginWithPhone: (phone: string) => Promise<void>;
     signOut: () => Promise<void>;
     refreshProfile: () => Promise<void>;
 }
@@ -45,11 +46,18 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     useEffect(() => {
+        // Check for stored phone in localStorage
+        const storedPhone = localStorage.getItem("customerPhone");
+
         // Check active session
         supabase.auth.getSession().then(({ data: { session } }) => {
-            setUser(session?.user ?? null);
             if (session?.user) {
+                setUser(session.user);
                 fetchCustomerProfile(session.user.phone!);
+            } else if (storedPhone) {
+                // Use stored phone for simple auth
+                setUser({ phone: storedPhone } as User);
+                fetchCustomerProfile(storedPhone);
             }
             setLoading(false);
         });
@@ -58,11 +66,17 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user ?? null);
             if (session?.user) {
+                setUser(session.user);
                 fetchCustomerProfile(session.user.phone!);
             } else {
-                setCustomerProfile(null);
+                // If Supabase session is null, check if we have a local phone session
+                const storedPhone = localStorage.getItem("customerPhone");
+                if (!storedPhone) {
+                    setUser(null);
+                    setCustomerProfile(null);
+                }
+                // If storedPhone exists, we keep the current user state (set in initial load)
             }
         });
 
@@ -89,6 +103,36 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         const { error } = await supabase.auth.signOut();
         if (error) throw error;
         setCustomerProfile(null);
+        localStorage.removeItem("customerPhone");
+    };
+
+    const loginWithPhone = async (phone: string) => {
+        // Store phone in localStorage for simple auth
+        const fullPhone = `+91${phone}`;
+        localStorage.setItem("customerPhone", fullPhone);
+
+        // Fetch or create customer profile
+        const response = await fetch(`/api/customer/profile?phone=${encodeURIComponent(fullPhone)}`);
+        if (response.ok) {
+            const profile = await response.json();
+            setCustomerProfile(profile);
+            // Create a minimal user object
+            setUser({ phone: fullPhone } as User);
+        } else {
+            // Create new profile
+            const createResponse = await fetch('/api/customer/profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone: fullPhone }),
+            });
+            if (createResponse.ok) {
+                const profile = await createResponse.json();
+                setCustomerProfile(profile);
+                setUser({ phone: fullPhone } as User);
+            } else {
+                throw new Error('Failed to create customer profile');
+            }
+        }
     };
 
     const refreshProfile = async () => {
@@ -105,6 +149,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
                 loading,
                 signInWithPhone,
                 verifyOTP,
+                loginWithPhone,
                 signOut,
                 refreshProfile,
             }}
