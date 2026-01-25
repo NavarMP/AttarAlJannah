@@ -2,29 +2,46 @@
 
 import { useState, useEffect, useCallback, use } from "react";
 import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, Save } from "lucide-react";
+import { ArrowLeft, Loader2, Save, AlertCircle } from "lucide-react";
+import { CountryCodeSelect } from "@/components/ui/country-code-select";
 import { toast } from "sonner";
 import Link from "next/link";
+
+// Edit schema - password is optional
+const volunteerEditSchema = z.object({
+    name: z.string().min(2, "Name must be at least 2 characters"),
+    email: z.string().email("Invalid email").optional().or(z.literal("")),
+    phoneCountry: z.string().default("+91"),
+    phone: z
+        .string()
+        .min(10, "Phone number must be at least 10 digits")
+        .max(15, "Phone number is too long"),
+    volunteer_id: z.string().min(1, "Volunteer ID is required"),
+    password: z.string().min(8, "Password must be at least 8 characters if provided").optional().or(z.literal("")),
+    goal: z.number().min(1, "Goal must be at least 1").default(20),
+});
+
+type VolunteerEditFormData = z.infer<typeof volunteerEditSchema>;
 
 export default function EditVolunteerPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [formData, setFormData] = useState({
-        name: "",
-        email: "",
-        phone: "",
-        volunteer_id: "",
-        password: "",
-        address: "",
-        goal: "20",
-    });
+    const [phoneCountryCode, setPhoneCountryCode] = useState("+91");
+
+    // Duplicate checking state
+    const [isCheckingName, setIsCheckingName] = useState(false);
+    const [isCheckingVolunteerId, setIsCheckingVolunteerId] = useState(false);
+    const [nameExists, setNameExists] = useState(false);
+    const [volunteerIdExists, setVolunteerIdExists] = useState(false);
     const [stats, setStats] = useState({
         confirmed_bottles: 0,
         goal: 20,
@@ -32,6 +49,23 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
             totalBottles: 0,
             confirmedBottles: 0,
             pendingBottles: 0,
+        },
+    });
+
+    const {
+        register,
+        handleSubmit,
+        watch,
+        setValue,
+        formState: { errors },
+        setError,
+        clearErrors,
+    } = useForm<VolunteerEditFormData>({
+        resolver: zodResolver(volunteerEditSchema),
+        mode: "onChange",
+        defaultValues: {
+            phoneCountry: "+91",
+            goal: 20,
         },
     });
 
@@ -44,15 +78,28 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
             const data = await response.json();
             const volunteer = data.volunteer;
 
-            setFormData({
-                name: volunteer.name,
-                email: volunteer.email,
-                phone: volunteer.phone,
-                volunteer_id: volunteer.volunteer_id,
-                password: "", // Don't populate password
-                address: volunteer.address || "",
-                goal: volunteer.goal?.toString() || "20",
-            });
+            // Parse phone number to separate country code
+            let cleanPhone = volunteer.phone;
+            let extractedCountryCode = "+91";
+
+            // Try to extract country code
+            if (cleanPhone.startsWith("+")) {
+                // Find where digits start after +
+                const match = cleanPhone.match(/^(\+\d{1,4})(.*)$/);
+                if (match) {
+                    extractedCountryCode = match[1];
+                    cleanPhone = match[2];
+                }
+            }
+
+            setPhoneCountryCode(extractedCountryCode);
+            setValue("phoneCountry", extractedCountryCode);
+            setValue("name", volunteer.name);
+            setValue("email", volunteer.email || "");
+            setValue("phone", cleanPhone);
+            setValue("volunteer_id", volunteer.volunteer_id);
+            setValue("password", "");
+            setValue("goal", volunteer.goal || 20);
 
             setStats({
                 confirmed_bottles: volunteer.confirmed_bottles || 0,
@@ -70,28 +117,89 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
         } finally {
             setIsLoading(false);
         }
-    }, [id, router]);
+    }, [id, router, setValue]);
 
     useEffect(() => {
         fetchVolunteer();
     }, [fetchVolunteer]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
 
-        // Validation
-        if (!formData.name || !formData.phone) {
-            toast.error("Please fill in all required fields");
+    const name = watch("name");
+    const volunteer_id = watch("volunteer_id");
+
+    // Check for duplicate name (debounced) - exclude current volunteer
+    useEffect(() => {
+        if (!name || name.length < 2 || !id) {
+            setNameExists(false);
             return;
         }
 
-        if (formData.phone.length !== 10) {
-            toast.error("Phone number must be exactly 10 digits");
+        const timer = setTimeout(async () => {
+            setIsCheckingName(true);
+            try {
+                const response = await fetch(
+                    `/api/admin/volunteers/check-duplicate?name=${encodeURIComponent(name)}&excludeId=${id}`
+                );
+                const data = await response.json();
+
+                if (data.nameExists) {
+                    setNameExists(true);
+                    setError("name", {
+                        type: "manual",
+                        message: "A volunteer with this name already exists",
+                    });
+                } else {
+                    setNameExists(false);
+                    clearErrors("name");
+                }
+            } catch (error) {
+                console.error("Error checking name:", error);
+            } finally {
+                setIsCheckingName(false);
+            }
+        }, 800);
+
+        return () => clearTimeout(timer);
+    }, [name, id, setError, clearErrors]);
+
+    // Check for duplicate volunteer_id (debounced) - exclude current volunteer
+    useEffect(() => {
+        if (!volunteer_id || volunteer_id.trim() === "" || !id) {
+            setVolunteerIdExists(false);
             return;
         }
 
-        if (formData.password && formData.password.length < 8) {
-            toast.error("Password must be at least 8 characters if provided");
+        const timer = setTimeout(async () => {
+            setIsCheckingVolunteerId(true);
+            try {
+                const response = await fetch(
+                    `/api/admin/volunteers/check-duplicate?volunteerId=${encodeURIComponent(volunteer_id)}&excludeId=${id}`
+                );
+                const data = await response.json();
+
+                if (data.volunteerIdExists) {
+                    setVolunteerIdExists(true);
+                    setError("volunteer_id", {
+                        type: "manual",
+                        message: "This volunteer ID is already in use",
+                    });
+                } else {
+                    setVolunteerIdExists(false);
+                    clearErrors("volunteer_id");
+                }
+            } catch (error) {
+                console.error("Error checking volunteer ID:", error);
+            } finally {
+                setIsCheckingVolunteerId(false);
+            }
+        }, 800);
+
+        return () => clearTimeout(timer);
+    }, [volunteer_id, id, setError, clearErrors]);
+    const onSubmit = async (data: VolunteerEditFormData) => {
+        // Final check before submission
+        if (nameExists || volunteerIdExists) {
+            toast.error("Please fix duplicate errors before submitting");
             return;
         }
 
@@ -99,17 +207,16 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
             setIsSubmitting(true);
 
             const updateData: any = {
-                name: formData.name,
-                email: formData.email,
-                phone: formData.phone,
-                volunteer_id: formData.volunteer_id,
-                address: formData.address,
-                goal: parseInt(formData.goal),
+                name: data.name,
+                email: data.email,
+                phone: `${phoneCountryCode}${data.phone}`,
+                volunteer_id: data.volunteer_id,
+                goal: data.goal,
             };
 
             // Only include password if it's being changed
-            if (formData.password) {
-                updateData.password = formData.password;
+            if (data.password) {
+                updateData.password = data.password;
             }
 
             const response = await fetch(`/api/admin/volunteers/${id}`, {
@@ -132,13 +239,6 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
         } finally {
             setIsSubmitting(false);
         }
-    };
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value,
-        });
     };
 
     if (isLoading) {
@@ -199,17 +299,31 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                         {/* Name */}
                         <div className="space-y-2">
                             <Label htmlFor="name">Full Name *</Label>
-                            <Input
-                                id="name"
-                                name="name"
-                                value={formData.name}
-                                onChange={handleChange}
-                                required
-                            />
+                            <div className="relative">
+                                <Input
+                                    id="name"
+                                    className={nameExists ? "border-destructive" : ""}
+                                    {...register("name")}
+                                />
+                                {isCheckingName && (
+                                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                                )}
+                            </div>
+                            {isCheckingName && (
+                                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                    Checking availability...
+                                </p>
+                            )}
+                            {errors.name && (
+                                <p className="text-sm text-destructive flex items-center gap-1">
+                                    <AlertCircle className="h-4 w-4" />
+                                    {errors.name.message}
+                                </p>
+                            )}
                         </div>
 
                         {/* Email and Phone */}
@@ -218,22 +332,34 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
                                 <Label htmlFor="email">Email (Optional)</Label>
                                 <Input
                                     id="email"
-                                    name="email"
                                     type="email"
-                                    value={formData.email}
-                                    onChange={handleChange}
+                                    {...register("email")}
                                 />
+                                {errors.email && (
+                                    <p className="text-sm text-destructive">{errors.email.message}</p>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="phone">Phone Number *</Label>
-                                <Input
-                                    id="phone"
-                                    name="phone"
-                                    value={formData.phone}
-                                    onChange={handleChange}
-                                    maxLength={10}
-                                    required
-                                />
+                                <div className="flex gap-2">
+                                    <CountryCodeSelect
+                                        value={phoneCountryCode}
+                                        onChange={(code) => {
+                                            setPhoneCountryCode(code);
+                                            setValue("phoneCountry", code);
+                                        }}
+                                    />
+                                    <Input
+                                        id="phone"
+                                        type="tel"
+                                        placeholder="Enter phone number"
+                                        className="flex-1"
+                                        {...register("phone")}
+                                    />
+                                </div>
+                                {errors.phone && (
+                                    <p className="text-sm text-destructive">{errors.phone.message}</p>
+                                )}
                             </div>
                         </div>
 
@@ -241,27 +367,47 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
                         <div className="grid md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="volunteer_id">Volunteer ID *</Label>
-                                <Input
-                                    id="volunteer_id"
-                                    name="volunteer_id"
-                                    value={formData.volunteer_id}
-                                    onChange={handleChange}
-                                    required
-                                />
+                                <div className="relative">
+                                    <Input
+                                        id="volunteer_id"
+                                        className={volunteerIdExists ? "border-destructive" : ""}
+                                        {...register("volunteer_id")}
+                                    />
+                                    {isCheckingVolunteerId && (
+                                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                                    )}
+                                </div>
                                 <p className="text-xs text-muted-foreground">
                                     Be careful when changing this
                                 </p>
+                                {isCheckingVolunteerId && (
+                                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                        Checking availability...
+                                    </p>
+                                )}
+                                {!isCheckingVolunteerId && volunteer_id && volunteer_id.trim() !== "" && !volunteerIdExists && !errors.volunteer_id && (
+                                    <p className="text-sm text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                        ✓ Available
+                                    </p>
+                                )}
+                                {errors.volunteer_id && (
+                                    <p className="text-sm text-destructive flex items-center gap-1">
+                                        <AlertCircle className="h-4 w-4" />
+                                        {errors.volunteer_id.message}
+                                    </p>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="password">New Password (Optional)</Label>
                                 <Input
                                     id="password"
-                                    name="password"
                                     type="password"
-                                    value={formData.password}
-                                    onChange={handleChange}
                                     placeholder="Leave empty to keep current"
+                                    {...register("password")}
                                 />
+                                {errors.password && (
+                                    <p className="text-sm text-destructive">{errors.password.message}</p>
+                                )}
                             </div>
                         </div>
 
@@ -270,12 +416,13 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
                             <Label htmlFor="goal">Sales Goal</Label>
                             <Input
                                 id="goal"
-                                name="goal"
                                 type="number"
                                 min="1"
-                                value={formData.goal}
-                                onChange={handleChange}
+                                {...register("goal", { valueAsNumber: true })}
                             />
+                            {errors.goal && (
+                                <p className="text-sm text-destructive">{errors.goal.message}</p>
+                            )}
                         </div>
 
                         {/* Buttons */}

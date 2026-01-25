@@ -36,7 +36,7 @@ export default function Home() {
             </div>
 
             {/* Promo Video */}
-            <PromoVideoSection />
+            {/* <PromoVideoSection /> */}
 
             {/* About and Features */}
             <ProductDetails />

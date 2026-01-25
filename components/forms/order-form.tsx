@@ -11,11 +11,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, CheckCircle2, Upload, QrCode, Copy, Camera, X, AlertTriangle } from "lucide-react";
-import { LocationPicker } from "@/components/ui/location-picker";
+import { LocationLink } from "@/components/ui/location-link";
 import { toast } from "sonner";
 import Image from "next/image";
 import { CameraCapture } from "@/components/ui/camera-capture";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { CountryCodeSelect } from "@/components/ui/country-code-select";
 import { INDIAN_STATES, DISTRICTS_BY_STATE } from "@/lib/data/indian-locations";
 
 interface CustomerProfile {
@@ -50,6 +51,10 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
     const [volunteerValidationError, setVolunteerValidationError] = useState<string>("");
     const [isVolunteerValidated, setIsVolunteerValidated] = useState(!!volunteerId);
 
+    // Country code state
+    const [phoneCountryCode, setPhoneCountryCode] = useState("+91");
+    const [whatsappCountryCode, setWhatsappCountryCode] = useState("+91");
+
     const {
         register,
         handleSubmit,
@@ -63,6 +68,8 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
         defaultValues: {
             quantity: 1,
             paymentMethod: "upi",
+            customerPhoneCountry: "+91",
+            whatsappNumberCountry: "+91",
         },
     });
 
@@ -110,8 +117,9 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
     const totalPrice = quantity * PRODUCT_PRICE;
 
     const copyPhoneToWhatsApp = () => {
-        if (phoneNumber && phoneNumber.length === 10) {
+        if (phoneNumber && phoneNumber.length >= 10) {
             setValue("whatsappNumber", phoneNumber);
+            setWhatsappCountryCode(phoneCountryCode);
             toast.success("Phone number copied to WhatsApp field!");
         } else {
             toast.error("Please enter a valid phone number first");
@@ -258,13 +266,17 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
         try {
             const formData = new FormData();
             formData.append("customerName", data.customerName);
-            formData.append("customerPhone", data.customerPhone);
-            formData.append("whatsappNumber", data.whatsappNumber);
+            formData.append("customerPhone", `${phoneCountryCode}${data.customerPhone}`);
+            formData.append("whatsappNumber", `${whatsappCountryCode}${data.whatsappNumber}`);
             formData.append("customerEmail", data.customerEmail || "");
 
             // Combine address fields
             const fullAddress = `${data.houseBuilding}, ${data.town}, ${data.post}, ${data.city}, ${data.district}, ${data.state} - ${data.pincode}`;
             formData.append("customerAddress", fullAddress);
+            // Add location link if provided
+            if (data.locationLink) {
+                formData.append("locationLink", data.locationLink);
+            }
             formData.append("quantity", data.quantity.toString());
             formData.append("totalPrice", totalPrice.toString());
             formData.append("paymentMethod", data.paymentMethod);
@@ -342,16 +354,22 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                     {/* Phone Number */}
                     <div className="space-y-2">
                         <Label htmlFor="customerPhone">Mobile Number *</Label>
-                        <Input
-                            id="customerPhone"
-                            type="number"
-                            placeholder="10-digit mobile number"
-                            maxLength={10}
-                            onInput={(e: React.FormEvent<HTMLInputElement>) => {
-                                e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '').slice(0, 10);
-                            }}
-                            {...register("customerPhone")}
-                        />
+                        <div className="flex gap-2">
+                            <CountryCodeSelect
+                                value={phoneCountryCode}
+                                onChange={(code) => {
+                                    setPhoneCountryCode(code);
+                                    setValue("customerPhoneCountry", code);
+                                }}
+                            />
+                            <Input
+                                id="customerPhone"
+                                type="tel"
+                                placeholder="Enter mobile number"
+                                className="flex-1"
+                                {...register("customerPhone")}
+                            />
+                        </div>
                         {errors.customerPhone && (
                             <p className="text-sm text-destructive">{errors.customerPhone.message}</p>
                         )}
@@ -372,16 +390,22 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                                 Same as phone
                             </Button>
                         </div>
-                        <Input
-                            id="whatsappNumber"
-                            type="number"
-                            placeholder="10-digit WhatsApp number"
-                            maxLength={10}
-                            onInput={(e: React.FormEvent<HTMLInputElement>) => {
-                                e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '').slice(0, 10);
-                            }}
-                            {...register("whatsappNumber")}
-                        />
+                        <div className="flex gap-2">
+                            <CountryCodeSelect
+                                value={whatsappCountryCode}
+                                onChange={(code) => {
+                                    setWhatsappCountryCode(code);
+                                    setValue("whatsappNumberCountry", code);
+                                }}
+                            />
+                            <Input
+                                id="whatsappNumber"
+                                type="tel"
+                                placeholder="Enter WhatsApp number"
+                                className="flex-1"
+                                {...register("whatsappNumber")}
+                            />
+                        </div>
                         {errors.whatsappNumber && (
                             <p className="text-sm text-destructive">{errors.whatsappNumber.message}</p>
                         )}
@@ -462,21 +486,14 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
 
                     {/* Address Section */}
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between">
+                        {/* <div className="flex items-center justify-between">
                             <h3 className="text-lg font-semibold">Delivery Address</h3>
-                        </div>
+                        </div> */}
 
-                        {/* Location Picker */}
-                        <LocationPicker
-                            onLocationSelect={(address) => {
-                                setValue("houseBuilding", address.houseBuilding);
-                                setValue("town", address.town);
-                                setValue("post", address.post);
-                                setValue("city", address.city);
-                                setValue("district", address.district);
-                                setValue("state", address.state);
-                                setValue("pincode", address.pincode);
-                            }}
+                        {/* Location Link */}
+                        <LocationLink
+                            value={watch("locationLink") || ""}
+                            onChange={(link) => setValue("locationLink", link)}
                         />
 
                         {/* House/Building */}

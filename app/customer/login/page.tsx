@@ -10,10 +10,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, Phone } from "lucide-react";
 import { toast } from "sonner";
 import { useCustomerAuth } from "@/lib/contexts/customer-auth-context";
+import { CountryCodeSelect } from "@/components/ui/country-code-select";
 import Link from "next/link";
 
 export default function CustomerLoginPage() {
     const [phone, setPhone] = useState("");
+    const [countryCode, setCountryCode] = useState("+91");
     const [loading, setLoading] = useState(false);
     const { loginWithPhone } = useCustomerAuth();
     const router = useRouter();
@@ -21,14 +23,16 @@ export default function CustomerLoginPage() {
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!/^[6-9]\d{9}$/.test(phone)) {
-            toast.error("Please enter a valid 10-digit mobile number");
+        if (!phone || phone.length < 10) {
+            toast.error("Please enter a valid mobile number");
             return;
         }
 
         setLoading(true);
         try {
-            await loginWithPhone(phone);
+            // Combine country code and phone number
+            const fullPhone = `${countryCode}${phone}`;
+            await loginWithPhone(fullPhone);
             toast.success("Login successful!");
             router.push("/customer/dashboard");
         } catch (error) {
@@ -58,18 +62,19 @@ export default function CustomerLoginPage() {
                         <div className="space-y-2">
                             <Label htmlFor="phone">Mobile Number</Label>
                             <div className="flex gap-2">
-                                <div className="flex items-center px-3 py-2 border border-border rounded-xl bg-muted">
-                                    <span className="text-sm font-medium">+91</span>
-                                </div>
+                                <CountryCodeSelect
+                                    value={countryCode}
+                                    onChange={setCountryCode}
+                                    disabled={loading}
+                                />
                                 <Input
                                     id="phone"
                                     type="tel"
-                                    placeholder="9876543210"
+                                    placeholder="Enter mobile number"
                                     value={phone}
-                                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
                                     required
                                     disabled={loading}
-                                    maxLength={10}
                                     className="flex-1"
                                 />
                             </div>
@@ -78,7 +83,7 @@ export default function CustomerLoginPage() {
                         <Button
                             type="submit"
                             className="w-full bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600 rounded-2xl"
-                            disabled={loading || phone.length !== 10}
+                            disabled={loading || !phone || phone.length < 10}
                             size="lg"
                         >
                             {loading ? (

@@ -2,12 +2,16 @@ import { z } from "zod";
 
 export const orderSchema = z.object({
     customerName: z.string().min(2, "Name must be at least 2 characters"),
+    customerPhoneCountry: z.string().default("+91"),
     customerPhone: z
         .string()
-        .regex(/^[6-9]\d{9}$/, "Please enter a valid 10-digit mobile number"),
+        .min(10, "Phone number must be at least 10 digits")
+        .max(15, "Phone number is too long"),
+    whatsappNumberCountry: z.string().default("+91"),
     whatsappNumber: z
         .string()
-        .regex(/^[6-9]\d{9}$/, "Please enter a valid 10-digit WhatsApp number"),
+        .min(10, "WhatsApp number must be at least 10 digits")
+        .max(15, "WhatsApp number is too long"),
     customerEmail: z.string().email("Invalid email").optional().or(z.literal("")),
 
     // Structured Address Fields
@@ -27,6 +31,9 @@ export const orderSchema = z.object({
         .string()
         .min(2, "State is required")
         .regex(/^[a-zA-Z\s-]+$/, "State should only contain letters"),
+ 
+    // Optional location link
+    locationLink: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
 
     quantity: z.number().min(1, "Quantity must be at least 1").max(50, "Maximum 50 bottles per order"),
     paymentMethod: z.enum(["cod", "upi"]),
