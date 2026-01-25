@@ -1,6 +1,6 @@
 "use client";
 
-export const dynamic = "force-dynamic";
+
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useCustomerAuth } from "@/lib/contexts/customer-auth-context";
@@ -102,12 +102,12 @@ export default function CustomerDashboard() {
         }
     };
 
-    if (authLoading || loading) {
+    if (authLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
                     <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-muted-foreground">Loading your dashboard...</p>
+                    <p className="text-muted-foreground">Authenticating...</p>
                 </div>
             </div>
         );
@@ -217,7 +217,13 @@ export default function CustomerDashboard() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {orders.length === 0 ? (
+                        {loading ? (
+                            <div className="space-y-4">
+                                {[1, 2, 3].map((i) => (
+                                    <div key={i} className="h-32 bg-muted/20 animate-pulse rounded-2xl border border-border/50" />
+                                ))}
+                            </div>
+                        ) : orders.length === 0 ? (
                             <div className="text-center py-12">
                                 <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
                                 <p className="text-muted-foreground mb-4">No orders yet</p>

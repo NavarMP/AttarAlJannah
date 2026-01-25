@@ -169,9 +169,9 @@ export function ThankYouPoster({
                     Download Thank You Poster
                 </Button>
 
-                <p className="text-xs text-center text-muted-foreground">
+                {/* <p className="text-xs text-center text-muted-foreground">
                     💡 Tip: You can customize the poster template by placing your own design at the path above
-                </p>
+                </p> */}
             </CardContent>
         </Card>
     );

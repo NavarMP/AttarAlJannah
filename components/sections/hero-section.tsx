@@ -202,7 +202,7 @@ function LoginButton() {
                     <User className="w-5 h-5" />
                 </Button>
             )}
-            {!anyLoggedIn && (
+            {!volunteerLoggedIn && !adminUser && (
                 <Button
                     onClick={() => router.push("/login")}
                     className="rounded-2xl shadow-lg bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600"

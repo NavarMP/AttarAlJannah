@@ -37,7 +37,7 @@ export default function VolunteerLeaderboardPage() {
 
     const fetchLeaderboard = async () => {
         try {
-            const response = await fetch("/api/volunteer/leaderboard");
+            const response = await fetch("/api/volunteer/leaderboard", { cache: "no-store" });
             if (!response.ok) throw new Error("Failed to load leaderboard");
 
             const data = await response.json();

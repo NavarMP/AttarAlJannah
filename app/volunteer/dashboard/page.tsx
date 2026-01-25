@@ -35,7 +35,7 @@ export default function VolunteerDashboardPage() {
     const fetchStats = useCallback(async (id: string) => {
         try {
             console.log("Fetching stats for ID:", id);
-            const response = await fetch(`/api/volunteer/progress?volunteerId=${id}`);
+            const response = await fetch(`/api/volunteer/progress?volunteerId=${id}`, { cache: "no-store" });
             if (!response.ok) throw new Error("Failed to fetch stats");
 
             const data = await response.json();

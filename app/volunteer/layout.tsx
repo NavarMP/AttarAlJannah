@@ -1,6 +1,6 @@
 "use client";
 
-export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,9 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     useEffect(() => {
+        // Skip auth check on login page
+        if (pathname === "/volunteer/login") return;
+
         const id = localStorage.getItem("volunteerId");
         const name = localStorage.getItem("volunteerName");
 
@@ -27,13 +30,18 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
 
         setVolunteerId(id);
         setVolunteerName(name || "Volunteer");
-    }, [router]);
+    }, [router, pathname]);
 
     const handleLogout = () => {
         localStorage.removeItem("volunteerId");
         localStorage.removeItem("volunteerName");
         router.push("/volunteer/login");
     };
+
+    // If on login page, render children directly without layout/checks
+    if (pathname === "/volunteer/login") {
+        return <>{children}</>;
+    }
 
     if (!volunteerId) {
         return null;

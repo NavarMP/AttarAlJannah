@@ -1,15 +1,13 @@
 import { Suspense } from "react";
 import { Footer } from "@/components/sections/footer";
-import { ThemeToggle } from "@/components/custom/theme-toggle";
+import { ScrollHideThemeToggle } from "@/components/custom/scroll-hide-theme-toggle";
 import { OrderContent } from "./order-content";
 
 export default function OrderPage() {
     return (
         <main className="min-h-screen" id="order-form">
-            {/* Theme Toggle */}
-            <div className="fixed top-6 left-6 z-50">
-                <ThemeToggle />
-            </div>
+            {/* Theme Toggle with auto-hide on scroll */}
+            <ScrollHideThemeToggle />
 
             <div className="py-12 px-4">
                 <Suspense fallback={

@@ -103,12 +103,70 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
         } else if (customerProfile) {
             // Logged in customer scenario
             if (customerProfile.name) setValue("customerName", customerProfile.name);
-            if (customerProfile.phone) setValue("customerPhone", customerProfile.phone.replace('+91', ''));
+
+            // Parse phone number with country code
+            if (customerProfile.phone) {
+                // Extract country code from phone (e.g., "+919876543210" -> "+91" and "9876543210")
+                const phoneMatch = customerProfile.phone.match(/^(\+\d{1,4})(\d+)$/);
+                if (phoneMatch) {
+                    const [, countryCode, phoneNumber] = phoneMatch;
+                    setPhoneCountryCode(countryCode);
+                    setValue("customerPhoneCountry", countryCode);
+                    setValue("customerPhone", phoneNumber);
+
+                    // Also set WhatsApp to same by default
+                    setWhatsappCountryCode(countryCode);
+                    setValue("whatsappNumberCountry", countryCode);
+                    setValue("whatsappNumber", phoneNumber);
+                } else {
+                    // Fallback: assume +91 and use the whole number
+                    setValue("customerPhone", customerProfile.phone.replace(/^\+91/, ''));
+                    setValue("whatsappNumber", customerProfile.phone.replace(/^\+91/, ''));
+                }
+            }
+
             if (customerProfile.email) setValue("customerEmail", customerProfile.email);
 
             toast.success("Welcome back! Your details are prefilled.");
+        } else {
+            // Restore from localStorage if no prefill data and no customer profile
+            const savedForm = localStorage.getItem('orderFormData');
+            // Only restore if we don't have ANY prefill data (to avoid overwriting valid prefill)
+            if (savedForm && !prefillData.orderId && !prefillData.customerAddress) {
+                try {
+                    const data = JSON.parse(savedForm);
+                    // rigorous check to ensure we don't restore stale or invalid data
+                    if (data && typeof data === 'object') {
+                        Object.keys(data).forEach(key => {
+                            // Skip file inputs and sensitive fields if needed
+                            if (key !== 'paymentScreenshot') {
+                                setValue(key as keyof OrderFormData, data[key]);
+                            }
+                        });
+                        // Set country codes if they exist in saved data
+                        if (data.customerPhoneCountry) setPhoneCountryCode(data.customerPhoneCountry);
+                        if (data.whatsappNumberCountry) setWhatsappCountryCode(data.whatsappNumberCountry);
+
+                        toast.info("Restored your unsaved form data");
+                    }
+                } catch (e) {
+                    console.error("Failed to restore form data", e);
+                    localStorage.removeItem('orderFormData');
+                }
+            }
         }
     }, [prefillData, customerProfile, setValue]);
+
+    // Save form data to localStorage on change
+    useEffect(() => {
+        const subscription = watch((value) => {
+            const timer = setTimeout(() => {
+                localStorage.setItem('orderFormData', JSON.stringify(value));
+            }, 1000);
+            return () => clearTimeout(timer);
+        });
+        return () => subscription.unsubscribe();
+    }, [watch]);
 
     const paymentMethod = watch("paymentMethod");
     const quantity = watch("quantity") || 1;
@@ -310,6 +368,10 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                 toast.success("Order submitted successfully!");
                 // Show loading toast during redirect
                 toast.loading("Preparing your order details...", { duration: Infinity });
+
+                // Clear saved form data on successful submission
+                localStorage.removeItem('orderFormData');
+
                 // Small delay to ensure toast shows
                 await new Promise(resolve => setTimeout(resolve, 300));
                 // Redirect to thanks page with order ID

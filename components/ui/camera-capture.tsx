@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,50 +20,57 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const startCamera = useCallback(async () => {
-        try {
-            setIsLoading(true);
-            setError(null);
+    // Start camera on mount
+    useEffect(() => {
+        let mediaStream: MediaStream | null = null;
 
-            // Request camera access with back camera preference for mobile
-            const mediaStream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: "environment", // Use back camera on mobile
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 },
-                },
-            });
+        const startCamera = async () => {
+            try {
+                setIsLoading(true);
+                setError(null);
 
-            setStream(mediaStream);
+                // Request camera access with back camera preference for mobile
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: "environment", // Use back camera on mobile
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                    },
+                });
 
-            if (videoRef.current) {
-                videoRef.current.srcObject = mediaStream;
+                setStream(mediaStream);
+
+                if (videoRef.current) {
+                    videoRef.current.srcObject = mediaStream;
+                }
+
+                setIsLoading(false);
+            } catch (err) {
+                console.error("Error accessing camera:", err);
+                setError(
+                    "Unable to access camera. Please ensure you've granted camera permissions or use the file upload option."
+                );
+                setIsLoading(false);
+                toast.error("Camera access denied or unavailable");
             }
+        };
 
-            setIsLoading(false);
-        } catch (err) {
-            console.error("Error accessing camera:", err);
-            setError(
-                "Unable to access camera. Please ensure you've granted camera permissions or use the file upload option."
-            );
-            setIsLoading(false);
-            toast.error("Camera access denied or unavailable");
-        }
-    }, []);
+        startCamera();
 
-    const stopCamera = useCallback(() => {
+        // Cleanup function - stop camera when component unmounts
+        return () => {
+            if (mediaStream) {
+                mediaStream.getTracks().forEach((track) => track.stop());
+            }
+        };
+    }, []); // Empty dependency array - only run once
+
+    const stopCamera = () => {
         if (stream) {
             stream.getTracks().forEach((track) => track.stop());
             setStream(null);
         }
-    }, [stream]);
-
-    useEffect(() => {
-        startCamera();
-        return () => {
-            stopCamera();
-        };
-    }, [startCamera, stopCamera]);
+    };
 
     const capturePhoto = () => {
         if (!videoRef.current || !canvasRef.current) return;
@@ -114,9 +121,31 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
         );
     };
 
-    const retakePhoto = () => {
+    const retakePhoto = async () => {
         setCapturedImage(null);
-        startCamera();
+        setIsLoading(true);
+
+        try {
+            const mediaStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: "environment",
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 },
+                },
+            });
+
+            setStream(mediaStream);
+
+            if (videoRef.current) {
+                videoRef.current.srcObject = mediaStream;
+            }
+
+            setIsLoading(false);
+        } catch (err) {
+            console.error("Error restarting camera:", err);
+            toast.error("Failed to restart camera");
+            setIsLoading(false);
+        }
     };
 
     const handleClose = () => {
