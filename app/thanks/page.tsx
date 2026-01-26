@@ -4,25 +4,12 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ThankYouPoster } from "@/components/thank-you-poster";
 import { OrderBill } from "@/components/order-bill";
 import { CheckCircle2, Loader2, ShoppingBag, Pencil } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 
 // Lazy load heavy components
-const LazyThankYouPoster = dynamic(() => import("@/components/thank-you-poster").then(mod => ({ default: mod.ThankYouPoster })), {
-    loading: () => (
-        <Card className="glass-strong rounded-3xl">
-            <CardContent className="p-12 text-center">
-                <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
-                <p className="text-muted-foreground">Creating your personalized poster...</p>
-            </CardContent>
-        </Card>
-    ),
-    ssr: false
-});
-
 const LazyOrderBill = dynamic(() => import("@/components/order-bill").then(mod => ({ default: mod.OrderBill })), {
     loading: () => (
         <Card className="glass-strong rounded-3xl">
@@ -58,7 +45,6 @@ function ThanksContent() {
     const [order, setOrder] = useState<Order | null>(null);
     const [orderLoading, setOrderLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [showPoster, setShowPoster] = useState(false);
     const [showBill, setShowBill] = useState(false);
 
     const fetchOrderDetails = useCallback(async () => {
@@ -78,9 +64,8 @@ function ThanksContent() {
             const data = await response.json();
             setOrder(data);
 
-            // Show poster after 500ms, bill after 1s to stagger loading
-            setTimeout(() => setShowPoster(true), 500);
-            setTimeout(() => setShowBill(true), 1000);
+            // Show bill after 500ms
+            setTimeout(() => setShowBill(true), 500);
         } catch (err) {
             console.error("Error fetching order:", err);
             setError("Failed to load order details");
@@ -147,13 +132,6 @@ function ThanksContent() {
                         </div>
                     </CardContent>
                 </Card>
-
-                {/* Personalized Thank You Poster - LoadsAsynchronously */}
-                {order && showPoster && (
-                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-                        <LazyThankYouPoster customerName={order.customer_name} />
-                    </div>
-                )}
 
                 {/* Order Bill - Loads Asynchronously */}
                 {order && showBill && (

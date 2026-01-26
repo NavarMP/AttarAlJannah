@@ -171,7 +171,7 @@ export default function CustomerDashboard() {
 
                 {/* Quick Actions */}
                 <div className="grid md:grid-cols-2 gap-4">
-                    <Link href="/order">
+                    <Link href={`/order?phone=${encodeURIComponent(user?.phone || '')}`}>
                         <Card className="glass-strong rounded-3xl hover:border-primary transition-all cursor-pointer h-full">
                             <CardContent className="p-6 flex items-center gap-4">
                                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-gold-500/20 flex items-center justify-center">

@@ -83,6 +83,16 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
             setValue("customerEmail", prefillData.customerEmail);
             setValue("quantity", prefillData.quantity);
 
+            // Set country codes if provided (for customer auto-fill)
+            if (prefillData.customerPhoneCountry) {
+                setPhoneCountryCode(prefillData.customerPhoneCountry);
+                setValue("customerPhoneCountry", prefillData.customerPhoneCountry);
+            }
+            if (prefillData.whatsappNumberCountry) {
+                setWhatsappCountryCode(prefillData.whatsappNumberCountry);
+                setValue("whatsappNumberCountry", prefillData.whatsappNumberCountry);
+            }
+
             // Parse address if available (for edit mode with individual fields)
             if (prefillData.houseBuilding) {
                 setValue("houseBuilding", prefillData.houseBuilding);
@@ -99,6 +109,9 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                 toast.info("Editing your order. Update the details and submit.");
             } else if (prefillData.customerAddress) {
                 toast.info("Form prefilled with your previous order details!");
+            } else if (prefillData.customerPhone) {
+                // Customer auto-fill from dashboard
+                toast.success("Your phone number has been prefilled!");
             }
         } else if (customerProfile) {
             // Logged in customer scenario
@@ -132,7 +145,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
             // Restore from localStorage if no prefill data and no customer profile
             const savedForm = localStorage.getItem('orderFormData');
             // Only restore if we don't have ANY prefill data (to avoid overwriting valid prefill)
-            if (savedForm && !prefillData.orderId && !prefillData.customerAddress) {
+            if (savedForm && (!prefillData || (!prefillData.orderId && !prefillData.customerAddress))) {
                 try {
                     const data = JSON.parse(savedForm);
                     // rigorous check to ensure we don't restore stale or invalid data
@@ -324,8 +337,13 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
         try {
             const formData = new FormData();
             formData.append("customerName", data.customerName);
-            formData.append("customerPhone", `${phoneCountryCode}${data.customerPhone}`);
-            formData.append("whatsappNumber", `${whatsappCountryCode}${data.whatsappNumber}`);
+
+            // Clean phone numbers: remove any existing country code prefix before appending
+            const cleanPhone = data.customerPhone.replace(/^\+\d{1,4}/, '').trim();
+            const cleanWhatsapp = data.whatsappNumber.replace(/^\+\d{1,4}/, '').trim();
+
+            formData.append("customerPhone", `${phoneCountryCode}${cleanPhone}`);
+            formData.append("whatsappNumber", `${whatsappCountryCode}${cleanWhatsapp}`);
             formData.append("customerEmail", data.customerEmail || "");
 
             // Combine address fields

@@ -27,6 +27,7 @@ import {
 import { Users, Plus, Search, Edit, Trash2, TrendingUp, Award, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
+import { calculateCommission } from "@/lib/utils/commission-utils";
 
 interface Volunteer {
     id: string;
@@ -232,6 +233,7 @@ export default function VolunteersPage() {
                                         <TableHead>Sales</TableHead>
                                         <TableHead>Goal</TableHead>
                                         <TableHead>Progress</TableHead>
+                                        <TableHead>Commission</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -264,6 +266,11 @@ export default function VolunteersPage() {
                                                         {volunteer.progress_percentage}%
                                                     </span>
                                                 </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <span className="font-semibold text-gold-600 dark:text-gold-400">
+                                                    ₹{calculateCommission(volunteer.confirmed_bottles)}
+                                                </span>
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex items-center justify-end gap-2">

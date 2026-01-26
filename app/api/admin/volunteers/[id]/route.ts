@@ -31,7 +31,9 @@ export async function GET(
             .from("challenge_progress")
             .select("*")
             .eq("volunteer_id", volunteer.id)
-            .single();
+            // Limit to 1 to handle duplicates
+            .limit(1)
+            .maybeSingle();
 
         // Get order statistics using UUID (referred_by is UUID)
         const { data: orders } = await supabase

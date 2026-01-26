@@ -169,10 +169,7 @@ function LoginButton() {
         setVolunteerLoggedIn(!!volunteerId);
     }, []);
 
-    // Check if ANY user type is logged in
-    const anyLoggedIn = customerUser || adminUser || volunteerLoggedIn;
-
-    // If users are logged in, show icon-only buttons
+    // Show login button if admin is NOT logged in
     return (
         <AutoHideContainer className="fixed top-6 right-6 z-50 flex gap-2">
             {adminUser && (
@@ -202,7 +199,7 @@ function LoginButton() {
                     <User className="w-5 h-5" />
                 </Button>
             )}
-            {!volunteerLoggedIn && !adminUser && (
+            {!adminUser && (
                 <Button
                     onClick={() => router.push("/login")}
                     className="rounded-2xl shadow-lg bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600"

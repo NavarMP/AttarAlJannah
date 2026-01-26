@@ -9,10 +9,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Loader2, Save, AlertCircle } from "lucide-react";
+import { ArrowLeft, Loader2, Save, AlertCircle, DollarSign } from "lucide-react";
 import { CountryCodeSelect } from "@/components/ui/country-code-select";
 import { toast } from "sonner";
 import Link from "next/link";
+import { calculateCommission } from "@/lib/utils/commission-utils";
 
 // Edit schema - password is optional
 const volunteerEditSchema = z.object({
@@ -267,7 +268,7 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
             </div>
 
             {/* Stats */}
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid md:grid-cols-4 gap-4">
                 <Card className="glass">
                     <CardContent className="pt-6">
                         <div className="text-sm text-muted-foreground">Confirmed Bottles</div>
@@ -286,6 +287,17 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
                     <CardContent className="pt-6">
                         <div className="text-sm text-muted-foreground">Pending Bottles</div>
                         <div className="text-2xl font-bold mt-1">{stats.stats.pendingBottles}</div>
+                    </CardContent>
+                </Card>
+                <Card className="glass border-gold-300 dark:border-gold-700">
+                    <CardContent className="pt-6">
+                        <div className="text-sm text-muted-foreground flex items-center gap-1">
+                            <DollarSign className="w-4 h-4 text-gold-500" />
+                            Commission
+                        </div>
+                        <div className="text-2xl font-bold text-gold-500 mt-1">
+                            ₹{calculateCommission(stats.confirmed_bottles)}
+                        </div>
                     </CardContent>
                 </Card>
             </div>

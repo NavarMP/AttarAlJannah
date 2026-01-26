@@ -89,18 +89,46 @@ export function OrderContent() {
             setReferralCode(ref);
         }
 
+        // Get phone number from URL (for customer auto-fill)
+        const phoneParam = searchParams.get("phone");
+        if (phoneParam && !prefillData) {
+            // Parse phone number to extract country code
+            // Expected format: +919746902268 or 9746902268
+            let cleanPhone = phoneParam;
+            let countryCode = "+91"; // Default to India
+
+            // If phone starts with +, extract country code
+            if (cleanPhone.startsWith("+")) {
+                const match = cleanPhone.match(/^(\+\d{1,4})(\d+)$/);
+                if (match) {
+                    countryCode = match[1];
+                    cleanPhone = match[2];
+                }
+            }
+
+            // Auto-fill phone numbers when coming from customer dashboard
+            setPrefillData({
+                customerPhone: cleanPhone,
+                whatsappNumber: cleanPhone,
+                customerPhoneCountry: countryCode,
+                whatsappNumberCountry: countryCode,
+            });
+        }
+
         // Get reorder ID from URL
         const reorderId = searchParams.get("reorder");
         if (reorderId) {
             fetchOrderForReorder(reorderId);
+            return; // Don't auto-fill when reordering
         }
 
         // Get edit ID from URL
         const editId = searchParams.get("edit");
         if (editId) {
             fetchOrderForEdit(editId);
+            return; // Don't auto-fill when editing
         }
-    }, [searchParams, fetchOrderForReorder, fetchOrderForEdit]);
+    }, [searchParams, fetchOrderForReorder, fetchOrderForEdit, prefillData]);
 
     return (
         <div className="max-w-4xl mx-auto space-y-8">
@@ -149,7 +177,7 @@ export function OrderContent() {
                                 <span className="text-sm font-medium">+91 907 235 8001</span>
                             </Link>
                             <Link
-                                href="https://whatsapp.com/channel/0029VaxowK2DzgTE7cdK4G11"
+                                href="https://wa.me/919072358001"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500/10 hover:bg-green-500/20 transition-colors"

@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import Image from "next/image";
 import Link from "next/link";
 import { OrderBill } from "@/components/order-bill";
+import { AutoHideContainer } from "@/components/custom/auto-hide-container";
 
 interface Order {
     id: string;
@@ -121,8 +122,8 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
     }
 
     return (
-        <div className="space-y-6 max-w-5xl">
-            <div className="flex items-center gap-4 relative">
+        <div className="space-y-6 max-w-5xl relative">
+            <div className="flex items-center gap-4">
                 <Link href="/admin/orders">
                     <Button variant="outline" size="icon" className="rounded-xl">
                         <ArrowLeft className="h-4 w-4" />
@@ -132,28 +133,29 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                     <h1 className="text-3xl font-bold">Order Details</h1>
                     <p className="text-muted-foreground">Order ID: {order.id.slice(0, 8)}</p>
                 </div>
-
-                <div className="absolute right-0 top-1 md:static md:ml-auto flex items-center gap-2">
-                    {order.order_status === 'pending' && (
-                        <Button
-                            variant="outline"
-                            className="rounded-xl"
-                            onClick={() => router.push(`/order?edit=${order.id}`)}
-                        >
-                            <Pencil className="w-4 h-4 mr-2" />
-                            Edit Order
-                        </Button>
-                    )}
-                    <Button
-                        variant="destructive"
-                        className="rounded-xl"
-                        onClick={() => setDeleteDialogOpen(true)}
-                    >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete Order
-                    </Button>
-                </div>
             </div>
+
+            {/* Floating Action Buttons - Auto-hide on scroll */}
+            <AutoHideContainer className="fixed top-20 right-6 z-40 flex flex-col gap-2 md:static md:absolute md:right-0 md:top-1 md:flex-row md:ml-auto">
+                {order.order_status === 'pending' && (
+                    <Button
+                        variant="outline"
+                        className="rounded-xl"
+                        onClick={() => router.push(`/order?edit=${order.id}`)}
+                    >
+                        <Pencil className="w-4 h-4 mr-2" />
+                        <span className="hidden md:inline">Edit Order</span>
+                    </Button>
+                )}
+                <Button
+                    variant="destructive"
+                    className="rounded-xl"
+                    onClick={() => setDeleteDialogOpen(true)}
+                >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    <span className="hidden md:inline">Delete Order</span>
+                </Button>
+            </AutoHideContainer>
 
             <div className="grid md:grid-cols-2 gap-6">
                 {/* Customer Information */}

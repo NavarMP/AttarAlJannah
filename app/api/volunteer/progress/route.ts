@@ -18,11 +18,14 @@ export async function GET(request: NextRequest) {
         const supabase = await createClient();
 
         // Get challenge progress for goal
+        // Get challenge progress for goal
         const { data: progress } = await supabase
             .from("challenge_progress")
             .select("*")
             .eq("volunteer_id", volunteerId)
-            .single();
+            // Limit to 1 to handle duplicates if unique constraint is missing
+            .limit(1)
+            .maybeSingle();
 
         // Get order statistics using the volunteer's UUID
         const { data: orders } = await supabase

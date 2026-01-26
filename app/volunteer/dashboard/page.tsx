@@ -6,8 +6,9 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Package, TrendingUp, Trophy, Plus } from "lucide-react";
+import { Package, TrendingUp, Trophy, Plus, DollarSign } from "lucide-react";
 import { toast } from "sonner";
+import { calculateCommission } from "@/lib/utils/commission-utils";
 
 interface DashboardStats {
     confirmedBottles: number;
@@ -208,6 +209,26 @@ export default function VolunteerDashboardPage() {
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
                                 From all your sales
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="glass border-gold-300 dark:border-gold-700">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-lg">
+                                <DollarSign className="w-5 h-5 text-gold-500" />
+                                Your Commission
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-3xl font-bold text-gold-500">
+                                ₹{calculateCommission(stats.confirmedBottles).toLocaleString()}
+                            </p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                                {stats.confirmedBottles > 20
+                                    ? `₹10 per bottle after 20 (${stats.confirmedBottles - 20} eligible)`
+                                    : `Sales after 20 bottles earn ₹10 each`
+                                }
                             </p>
                         </CardContent>
                     </Card>
