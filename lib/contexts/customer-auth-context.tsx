@@ -107,28 +107,28 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     };
 
     const loginWithPhone = async (phone: string) => {
+        // Phone already includes country code from the calling code
         // Store phone in localStorage for simple auth
-        const fullPhone = `+91${phone}`;
-        localStorage.setItem("customerPhone", fullPhone);
+        localStorage.setItem("customerPhone", phone);
 
         // Fetch or create customer profile
-        const response = await fetch(`/api/customer/profile?phone=${encodeURIComponent(fullPhone)}`);
+        const response = await fetch(`/api/customer/profile?phone=${encodeURIComponent(phone)}`);
         if (response.ok) {
             const profile = await response.json();
             setCustomerProfile(profile);
             // Create a minimal user object
-            setUser({ phone: fullPhone } as User);
+            setUser({ phone: phone } as User);
         } else {
             // Create new profile
             const createResponse = await fetch('/api/customer/profile', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone: fullPhone }),
+                body: JSON.stringify({ phone: phone }),
             });
             if (createResponse.ok) {
                 const profile = await createResponse.json();
                 setCustomerProfile(profile);
-                setUser({ phone: fullPhone } as User);
+                setUser({ phone: phone } as User);
             } else {
                 throw new Error('Failed to create customer profile');
             }

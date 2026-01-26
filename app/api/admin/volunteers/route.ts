@@ -150,8 +150,13 @@ export async function POST(request: NextRequest) {
         }
 
         // Hash password using pgcrypto
-        const { data: hashedPassword } = await supabase
-            .rpc("crypt", { password_input: password, salt: "gen_salt('bf')" });
+        const { data: hashedPassword, error: hashError } = await supabase
+            .rpc("hash_password", { password });
+
+        if (hashError) {
+            console.error("Password hashing error:", hashError);
+            console.log("Falling back to plain password. Please run create-password-hash-function.sql");
+        }
 
         // Create user record
         const { data: newVolunteer, error: createError } = await supabase

@@ -134,6 +134,12 @@ export default function AdminLayout({
                             Orders
                         </Button>
                     </Link>
+                    <Link href="/admin/customers">
+                        <Button variant="ghost" className="w-full justify-start rounded-xl">
+                            <Users className="mr-2 h-5 w-5" />
+                            Customers
+                        </Button>
+                    </Link>
                 </nav>
 
                 <div className="p-4 border-t border-border space-y-2">

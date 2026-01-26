@@ -7,8 +7,9 @@ import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Search, Trash2 } from "lucide-react";
+import { Search, Trash2, Trash } from "lucide-react";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Order {
     id: string;
@@ -36,6 +37,11 @@ export default function OrdersPage() {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
     const [deleting, setDeleting] = useState(false);
+
+    // Bulk delete state
+    const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+    const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+    const [bulkDeleting, setBulkDeleting] = useState(false);
 
     // Debounce search input
     useEffect(() => {
@@ -72,6 +78,8 @@ export default function OrdersPage() {
 
     useEffect(() => {
         fetchOrders();
+        // Clear selection when fetching new data
+        setSelectedOrders(new Set());
     }, [fetchOrders]);
 
     const handleDelete = async () => {
@@ -99,6 +107,53 @@ export default function OrdersPage() {
             setDeleting(false);
             setDeleteDialogOpen(false);
             setOrderToDelete(null);
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedOrders.size === 0) return;
+
+        setBulkDeleting(true);
+        try {
+            const response = await fetch("/api/admin/orders/bulk-delete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ orderIds: Array.from(selectedOrders) }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                toast.success(data.message || `Deleted ${data.deletedCount} order(s) from database`);
+                setSelectedOrders(new Set());
+                fetchOrders();
+            } else {
+                toast.error(data.error || "Failed to bulk delete orders");
+            }
+        } catch (error) {
+            console.error("Bulk delete error:", error);
+            toast.error("An error occurred while deleting orders");
+        } finally {
+            setBulkDeleting(false);
+            setBulkDeleteDialogOpen(false);
+        }
+    };
+
+    const toggleOrderSelection = (orderId: string) => {
+        const newSelection = new Set(selectedOrders);
+        if (newSelection.has(orderId)) {
+            newSelection.delete(orderId);
+        } else {
+            newSelection.add(orderId);
+        }
+        setSelectedOrders(newSelection);
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedOrders.size === orders.length) {
+            setSelectedOrders(new Set());
+        } else {
+            setSelectedOrders(new Set(orders.map(o => o.id)));
         }
     };
 
@@ -158,6 +213,13 @@ export default function OrdersPage() {
                         <table className="w-full">
                             <thead className="bg-muted/50">
                                 <tr>
+                                    <th className="px-6 py-4 text-left">
+                                        <Checkbox
+                                            checked={orders.length > 0 && selectedOrders.size === orders.length}
+                                            onCheckedChange={toggleSelectAll}
+                                            aria-label="Select all orders"
+                                        />
+                                    </th>
                                     <th className="px-6 py-4 text-left text-sm font-semibold">Customer</th>
                                     <th className="px-6 py-4 text-left text-sm font-semibold">Phone</th>
                                     <th className="px-6 py-4 text-left text-sm font-semibold">Volunteer</th>
@@ -173,13 +235,26 @@ export default function OrdersPage() {
                                 {orders.map((order) => (
                                     <tr
                                         key={order.id}
-                                        onClick={() => window.location.href = `/admin/orders/${order.id}`}
-                                        className="hover:bg-muted/30 cursor-pointer transition-colors"
+                                        className={`hover:bg-muted/30 transition-colors ${selectedOrders.has(order.id) ? 'bg-blue-50 dark:bg-blue-950/20' : ''
+                                            }`}
                                     >
-                                        <td className="px-6 py-4">
+                                        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                                            <Checkbox
+                                                checked={selectedOrders.has(order.id)}
+                                                onCheckedChange={() => toggleOrderSelection(order.id)}
+                                                aria-label={`Select order for ${order.customer_name}`}
+                                            />
+                                        </td>
+                                        <td
+                                            className="px-6 py-4 cursor-pointer"
+                                            onClick={() => window.location.href = `/admin/orders/${order.id}`}
+                                        >
                                             <p className="font-medium">{order.customer_name}</p>
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-muted-foreground">
+                                        <td
+                                            className="px-6 py-4 text-sm text-muted-foreground cursor-pointer"
+                                            onClick={() => window.location.href = `/admin/orders/${order.id}`}
+                                        >
                                             {order.customer_phone}
                                         </td>
                                         <td className="px-6 py-4">
@@ -293,6 +368,44 @@ export default function OrdersPage() {
                             className="bg-destructive hover:bg-destructive/90"
                         >
                             {deleting ? "Deleting..." : "Delete"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Bulk Delete Button - Floating */}
+            {selectedOrders.size > 0 && (
+                <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
+                    <Button
+                        onClick={() => setBulkDeleteDialogOpen(true)}
+                        className="rounded-full shadow-lg bg-destructive hover:bg-destructive/90 text-white px-6 py-6 flex items-center gap-2"
+                        size="lg"
+                    >
+                        <Trash className="w-5 h-5" />
+                        Delete {selectedOrders.size} selected
+                    </Button>
+                </div>
+            )}
+
+            {/* Bulk Delete Confirmation Dialog */}
+            <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Bulk Delete Orders</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to permanently delete {selectedOrders.size} order(s) from the database?
+                            <br />
+                            <strong className="text-destructive">This action cannot be undone.</strong>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleBulkDelete}
+                            disabled={bulkDeleting}
+                            className="bg-destructive hover:bg-destructive/90"
+                        >
+                            {bulkDeleting ? "Deleting from database..." : `Delete ${selectedOrders.size} Order(s)`}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

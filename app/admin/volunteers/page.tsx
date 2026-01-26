@@ -24,10 +24,11 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Plus, Search, Edit, Trash2, TrendingUp, Award, Loader2 } from "lucide-react";
+import { Users, Plus, Search, Edit, Trash2, TrendingUp, Award, Loader2, Trash } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { calculateCommission } from "@/lib/utils/commission-utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Volunteer {
     id: string;
@@ -56,6 +57,11 @@ export default function VolunteersPage() {
         active: 0,
         topPerformer: null as Volunteer | null,
     });
+
+    // Bulk delete state
+    const [selectedVolunteers, setSelectedVolunteers] = useState<Set<string>>(new Set());
+    const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+    const [bulkDeleting, setBulkDeleting] = useState(false);
 
     const fetchVolunteers = useCallback(async () => {
         try {
@@ -93,10 +99,14 @@ export default function VolunteersPage() {
     useEffect(() => {
         setCurrentPage(1); // Reset to page 1 when search changes
         fetchVolunteers();
+        // Clear selection when search changes
+        setSelectedVolunteers(new Set());
     }, [searchQuery, fetchVolunteers]);
 
     useEffect(() => {
         fetchVolunteers();
+        // Clear selection when page changes
+        setSelectedVolunteers(new Set());
     }, [currentPage, fetchVolunteers]);
 
     const handleDelete = async () => {
@@ -119,6 +129,53 @@ export default function VolunteersPage() {
             toast.error("Failed to delete volunteer");
         } finally {
             setIsDeleting(false);
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedVolunteers.size === 0) return;
+
+        setBulkDeleting(true);
+        try {
+            const response = await fetch("/api/admin/volunteers/bulk-delete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ volunteerIds: Array.from(selectedVolunteers) }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                toast.success(data.message || `Deleted ${data.deletedCount} volunteer(s) from database`);
+                setSelectedVolunteers(new Set());
+                fetchVolunteers();
+            } else {
+                toast.error(data.error || "Failed to bulk delete volunteers");
+            }
+        } catch (error) {
+            console.error("Bulk delete error:", error);
+            toast.error("An error occurred while deleting volunteers");
+        } finally {
+            setBulkDeleting(false);
+            setBulkDeleteDialogOpen(false);
+        }
+    };
+
+    const toggleVolunteerSelection = (volunteerId: string) => {
+        const newSelection = new Set(selectedVolunteers);
+        if (newSelection.has(volunteerId)) {
+            newSelection.delete(volunteerId);
+        } else {
+            newSelection.add(volunteerId);
+        }
+        setSelectedVolunteers(newSelection);
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedVolunteers.size === volunteers.length) {
+            setSelectedVolunteers(new Set());
+        } else {
+            setSelectedVolunteers(new Set(volunteers.map(v => v.id)));
         }
     };
 
@@ -226,6 +283,13 @@ export default function VolunteersPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
+                                        <TableHead>
+                                            <Checkbox
+                                                checked={volunteers.length > 0 && selectedVolunteers.size === volunteers.length}
+                                                onCheckedChange={toggleSelectAll}
+                                                aria-label="Select all volunteers"
+                                            />
+                                        </TableHead>
                                         <TableHead>Volunteer ID</TableHead>
                                         <TableHead>Name</TableHead>
                                         <TableHead>Email</TableHead>
@@ -239,7 +303,17 @@ export default function VolunteersPage() {
                                 </TableHeader>
                                 <TableBody>
                                     {volunteers.map((volunteer) => (
-                                        <TableRow key={volunteer.id}>
+                                        <TableRow
+                                            key={volunteer.id}
+                                            className={selectedVolunteers.has(volunteer.id) ? 'bg-blue-50 dark:bg-blue-950/20' : ''}
+                                        >
+                                            <TableCell onClick={(e) => e.stopPropagation()}>
+                                                <Checkbox
+                                                    checked={selectedVolunteers.has(volunteer.id)}
+                                                    onCheckedChange={() => toggleVolunteerSelection(volunteer.id)}
+                                                    aria-label={`Select ${volunteer.name}`}
+                                                />
+                                            </TableCell>
                                             <TableCell className="font-mono font-semibold">
                                                 {volunteer.volunteer_id}
                                             </TableCell>
@@ -345,6 +419,56 @@ export default function VolunteersPage() {
                                 </>
                             ) : (
                                 "Delete Volunteer"
+                            )}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Bulk Delete Button - Floating */}
+            {selectedVolunteers.size > 0 && (
+                <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
+                    <Button
+                        onClick={() => setBulkDeleteDialogOpen(true)}
+                        className="rounded-full shadow-lg bg-destructive hover:bg-destructive/90 text-white px-6 py-6 flex items-center gap-2"
+                        size="lg"
+                    >
+                        <Trash className="w-5 h-5" />
+                        Delete {selectedVolunteers.size} selected
+                    </Button>
+                </div>
+            )}
+
+            {/* Bulk Delete Confirmation Dialog */}
+            <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Bulk Delete Volunteers</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to permanently delete {selectedVolunteers.size} volunteer(s) from the database?
+                            <br />
+                            <strong className="text-destructive">This action will:</strong>
+                            <ul className="list-disc list-inside mt-2 space-y-1">
+                                <li>Delete volunteer accounts and challenge progress (CASCADE)</li>
+                                <li>Keep orders but set referred_by to NULL</li>
+                            </ul>
+                            <strong className="text-destructive mt-2 block">This cannot be undone.</strong>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleBulkDelete}
+                            disabled={bulkDeleting}
+                            className="bg-destructive hover:bg-destructive/90"
+                        >
+                            {bulkDeleting ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Deleting from database...
+                                </>
+                            ) : (
+                                `Delete ${selectedVolunteers.size} Volunteer(s)`
                             )}
                         </AlertDialogAction>
                     </AlertDialogFooter>

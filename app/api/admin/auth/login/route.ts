@@ -14,40 +14,42 @@ export async function POST(request: NextRequest) {
 
         const supabase = await createClient();
 
-        // Find admin by email
-        const { data: admin, error: fetchError } = await supabase
-            .from("users")
-            .select("*")
-            .eq("email", email)
-            .eq("user_role", "admin")
-            .single();
+        // Authenticate with Supabase Authentication
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
 
-        if (fetchError || !admin) {
+        if (authError || !authData.user) {
             return NextResponse.json(
                 { error: "Invalid email or password" },
                 { status: 401 }
             );
         }
 
-        // Verify password - simple comparison for now
-        // Note: In production, use proper password hashing verification
-        const isPasswordValid = admin.password_hash === password ||
-            (admin.password_hash && password === "Admin@123");
+        // Check if user has admin role in users table
+        const { data: userRole, error: roleError } = await supabase
+            .from("users")
+            .select("user_role, name")
+            .eq("email", email)
+            .single();
 
-        if (!isPasswordValid) {
+        // If user doesn't exist in users table or is not admin, sign them out
+        if (roleError || !userRole || userRole.user_role !== "admin") {
+            await supabase.auth.signOut();
             return NextResponse.json(
-                { error: "Invalid email or password" },
-                { status: 401 }
+                { error: "Access denied. Admin privileges required." },
+                { status: 403 }
             );
         }
 
         return NextResponse.json({
             success: true,
             user: {
-                id: admin.id,
-                email: admin.email,
-                name: admin.name,
-                role: admin.user_role,
+                id: authData.user.id,
+                email: authData.user.email,
+                name: userRole.name || authData.user.email?.split('@')[0],
+                role: userRole.user_role,
             },
         });
     } catch (error) {
