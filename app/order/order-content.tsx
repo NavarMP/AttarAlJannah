@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Phone, MessageCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { COUNTRY_CODES } from "@/components/ui/country-code-select";
 
 export function OrderContent() {
     const searchParams = useSearchParams();
@@ -18,9 +19,14 @@ export function OrderContent() {
     const [referralCode, setReferralCode] = useState<string | null>(null);
 
     const handleBack = () => {
-        // Go to customer dashboard if logged in, otherwise go to home
+        // Check for volunteer session
+        const volunteerId = localStorage.getItem("volunteerId");
+
+        // Go to appropriate dashboard or home
         if (user && customerProfile) {
             router.push("/customer/dashboard");
+        } else if (volunteerId) {
+            router.push("/volunteer/dashboard");
         } else {
             router.push("/");
         }
@@ -97,12 +103,21 @@ export function OrderContent() {
             let cleanPhone = phoneParam;
             let countryCode = "+91"; // Default to India
 
-            // If phone starts with +, extract country code
+            // If phone starts with +, extract country code using known codes
             if (cleanPhone.startsWith("+")) {
-                const match = cleanPhone.match(/^(\+\d{1,4})(\d+)$/);
-                if (match) {
-                    countryCode = match[1];
-                    cleanPhone = match[2];
+                const sortedCodes = [...COUNTRY_CODES].sort((a, b) => b.code.length - a.code.length);
+                const matched = sortedCodes.find(c => cleanPhone.startsWith(c.code));
+
+                if (matched) {
+                    countryCode = matched.code;
+                    cleanPhone = cleanPhone.slice(matched.code.length);
+                } else {
+                    // Fallback using regex if no match found
+                    const match = cleanPhone.match(/^(\+\d{1,4})(\d+)$/);
+                    if (match) {
+                        countryCode = match[1];
+                        cleanPhone = match[2];
+                    }
                 }
             }
 

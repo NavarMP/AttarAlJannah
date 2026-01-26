@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { User, GraduationCap, ShieldCheck } from "lucide-react";
+import { cn } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
 import { useCustomerAuth } from "@/lib/contexts/customer-auth-context";
@@ -56,9 +57,9 @@ export default function LoginSelectorPage() {
                                 <p className="text-sm text-muted-foreground">
                                     • One-click checkout
                                 </p>
-                                <Button className="w-full mt-4 bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600 rounded-2xl">
+                                <div className={cn(buttonVariants({ variant: "default" }), "w-full mt-4 bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600 rounded-2xl")}>
                                     {customerUser ? "Go to Dashboard" : "Login"}
-                                </Button>
+                                </div>
                             </CardContent>
                         </Card>
                     </Link>
@@ -83,9 +84,9 @@ export default function LoginSelectorPage() {
                                 <p className="text-sm text-muted-foreground">
                                     • View leaderboard rank
                                 </p>
-                                <Button className="w-full mt-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-2xl">
+                                <div className={cn(buttonVariants({ variant: "default" }), "w-full mt-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-2xl")}>
                                     {volunteerLoggedIn ? "Go to Dashboard" : "Login"}
-                                </Button>
+                                </div>
                             </CardContent>
                         </Card>
                     </Link>
@@ -110,9 +111,9 @@ export default function LoginSelectorPage() {
                                 <p className="text-sm text-muted-foreground">
                                     • Dashboard analytics
                                 </p>
-                                <Button className="w-full mt-4 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 rounded-2xl">
+                                <div className={cn(buttonVariants({ variant: "default" }), "w-full mt-4 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 rounded-2xl")}>
                                     {adminUser ? "Go to Dashboard" : "Login"}
-                                </Button>
+                                </div>
                             </CardContent>
                         </Card>
                     </Link>

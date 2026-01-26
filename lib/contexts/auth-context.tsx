@@ -46,8 +46,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                             role: userRole.user_role,
                         });
                     } else {
-                        // Not an admin, sign them out
-                        await supabase.auth.signOut();
+                        // Not an admin, just ignore this session in AuthContext
+                        // Do NOT sign out, as it might be a customer session
+                        setUser(null);
                     }
                 }
             } catch (error) {

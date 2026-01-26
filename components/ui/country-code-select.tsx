@@ -18,7 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 
 // Popular country codes (focusing on India and nearby countries)
-const COUNTRY_CODES = [
+export const COUNTRY_CODES = [
     { code: "+91", country: "India", flag: "🇮🇳" },
     { code: "+1", country: "USA/Canada", flag: "🇺🇸" },
     { code: "+44", country: "UK", flag: "🇬🇧" },

@@ -75,11 +75,33 @@ export async function POST(request: NextRequest) {
             }
         }
 
+        // Create or update customer user
+        console.log("👤 Creating/Updating customer user...");
+        const { data: customerData, error: customerError } = await supabase
+            .from("users")
+            .upsert({
+                phone: customerPhone,
+                name: customerName,
+                user_role: "customer",
+            }, { onConflict: "phone" })
+            .select()
+            .single();
+
+        if (customerError) {
+            console.error("⚠️ Customer creation warning:", customerError.message);
+            // We continue even if customer creation fails, but log it.
+            // Ideally we should fail, but blocking order might be bad if it's just a duplicate key race condition.
+            // On conflict update should handle it.
+        }
+
+        const customerId = customerData?.id || null;
+
         // Create order
         console.log("💾 Inserting order into database...");
         const { data: orderData, error: orderError } = await supabase
             .from("orders")
             .insert({
+                customer_id: customerId, // Link to user
                 customer_name: customerName,
                 customer_phone: customerPhone,
                 whatsapp_number: whatsappNumber,

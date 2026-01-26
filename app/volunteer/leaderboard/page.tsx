@@ -15,6 +15,7 @@ interface LeaderboardEntry {
     name: string;
     volunteer_id: string;
     confirmed_bottles: number;
+    confirmed_orders_count?: number;
     total_revenue: number;
 }
 
@@ -23,6 +24,8 @@ export default function VolunteerLeaderboardPage() {
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [currentVolunteerId, setCurrentVolunteerId] = useState<string>("");
+
+    const [sortType, setSortType] = useState<"bottles" | "orders">("bottles");
 
     useEffect(() => {
         // Check authentication
@@ -50,18 +53,22 @@ export default function VolunteerLeaderboardPage() {
         }
     };
 
+    const getSortedLeaderboard = () => {
+        return [...leaderboard].sort((a, b) => {
+            if (sortType === "bottles") {
+                return b.confirmed_bottles - a.confirmed_bottles;
+            }
+            return (b.confirmed_orders_count || 0) - (a.confirmed_orders_count || 0);
+        }).map((entry, index) => ({ ...entry, rank: index + 1 }));
+    };
+
+    const sortedLeaderboard = getSortedLeaderboard();
+
     const getRankIcon = (rank: number) => {
         if (rank === 1) return <Trophy className="w-6 h-6 text-yellow-500" />;
         if (rank === 2) return <Medal className="w-6 h-6 text-gray-400" />;
         if (rank === 3) return <Medal className="w-6 h-6 text-amber-600" />;
         return <span className="w-6 text-center font-bold text-muted-foreground">{rank}</span>;
-    };
-
-    const getRankBadge = (rank: number) => {
-        if (rank === 1) return "bg-gradient-to-r from-yellow-500 to-yellow-600 text-white";
-        if (rank === 2) return "bg-gradient-to-r from-gray-400 to-gray-500 text-white";
-        if (rank === 3) return "bg-gradient-to-r from-amber-600 to-amber-700 text-white";
-        return "bg-muted text-muted-foreground";
     };
 
     if (isLoading) {
@@ -77,19 +84,45 @@ export default function VolunteerLeaderboardPage() {
             <div className="max-w-4xl mx-auto space-y-6">
                 {/* Header */}
                 <div className="space-y-3">
-                    <div className="flex items-center gap-4">
-                        <Link href="/volunteer/dashboard">
-                            <Button variant="outline" className="rounded-2xl">
-                                <ArrowLeft className="w-4 h-4 mr-2" />
-                                Back to Dashboard
-                            </Button>
-                        </Link>
+                    <div className="flex items-center justify-between flex-wrap gap-4">
+                        <div className="flex items-center gap-4">
+                            <Link href="/volunteer/dashboard">
+                                <Button variant="outline" className="rounded-2xl">
+                                    <ArrowLeft className="w-4 h-4 mr-2" />
+                                    Back to Dashboard
+                                </Button>
+                            </Link>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <Trophy className="w-10 h-10 text-yellow-500" />
-                        <div>
-                            <h1 className="text-4xl font-bold">Volunteer Leaderboard</h1>
-                            <p className="text-muted-foreground">See how you rank among all volunteers</p>
+                    <div className="flex items-center justify-between flex-wrap gap-4">
+                        <div className="flex items-center gap-3">
+                            <Trophy className="w-10 h-10 text-yellow-500" />
+                            <div>
+                                <h1 className="text-4xl font-bold">Volunteer Leaderboard</h1>
+                                <p className="text-muted-foreground">See how you rank among all volunteers</p>
+                            </div>
+                        </div>
+
+                        {/* Sort Switch */}
+                        <div className="flex bg-muted p-1 rounded-xl">
+                            <button
+                                onClick={() => setSortType("bottles")}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${sortType === "bottles"
+                                    ? "bg-background shadow-sm text-foreground"
+                                    : "text-muted-foreground hover:text-foreground"
+                                    }`}
+                            >
+                                Bottles
+                            </button>
+                            <button
+                                onClick={() => setSortType("orders")}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${sortType === "orders"
+                                    ? "bg-background shadow-sm text-foreground"
+                                    : "text-muted-foreground hover:text-foreground"
+                                    }`}
+                            >
+                                Orders
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -103,14 +136,14 @@ export default function VolunteerLeaderboardPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {leaderboard.length === 0 ? (
+                        {sortedLeaderboard.length === 0 ? (
                             <div className="text-center py-12">
                                 <Award className="w-16 h-16 mx-auto text-muted-foreground opacity-50 mb-4" />
                                 <p className="text-lg text-muted-foreground">No volunteers yet</p>
                             </div>
                         ) : (
                             <div className="space-y-3">
-                                {leaderboard.map((entry) => {
+                                {sortedLeaderboard.map((entry) => {
                                     const isCurrentUser = entry.volunteer_id === currentVolunteerId;
                                     return (
                                         <div
@@ -155,7 +188,7 @@ export default function VolunteerLeaderboardPage() {
 
                                             {/* Stats */}
                                             <div className="flex items-center gap-6">
-                                                <div className="text-right">
+                                                <div className={`text-right ${sortType === 'bottles' ? 'opacity-100' : 'opacity-60'}`}>
                                                     <div className={`text-sm ${entry.rank <= 3 && !isCurrentUser
                                                         ? "text-white/80"
                                                         : isCurrentUser
@@ -173,7 +206,25 @@ export default function VolunteerLeaderboardPage() {
                                                         {entry.confirmed_bottles}
                                                     </div>
                                                 </div>
-                                                <div className="text-right">
+                                                <div className={`text-right ${sortType === 'orders' ? 'opacity-100' : 'opacity-60'}`}>
+                                                    <div className={`text-sm ${entry.rank <= 3 && !isCurrentUser
+                                                        ? "text-white/80"
+                                                        : isCurrentUser
+                                                            ? "text-primary/80"
+                                                            : "text-muted-foreground"
+                                                        }`}>
+                                                        Orders
+                                                    </div>
+                                                    <div className={`text-xl font-bold ${entry.rank <= 3 && !isCurrentUser
+                                                        ? "text-white"
+                                                        : isCurrentUser
+                                                            ? "text-primary"
+                                                            : "text-blue-500"
+                                                        }`}>
+                                                        {entry.confirmed_orders_count || 0}
+                                                    </div>
+                                                </div>
+                                                <div className="text-right hidden sm:block">
                                                     <div className={`text-sm ${entry.rank <= 3 && !isCurrentUser
                                                         ? "text-white/80"
                                                         : isCurrentUser

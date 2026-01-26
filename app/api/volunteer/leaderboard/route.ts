@@ -40,6 +40,7 @@ export async function GET() {
                 name: volunteer.name,
                 volunteer_id: volunteer.volunteer_id,
                 confirmed_bottles: confirmedBottles,
+                confirmed_orders_count: volunteerOrders.reduce((count, o) => count + 1, 0),
                 total_revenue: totalRevenue
             };
         }) || [];

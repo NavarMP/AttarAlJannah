@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import Image from "next/image";
 import { CameraCapture } from "@/components/ui/camera-capture";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { CountryCodeSelect } from "@/components/ui/country-code-select";
+import { CountryCodeSelect, COUNTRY_CODES } from "@/components/ui/country-code-select";
 import { INDIAN_STATES, DISTRICTS_BY_STATE } from "@/lib/data/indian-locations";
 
 interface CustomerProfile {
@@ -78,19 +78,53 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
         if (prefillData) {
             // Reorder or Edit scenario
             setValue("customerName", prefillData.customerName);
-            setValue("customerPhone", prefillData.customerPhone);
-            setValue("whatsappNumber", prefillData.whatsappNumber);
-            setValue("customerEmail", prefillData.customerEmail);
-            setValue("quantity", prefillData.quantity);
+            // Parse customer phone
+            if (prefillData.customerPhone) {
+                let phone = prefillData.customerPhone;
+                let code = "+91";
 
-            // Set country codes if provided (for customer auto-fill)
-            if (prefillData.customerPhoneCountry) {
-                setPhoneCountryCode(prefillData.customerPhoneCountry);
-                setValue("customerPhoneCountry", prefillData.customerPhoneCountry);
+                if (prefillData.customerPhoneCountry) {
+                    code = prefillData.customerPhoneCountry;
+                    // If phone starts with code, strip it
+                    if (phone.startsWith(code)) {
+                        phone = phone.slice(code.length);
+                    }
+                } else if (phone.startsWith("+")) {
+                    // Auto-detect code
+                    const sortedCodes = [...COUNTRY_CODES].sort((a, b) => b.code.length - a.code.length);
+                    const matched = sortedCodes.find(c => phone.startsWith(c.code));
+                    if (matched) {
+                        code = matched.code;
+                        phone = phone.slice(matched.code.length);
+                    }
+                }
+                setPhoneCountryCode(code);
+                setValue("customerPhoneCountry", code);
+                setValue("customerPhone", phone);
             }
-            if (prefillData.whatsappNumberCountry) {
-                setWhatsappCountryCode(prefillData.whatsappNumberCountry);
-                setValue("whatsappNumberCountry", prefillData.whatsappNumberCountry);
+
+            // Parse WhatsApp
+            if (prefillData.whatsappNumber) {
+                let wa = prefillData.whatsappNumber;
+                let waCode = "+91";
+
+                if (prefillData.whatsappNumberCountry) {
+                    waCode = prefillData.whatsappNumberCountry;
+                    if (wa.startsWith(waCode)) {
+                        wa = wa.slice(waCode.length);
+                    }
+                } else if (wa.startsWith("+")) {
+                    // Auto-detect code
+                    const sortedCodes = [...COUNTRY_CODES].sort((a, b) => b.code.length - a.code.length);
+                    const matched = sortedCodes.find(c => wa.startsWith(c.code));
+                    if (matched) {
+                        waCode = matched.code;
+                        wa = wa.slice(matched.code.length);
+                    }
+                }
+                setWhatsappCountryCode(waCode);
+                setValue("whatsappNumberCountry", waCode);
+                setValue("whatsappNumber", wa);
             }
 
             // Parse address if available (for edit mode with individual fields)
@@ -702,7 +736,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                             id="quantity"
                             type="number"
                             min={1}
-                            max={50}
+                            // max={1000}
                             {...register("quantity", { valueAsNumber: true })}
                         />
                         {errors.quantity && (

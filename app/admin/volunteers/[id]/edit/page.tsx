@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Loader2, Save, AlertCircle, DollarSign } from "lucide-react";
-import { CountryCodeSelect } from "@/components/ui/country-code-select";
+import { CountryCodeSelect, COUNTRY_CODES } from "@/components/ui/country-code-select";
 import { toast } from "sonner";
 import Link from "next/link";
 import { calculateCommission } from "@/lib/utils/commission-utils";
@@ -83,13 +83,24 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
             let cleanPhone = volunteer.phone;
             let extractedCountryCode = "+91";
 
-            // Try to extract country code
+            // Try to extract country code by matching against known codes
             if (cleanPhone.startsWith("+")) {
-                // Find where digits start after +
-                const match = cleanPhone.match(/^(\+\d{1,4})(.*)$/);
-                if (match) {
-                    extractedCountryCode = match[1];
-                    cleanPhone = match[2];
+                // Sort codes by length (descending) to match longest possible code first
+                // e.g. match +971 before +97
+                const sortedCodes = [...COUNTRY_CODES].sort((a, b) => b.code.length - a.code.length);
+
+                const matchedCountry = sortedCodes.find(c => cleanPhone.startsWith(c.code));
+
+                if (matchedCountry) {
+                    extractedCountryCode = matchedCountry.code;
+                    cleanPhone = cleanPhone.slice(matchedCountry.code.length);
+                } else {
+                    // Fallback to basic regex if no known code matches
+                    const match = cleanPhone.match(/^(\+\d{1,4})(.*)$/);
+                    if (match) {
+                        extractedCountryCode = match[1];
+                        cleanPhone = match[2];
+                    }
                 }
             }
 

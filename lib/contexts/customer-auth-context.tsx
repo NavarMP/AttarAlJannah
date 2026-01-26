@@ -38,10 +38,17 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
             const response = await fetch(`/api/customer/profile?phone=${encodeURIComponent(phone)}`);
             if (response.ok) {
                 const profile = await response.json();
-                setCustomerProfile(profile);
+                if (profile) {
+                    setCustomerProfile(profile);
+                    return true;
+                }
             }
+            setCustomerProfile(null);
+            return false;
         } catch (error) {
             console.error("Failed to fetch customer profile:", error);
+            setCustomerProfile(null);
+            return false;
         }
     }, []);
 
@@ -50,14 +57,28 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         const storedPhone = localStorage.getItem("customerPhone");
 
         // Check active session
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session?.user) {
-                setUser(session.user);
-                fetchCustomerProfile(session.user.phone!);
+        supabase.auth.getSession().then(async ({ data: { session } }) => {
+            if (session?.user && session.user.phone) {
+                // Verify if this user has a valid customer profile
+                const isValid = await fetchCustomerProfile(session.user.phone);
+                if (isValid) {
+                    setUser(session.user);
+                } else {
+                    // Start with basic user, assuming profile might be created later or is just missing
+                    // BUT if we want to block Admin, we should technically not set User if invalid.
+                    // However, blocking strictly might affect new signups?
+                    // Safe bet: If user has 'customer' role in metadata? We don't have it.
+                    // Given the bug "Admin opening dashboard": Admin has phone, but NO profile in users (role=customer).
+                    // So isValid is false.
+                    // So we do NOT setUser. Correct.
+                    setUser(null);
+                }
             } else if (storedPhone) {
                 // Use stored phone for simple auth
-                setUser({ phone: storedPhone } as User);
-                fetchCustomerProfile(storedPhone);
+                const isValid = await fetchCustomerProfile(storedPhone);
+                if (isValid) {
+                    setUser({ phone: storedPhone } as User);
+                }
             }
             setLoading(false);
         });
@@ -65,18 +86,31 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         // Listen for auth changes
         const {
             data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event, session) => {
-            if (session?.user) {
-                setUser(session.user);
-                fetchCustomerProfile(session.user.phone!);
-            } else {
-                // If Supabase session is null, check if we have a local phone session
-                const storedPhone = localStorage.getItem("customerPhone");
-                if (!storedPhone) {
+        } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            if (session?.user && session.user.phone) {
+                const isValid = await fetchCustomerProfile(session.user.phone);
+                if (isValid) {
+                    setUser(session.user);
+                } else {
                     setUser(null);
                     setCustomerProfile(null);
                 }
-                // If storedPhone exists, we keep the current user state (set in initial load)
+            } else {
+                // If Supabase session is null, check if we have a local phone session
+                const storedPhone = localStorage.getItem("customerPhone");
+                if (storedPhone) {
+                    // Keep existing state if stored phone works (handled by init mostly, but here we can re-verify?)
+                    // If we just logged out from Supabase (Admin), we shouldn't fallback to stored customer phone?
+                    // Actually, if Admin logs out, session is null.
+                    // If we have storedPhone, we might want to stay logged in as customer.
+                    // But usually admin/customer don't mix on same browser seamlessly.
+                    // Let's safe fallback.
+                    setUser({ phone: storedPhone } as User);
+                    fetchCustomerProfile(storedPhone);
+                } else {
+                    setUser(null);
+                    setCustomerProfile(null);
+                }
             }
         });
 

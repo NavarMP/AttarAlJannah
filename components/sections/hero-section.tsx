@@ -5,7 +5,7 @@ import Image from "next/image";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, LogIn, User, Award } from "lucide-react";
+import { ShieldCheck, LogIn, User, Award } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from 'next/link';
 import { useCustomerAuth } from "@/lib/contexts/customer-auth-context";
@@ -178,7 +178,7 @@ function LoginButton() {
                     className="rounded-full shadow-lg bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600 w-12 h-12 p-0"
                     title="Admin Panel"
                 >
-                    <ShoppingCart className="w-5 h-5" />
+                    <ShieldCheck className="w-5 h-5" />
                 </Button>
             )}
             {volunteerLoggedIn && (
@@ -199,7 +199,7 @@ function LoginButton() {
                     <User className="w-5 h-5" />
                 </Button>
             )}
-            {!adminUser && (
+            {!customerUser && (
                 <Button
                     onClick={() => router.push("/login")}
                     className="rounded-2xl shadow-lg bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600"
