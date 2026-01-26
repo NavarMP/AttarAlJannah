@@ -3,14 +3,15 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    props: { params: Promise<{ id: string }> }
 ) {
+    const params = await props.params;
     try {
         const supabase = await createClient();
 
         // Verify admin authentication
-        const { data: { user } } = await supabase.auth.getSession();
-        if (!user) {
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
