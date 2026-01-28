@@ -64,6 +64,13 @@ export default function OrdersPage() {
 
             console.log("Fetching orders with search:", search);
             const response = await fetch(`/api/admin/orders?${queryParams}`);
+
+            if (response.status === 401 || response.status === 403) {
+                const errData = await response.json().catch(() => ({}));
+                toast.error(errData.error || "You are not authorized to view orders");
+                return;
+            }
+
             const data = await response.json();
 
             setOrders(data.orders || []);
@@ -71,6 +78,7 @@ export default function OrdersPage() {
             setTotalPages(data.totalPages || 1);
         } catch (error) {
             console.error("Failed to fetch orders:", error);
+            toast.error("Failed to load orders");
         } finally {
             setLoading(false);
         }

@@ -92,60 +92,44 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { name, email, phone, password, address, volunteer_id, goal = 20 } = body;
 
-        // Validate required fields
-        if (!name || !phone || !password) {
+        if (!password || !volunteer_id) {
             return NextResponse.json(
-                { error: "Name, phone, and password are required" },
+                { error: "Volunteer ID and Password are required" },
                 { status: 400 }
             );
         }
 
-        // Generate volunteer_id if not provided
-        let finalVolunteerId = volunteer_id;
-        if (!finalVolunteerId) {
-            // Get the last volunteer_id
-            const { data: lastVolunteer } = await supabase
-                .from("users")
-                .select("volunteer_id")
-                .eq("user_role", "volunteer")
-                .order("created_at", { ascending: false })
-                .limit(1)
-                .single();
+        const finalVolunteerId = volunteer_id;
 
-            if (lastVolunteer && lastVolunteer.volunteer_id) {
-                // Extract number from VOL001 format
-                const lastNumber = parseInt(lastVolunteer.volunteer_id.replace(/VOL/i, ""));
-                finalVolunteerId = `VOL${String(lastNumber + 1).padStart(3, "0")}`;
-            } else {
-                finalVolunteerId = "VOL001";
-            }
-        }
+        // Check if volunteer_id already exists (case-insensitive) - STRICT CHECK
 
-        // Check if volunteer_id already exists (case-insensitive)
-        const { data: existingVolunteer } = await supabase
+        // Check if volunteer_id already exists (case-insensitive) - STRICT CHECK
+        const { data: existingVolunteerId } = await supabase
             .from("users")
             .select("id, volunteer_id")
-            .eq("user_role", "volunteer")
             .ilike("volunteer_id", finalVolunteerId);
 
-        if (existingVolunteer && existingVolunteer.length > 0) {
-            return NextResponse.json(
-                { error: "Volunteer ID already exists" },
-                { status: 400 }
-            );
-        }
+        // If ID exists on DIFFERENT user, error. If same user, it's fine (update).
+        // But we don't know the user yet unless we check phone. So check ID globally first.
+        // Actually, if we are "updating" a user, we should allow them to keep their ID? 
+        // But we are creating a *new* volunteer assignment usually. 
+        // If ID exists, deny it to avoid confusion, unless it's the SAME user.
 
-        // Check if email already exists (only if email is provided)
-        if (email) {
-            const { data: existingEmail } = await supabase
-                .from("users")
-                .select("id")
-                .eq("email", email)
-                .single();
+        // Let's first finding the user by phone to see if we are updating.
+        const { data: existingUserByPhone } = await supabase
+            .from("users")
+            .select("id, volunteer_id, user_role, name")
+            .eq("phone", phone)
+            .single();
 
-            if (existingEmail) {
+        if (existingVolunteerId && existingVolunteerId.length > 0) {
+            // If ID exists, check if it belongs to the user we are about to update.
+            const idOwner = existingVolunteerId[0];
+            if (existingUserByPhone && idOwner.id === existingUserByPhone.id) {
+                // Same user, allowed (idempotent update)
+            } else {
                 return NextResponse.json(
-                    { error: "Email already exists" },
+                    { error: "Volunteer ID already exists" },
                     { status: 400 }
                 );
             }
@@ -157,48 +141,90 @@ export async function POST(request: NextRequest) {
 
         if (hashError) {
             console.error("Password hashing error:", hashError);
-            console.log("Falling back to plain password. Please run create-password-hash-function.sql");
         }
 
-        // Create user record
-        const { data: newVolunteer, error: createError } = await supabase
-            .from("users")
-            .insert({
-                name,
-                email,
-                phone,
-                volunteer_id: finalVolunteerId,
-                user_role: "volunteer",
-                password_hash: hashedPassword || password, // Fallback if RPC fails
-                address: address || null,
-            })
-            .select()
+        let userId = "";
+
+        if (existingUserByPhone) {
+            // MERGE/UPDATE Logic
+            userId = existingUserByPhone.id;
+            console.log(`Updating existing user ${userId} to be a volunteer`);
+
+            // Don't downgrade Admin to Volunteer
+            const newRole = existingUserByPhone.user_role === 'admin' ? 'admin' : 'volunteer';
+
+            const { error: updateError } = await supabase
+                .from("users")
+                .update({
+                    name, // usage name from form, maybe they want to correct it
+                    email: email || undefined, // Update email if provided
+                    volunteer_id: finalVolunteerId,
+                    user_role: newRole,
+                    password_hash: hashedPassword || password,
+                    address: address || null,
+                })
+                .eq("id", userId);
+
+            if (updateError) throw updateError;
+
+        } else {
+            // CREATE Logic
+            // Check email uniqueness only for NEW users (or if updating email?)
+            // If updating user and email is different, we handled in update? Supabase might error if email unique constraint.
+            if (email) {
+                const { data: existingEmail } = await supabase
+                    .from("users")
+                    .select("id")
+                    .eq("email", email)
+                    .single();
+                if (existingEmail) {
+                    return NextResponse.json({ error: "Email already exists" }, { status: 400 });
+                }
+            }
+
+            const { data: newUser, error: createError } = await supabase
+                .from("users")
+                .insert({
+                    name,
+                    email,
+                    phone,
+                    volunteer_id: finalVolunteerId,
+                    user_role: "volunteer",
+                    password_hash: hashedPassword || password,
+                    address: address || null,
+                })
+                .select()
+                .single();
+
+            if (createError) throw createError;
+            userId = newUser.id;
+        }
+
+        // Check/Create Challenge Progress
+        const { data: existingProgress } = await supabase
+            .from("challenge_progress")
+            .select("id")
+            .eq("volunteer_id", userId)
             .single();
 
-        if (createError) {
-            throw createError;
-        }
-
-        // Create challenge progress entry using UUID, not readable volunteer_id
-        const { error: progressError } = await supabase
-            .from("challenge_progress")
-            .insert({
-                volunteer_id: newVolunteer.id, // Use UUID, not the readable string
-                confirmed_orders: 0,
-                goal: goal,
-            });
-
-        if (progressError) {
-            console.error("Error creating challenge progress:", progressError);
+        if (!existingProgress) {
+            const { error: progressError } = await supabase
+                .from("challenge_progress")
+                .insert({
+                    volunteer_id: userId,
+                    confirmed_orders: 0,
+                    goal: goal,
+                });
+            if (progressError) console.error("Error creating progress:", progressError);
         }
 
         return NextResponse.json({
             success: true,
+            message: existingUserByPhone ? "User updated to Volunteer" : "Volunteer created",
             volunteer: {
-                ...newVolunteer,
-                confirmed_orders: 0,
-                goal,
-                progress_percentage: 0
+                id: userId,
+                name: name,
+                volunteerId: finalVolunteerId
             }
         }, { status: 201 });
 

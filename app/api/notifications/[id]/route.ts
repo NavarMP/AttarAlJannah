@@ -11,14 +11,20 @@ export async function PATCH(
         const supabase = await createClient();
         const body = await request.json();
 
-        // Get current user
+        // Get current user (Supabase Auth OR Simple Auth ID)
         const { data: { user } } = await supabase.auth.getUser();
+        let targetUserId = user?.id;
 
-        if (!user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const { is_read, user_id: bodyUserId } = body;
+
+        // If no session, check for provided user_id (Simple Auth)
+        if (!targetUserId && bodyUserId) {
+            targetUserId = bodyUserId;
         }
 
-        const { is_read } = body;
+        if (!targetUserId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
 
         if (typeof is_read !== "boolean") {
             return NextResponse.json({ error: "is_read must be a boolean" }, { status: 400 });
@@ -36,7 +42,7 @@ export async function PATCH(
             .from("notifications")
             .update({ is_read })
             .eq("id", id)
-            .eq("user_id", user.id) // Ensure ownership
+            .eq("user_id", targetUserId) // Ensure ownership matches the ID provided/authenticated
             .select()
             .single();
 

@@ -5,13 +5,9 @@ import Image from "next/image";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, LogIn, User, Award, Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from 'next/link';
-import { useCustomerAuth } from "@/lib/contexts/customer-auth-context";
-import { useAuth } from "@/lib/contexts/auth-context";
-import { AutoHideContainer } from "@/components/custom/auto-hide-container";
-import { toast } from "sonner";
+import { AuthStatus } from "@/components/custom/auth-status";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -84,7 +80,7 @@ export function HeroSection() {
     return (
         <section className="relative min-h-screen flex flex-col items-center justify-center px-4 py-12 overflow-hidden">
             {/* Login Button - Top Right */}
-            <LoginButton />
+            <AuthStatus />
 
             {/* Content Container */}
             <div className="relative z-10 max-w-6xl mx-auto text-center">
@@ -169,72 +165,5 @@ export function HeroSection() {
                 </div>
             </div>
         </section>
-    );
-}
-
-// Login/Profile Button Container (Top Right)
-function LoginButton() {
-    const { user: customerUser } = useCustomerAuth();
-    const { user: adminUser } = useAuth();
-    const router = useRouter();
-    const [volunteerLoggedIn, setVolunteerLoggedIn] = useState(false);
-
-    useEffect(() => {
-        const volunteerId = localStorage.getItem("volunteerId");
-        setVolunteerLoggedIn(!!volunteerId);
-    }, []);
-
-    return (
-        <>
-            
-
-            {/* Profile/Login Buttons - Top Right */}
-            <AutoHideContainer className="fixed top-6 right-6 z-50 flex gap-2 items-center">
-                {/* Admin Dashboard */}
-                {adminUser && (
-                    <Button
-                        onClick={() => router.push("/admin/dashboard")}
-                        className="rounded-full shadow-lg bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600 w-12 h-12 p-0"
-                        title="Admin Panel"
-                    >
-                        <ShieldCheck className="w-5 h-5" />
-                    </Button>
-                )}
-
-                {/* Volunteer Dashboard */}
-                {volunteerLoggedIn && (
-                    <Button
-                        onClick={() => router.push("/volunteer/dashboard")}
-                        className="rounded-full shadow-lg bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 w-12 h-12 p-0"
-                        title="Volunteer Dashboard"
-                    >
-                        <Award className="w-5 h-5" />
-                    </Button>
-                )}
-
-                {/* Customer Dashboard */}
-                {customerUser && (
-                    <Button
-                        onClick={() => router.push("/customer/dashboard")}
-                        className="rounded-full shadow-lg bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 w-12 h-12 p-0"
-                        title="My Account"
-                    >
-                        <User className="w-5 h-5" />
-                    </Button>
-                )}
-
-                {/* Login Button - Show if NOT logged in AS ANYTHING */}
-                {(!adminUser && !volunteerLoggedIn && !customerUser) && (
-                    <Button
-                        onClick={() => router.push("/login")}
-                        className="rounded-2xl shadow-lg bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600"
-                        size="lg"
-                    >
-                        <LogIn className="w-5 h-5 mr-2" />
-                        Login
-                    </Button>
-                )}
-            </AutoHideContainer>
-        </>
     );
 }

@@ -8,8 +8,8 @@ export const volunteerSchema = z.object({
         .string()
         .min(10, "Phone number must be at least 10 digits")
         .max(15, "Phone number is too long"),
-    volunteer_id: z.string().optional(),
-    password: z.string().min(8, "Password must be at least 8 characters").optional().or(z.literal("")),
+    volunteer_id: z.string().min(3, "Volunteer ID is required"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
     goal: z.number().min(1, "Goal must be at least 1").default(20),
 });
 

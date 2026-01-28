@@ -142,10 +142,15 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         } catch (error) {
             console.error("Error signing out from Supabase:", error);
         }
-        // Always clear local state
+        // Always clear local state and ALL session keys
         setUser(null);
         setCustomerProfile(null);
         localStorage.removeItem("customerPhone");
+        localStorage.removeItem("customerUuid");
+        // Clear volunteer keys too since they share the same physical user contexts often
+        localStorage.removeItem("volunteerId");
+        localStorage.removeItem("volunteerName");
+        localStorage.removeItem("volunteerUuid");
     };
 
     const loginWithPhone = async (phone: string, createIfMissing = true) => {

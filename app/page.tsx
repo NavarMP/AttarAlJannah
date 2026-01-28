@@ -7,7 +7,7 @@ import { Footer } from "@/components/sections/footer";
 import { ThemeToggle } from "@/components/custom/theme-toggle";
 import { Sparkles } from "lucide-react";
 import { AutoHideContainer } from "@/components/custom/auto-hide-container";
-import { NotificationPermissionButton } from "@/components/custom/NotificationPermission";
+import { NotificationPermission } from "@/components/custom/NotificationPermission";
 
 export default function Home() {
     return (
@@ -16,7 +16,7 @@ export default function Home() {
             <AutoHideContainer className="fixed top-6 left-6 z-50 flex gap-2">
                 <ThemeToggle />
                 {/* Notification Permission Button - Top Left */}
-                <NotificationPermissionButton />
+                <NotificationPermission />
             </AutoHideContainer>
 
             {/* Hero: Photo, Logo, Subtitle, Price, Order Button, Login (top right) */}

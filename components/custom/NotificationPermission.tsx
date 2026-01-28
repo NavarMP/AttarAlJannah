@@ -10,7 +10,7 @@ import { toast } from "sonner";
 
 gsap.registerPlugin(ScrollTrigger);
 
-export function NotificationPermissionButton() {
+export function NotificationPermission() {
     const [permission, setPermission] = useState<NotificationPermission>("default");
 
     useEffect(() => {

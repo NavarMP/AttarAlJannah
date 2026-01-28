@@ -253,7 +253,7 @@ export default function NewVolunteerPage() {
                                 <div className="relative">
                                     <Input
                                         id="volunteer_id"
-                                        placeholder="Auto-generated (e.g., VOL001)"
+                                        placeholder="E.g., VOL001"
                                         className={volunteerIdExists ? "border-destructive" : ""}
                                         {...register("volunteer_id")}
                                     />
@@ -262,7 +262,7 @@ export default function NewVolunteerPage() {
                                     )}
                                 </div>
                                 <p className="text-xs text-muted-foreground">
-                                    Leave empty for auto-generation
+                                    Required (Unique ID for this volunteer)
                                 </p>
                                 {isCheckingVolunteerId && (
                                     <p className="text-sm text-muted-foreground flex items-center gap-1">
