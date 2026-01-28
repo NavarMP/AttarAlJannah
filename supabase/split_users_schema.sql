@@ -127,3 +127,13 @@ ALTER TABLE volunteers DISABLE ROW LEVEL SECURITY;
 ALTER TABLE customers DISABLE ROW LEVEL SECURITY;
 ALTER TABLE orders DISABLE ROW LEVEL SECURITY;
 ALTER TABLE challenge_progress DISABLE ROW LEVEL SECURITY;
+
+
+-- =====================================================
+-- 8. SAMPLE/SEED DATA
+-- =====================================================
+-- Note: Admin is not in any table.
+
+-- Sample Volunteer
+-- INSERT INTO volunteers (name, phone, role) VALUES ('Volunteer One', '9876543210', 'volunteer');
+

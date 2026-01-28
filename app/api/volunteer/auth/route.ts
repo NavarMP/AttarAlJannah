@@ -17,10 +17,10 @@ export async function GET(request: NextRequest) {
 
         // Find volunteer by volunteer_id (readable ID like VOL001)
         const { data: volunteer, error } = await supabase
-            .from("users")
+            .from("volunteers") // New Table
             .select("id, volunteer_id, name")
-            .eq("volunteer_id", volunteerId)
-            .eq("user_role", "volunteer")
+            .ilike("volunteer_id", volunteerId) // Case insensitive
+            // .eq("role", "volunteer")
             .single();
 
         if (error || !volunteer) {
@@ -51,10 +51,10 @@ export async function POST(request: NextRequest) {
 
         // Try to find volunteer by phone or ID
         const { data: volunteer, error } = await supabase
-            .from("users")
+            .from("volunteers")
             .select("*")
-            .eq("role", "volunteer")
-            .or(`phone.eq.${identifier},id.eq.${identifier}`)
+            // .eq("role", "volunteer")
+            .or(`phone.eq.${identifier},volunteer_id.eq.${identifier}`) // Volunteers only have id (UUID), phone, volunteer_id
             .single();
 
         if (error || !volunteer) {

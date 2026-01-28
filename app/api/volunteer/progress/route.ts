@@ -22,8 +22,15 @@ export async function GET(request: NextRequest) {
         const { data: progress } = await supabase
             .from("challenge_progress")
             .select("*")
-            .eq("volunteer_id", volunteerId)
-            // Limit to 1 to handle duplicates if unique constraint is missing
+            .eq("volunteer_id", volunteerId) // UUID expected from query param?
+            // Wait, request param `volunteerId`. 
+            // In Dashboard, `fetchStats(uuid)` passes UUID. 
+            // But if it passes string ID... 
+            // The dashboard code says: tries to fetch UUID from /auth api, then calls fetchStats(uuid).
+            // So we can assume volunteerId here IS UUID. 
+            // But to be safe, we could check if it's a UUID or string ID.
+            // Postgres UUID check might fail if string.
+            // Let's assume it IS UUID if coming from dashboard flow.
             .limit(1)
             .maybeSingle();
 
@@ -31,7 +38,7 @@ export async function GET(request: NextRequest) {
         const { data: orders } = await supabase
             .from("orders")
             .select("*")
-            .eq("referred_by", volunteerId);
+            .eq("volunteer_id", volunteerId); // Using volunteer_id column in orders (FK)
 
         // Filter confirmed/delivered orders
         const confirmedOrders = orders?.filter(o => o.order_status === "confirmed" || o.order_status === "delivered") || [];

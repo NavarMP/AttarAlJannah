@@ -10,7 +10,11 @@ export const volunteerSchema = z.object({
         .max(15, "Phone number is too long"),
     volunteer_id: z.string().min(3, "Volunteer ID is required"),
     password: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string().min(1, "Please confirm the password"),
     goal: z.number().min(1, "Goal must be at least 1").default(20),
+}).refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
 });
 
 export type VolunteerFormData = z.infer<typeof volunteerSchema>;

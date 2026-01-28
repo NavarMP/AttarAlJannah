@@ -18,10 +18,10 @@ export async function GET(request: NextRequest) {
 
         // First, get the volunteer's UUID from their volunteer_id
         const { data: volunteer, error: volunteerError } = await supabase
-            .from("users")
+            .from("volunteers") // New Table
             .select("id")
             .eq("volunteer_id", volunteerId)
-            .eq("user_role", "volunteer")
+            // .eq("role", "volunteer")
             .single();
 
         if (volunteerError || !volunteer) {

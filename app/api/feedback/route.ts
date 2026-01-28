@@ -173,21 +173,33 @@ export async function POST(request: NextRequest) {
         let user_id = null;
 
         if (user && !is_anonymous) {
-            // Check if user exists in public.users table to avoid FK violation
-            const { data: existingUser } = await supabase
-                .from("users")
-                .select("id, user_role")
-                .eq("id", user.id)
+            // Check if user is a volunteer
+            const { data: volunteer } = await supabase
+                .from("volunteers")
+                .select("id, role")
+                .eq("auth_id", user.id)
                 .single();
 
-            if (existingUser) {
-                user_id = user.id;
-                user_role = existingUser.user_role;
+            if (volunteer) {
+                user_id = user.id; // Assuming feedback.user_id references auth.users
+                user_role = volunteer.role || "volunteer";
             } else {
-                // User authenticated in auth.users but not in public.users (e.g. adjust customer)
-                // Keep user_id null to avoid FK constraint error
-                user_id = null;
-                user_role = "customer";
+                // Check legacy users or admin?
+                // Admin check (hardcoded email or check users table if used for admin)
+                const { data: existingUser } = await supabase
+                    .from("users")
+                    .select("id, user_role")
+                    .eq("id", user.id)
+                    .single();
+
+                if (existingUser) {
+                    user_id = user.id;
+                    user_role = existingUser.user_role;
+                } else {
+                    // Customer or loose auth
+                    user_id = null;
+                    user_role = "customer";
+                }
             }
         }
 

@@ -13,10 +13,10 @@ export async function GET(
 
         // Get volunteer by ID
         const { data: volunteer, error: volunteerError } = await supabase
-            .from("users")
+            .from("volunteers") // New Table
             .select("*")
             .eq("id", volunteerId)
-            .eq("user_role", "volunteer")
+            // .eq("role", "volunteer")
             .single();
 
         if (volunteerError || !volunteer) {
@@ -31,7 +31,6 @@ export async function GET(
             .from("challenge_progress")
             .select("*")
             .eq("volunteer_id", volunteer.id)
-            // Limit to 1 to handle duplicates
             .limit(1)
             .maybeSingle();
 
@@ -39,7 +38,7 @@ export async function GET(
         const { data: orders } = await supabase
             .from("orders")
             .select("*")
-            .eq("referred_by", volunteer.id);
+            .eq("referred_by", volunteer.id); // volunteer.id is UUID
 
         const totalBottles = orders?.reduce((sum, o) => sum + (o.quantity || 0), 0) || 0;
         const confirmedBottles = orders
@@ -84,12 +83,11 @@ export async function PUT(
         const body = await request.json();
         const { name, email, phone, address, volunteer_id, goal, password } = body;
 
-        // Check if volunteer exists
+        // Check if volunteer exists in volunteers table
         const { data: existingVolunteer, error: fetchError } = await supabase
-            .from("users")
-            .select("volunteer_id")
+            .from("volunteers")
+            .select("volunteer_id, auth_id")
             .eq("id", volunteerId)
-            .eq("user_role", "volunteer")
             .single();
 
         if (fetchError || !existingVolunteer) {
@@ -102,11 +100,10 @@ export async function PUT(
         // If volunteer_id is being changed, check uniqueness (case-insensitive)
         if (volunteer_id && volunteer_id !== existingVolunteer.volunteer_id) {
             const { data: duplicateCheck } = await supabase
-                .from("users")
+                .from("volunteers")
                 .select("id")
-                .eq("user_role", "volunteer")
                 .ilike("volunteer_id", volunteer_id)
-                .neq("id", volunteerId); // Exclude current volunteer
+                .neq("id", volunteerId);
 
             if (duplicateCheck && duplicateCheck.length > 0) {
                 return NextResponse.json(
@@ -121,19 +118,15 @@ export async function PUT(
         if (name) updates.name = name;
         if (email) updates.email = email;
         if (phone) updates.phone = phone;
-        if (address !== undefined) updates.address = address;
+        // if (address !== undefined) updates.address = address; // Volunteers table doesn't have address in my schema?
+        // Wait, step 40 schema check: "address TEXT,"? No. Volunteers table: name, email, phone, role, total_sales. Customers has address.
+        // Volunteers DO NOT have address in my new schema.
+
         if (volunteer_id) updates.volunteer_id = volunteer_id;
 
-        // Update password if provided
-        if (password) {
-            const { data: hashedPassword } = await supabase
-                .rpc("crypt", { password_input: password, salt: "gen_salt('bf')" });
-            updates.password_hash = hashedPassword || password;
-        }
-
-        // Update user record
+        // Update volunteer record
         const { data: updatedVolunteer, error: updateError } = await supabase
-            .from("users")
+            .from("volunteers")
             .update(updates)
             .eq("id", volunteerId)
             .select()
@@ -143,12 +136,27 @@ export async function PUT(
             throw updateError;
         }
 
+        // Update password if provided - Require Admin Service Role!
+        if (password && existingVolunteer.auth_id) {
+            const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+            if (serviceRoleKey && supabaseUrl) {
+                const { createClient: createSupabaseClient } = require("@supabase/supabase-js");
+                const adminSupabase = createSupabaseClient(supabaseUrl, serviceRoleKey);
+
+                const { error: authError } = await adminSupabase.auth.admin.updateUserById(
+                    existingVolunteer.auth_id,
+                    { password: password }
+                );
+
+                if (authError) console.error("Failed to update auth password:", authError);
+            }
+        }
+
         // Update goal in challenge_progress if provided
         if (goal !== undefined) {
-            // Use UUID, not the readable volunteer_id
-            // The challenge_progress.volunteer_id column is a UUID foreign key
             const volunteerUuid = updatedVolunteer.id;
-
             console.log("Updating goal for volunteer UUID:", volunteerUuid, "to:", goal);
 
             const { error: progressError } = await supabase
@@ -157,7 +165,7 @@ export async function PUT(
                     {
                         volunteer_id: volunteerUuid, // Use UUID
                         goal: parseInt(goal),
-                        confirmed_orders: 0 // Default value if inserting
+                        confirmed_orders: 0
                     },
                     {
                         onConflict: 'volunteer_id',
@@ -167,14 +175,11 @@ export async function PUT(
 
             if (progressError) {
                 console.error("Error updating goal:", progressError);
-                // Return error to user so they know it failed
                 return NextResponse.json(
                     { error: "Volunteer updated but goal update failed: " + progressError.message },
                     { status: 500 }
                 );
             }
-
-            console.log("Goal updated successfully");
         }
 
         return NextResponse.json({
@@ -196,17 +201,22 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const supabase = await createClient();
+        // Need Service Role for deleting Auth User
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+        // Use regular client for verification first? Or just go straight to Admin Op?
+        // Let's use standard client to verify it exists and get auth_id
+        const supabase = await createClient(); // Authenticated Admin session
 
         const { id } = await params;
         const volunteerId = id;
 
         // Check if volunteer exists
         const { data: volunteer, error: fetchError } = await supabase
-            .from("users")
-            .select("volunteer_id")
+            .from("volunteers")
+            .select("auth_id")
             .eq("id", volunteerId)
-            .eq("user_role", "volunteer")
             .single();
 
         if (fetchError || !volunteer) {
@@ -216,23 +226,32 @@ export async function DELETE(
             );
         }
 
-        // Delete challenge_progress entry using UUID
-        await supabase
+        // Initialize Admin Client
+        let adminSupabase = supabase;
+        if (serviceRoleKey && supabaseUrl) {
+            const { createClient: createSupabaseClient } = require("@supabase/supabase-js");
+            adminSupabase = createSupabaseClient(supabaseUrl, serviceRoleKey);
+        }
+
+        // Delete challenge_progress
+        await adminSupabase
             .from("challenge_progress")
             .delete()
-            .eq("volunteer_id", volunteerId); // Use UUID, not readable ID
+            .eq("volunteer_id", volunteerId);
 
-        // Delete user record
-        const { error: deleteError } = await supabase
-            .from("users")
+        // Delete user record from 'volunteers'
+        const { error: deleteError } = await adminSupabase
+            .from("volunteers")
             .delete()
             .eq("id", volunteerId);
 
-        if (deleteError) {
-            throw deleteError;
-        }
+        if (deleteError) throw deleteError;
 
-        // Note: Orders with referred_by = volunteer_id are kept for historical purposes
+        // Delete Auth User
+        if (volunteer.auth_id) {
+            const { error: authError } = await adminSupabase.auth.admin.deleteUser(volunteer.auth_id);
+            if (authError) console.error("Error deleting auth user:", authError);
+        }
 
         return NextResponse.json({
             success: true,

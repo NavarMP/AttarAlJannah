@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { isAdminEmail } from "@/lib/config/admin";
 
 interface User {
     id: string;
@@ -24,6 +25,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(true);
     const supabase = createClient();
 
+    // ... existing code ...
+
     useEffect(() => {
         // Check for existing Supabase session
         const checkSession = async () => {
@@ -31,23 +34,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const { data: { session } } = await supabase.auth.getSession();
 
                 if (session?.user) {
-                    // Verify user is admin
-                    const { data: userRole } = await supabase
-                        .from("users")
-                        .select("user_role, name")
-                        .eq("email", session.user.email)
-                        .single();
-
-                    if (userRole?.user_role === "admin") {
+                    if (isAdminEmail(session.user.email)) {
                         setUser({
                             id: session.user.id,
                             email: session.user.email!,
-                            name: userRole.name || session.user.email?.split('@')[0] || 'Admin',
-                            role: userRole.user_role,
+                            name: 'Admin',
+                            role: 'admin',
                         });
                     } else {
-                        // Not an admin, just ignore this session in AuthContext
-                        // Do NOT sign out, as it might be a customer session
+                        // Not an admin
                         setUser(null);
                     }
                 }
@@ -63,18 +58,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_IN' && session?.user) {
-                const { data: userRole } = await supabase
-                    .from("users")
-                    .select("user_role, name")
-                    .eq("email", session.user.email)
-                    .single();
-
-                if (userRole?.user_role === "admin") {
+                if (isAdminEmail(session.user.email)) {
                     setUser({
                         id: session.user.id,
                         email: session.user.email!,
-                        name: userRole.name || session.user.email?.split('@')[0] || 'Admin',
-                        role: userRole.user_role,
+                        name: 'Admin',
+                        role: 'admin',
                     });
                 }
             } else if (event === 'SIGNED_OUT') {

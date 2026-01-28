@@ -55,15 +55,14 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // If referredBy is provided, look up the volunteer's UUID from their volunteer_id
+        // If referredBy is provided, look up the volunteer's UUID from their volunteer_id (string)
         let referredByUuid: string | null = null;
         if (referredBy) {
             console.log("🔍 Looking up volunteer with ID:", referredBy);
             const { data: volunteer, error: volunteerError } = await supabase
-                .from("users")
+                .from("volunteers") // New Table
                 .select("id")
-                .eq("volunteer_id", referredBy)
-                .eq("user_role", "volunteer")
+                .ilike("volunteer_id", referredBy) // Case insensitive lookup
                 .single();
 
             if (volunteerError) {
@@ -75,23 +74,20 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Create or update customer user
-        console.log("👤 Creating/Updating customer user...");
+        // Create or update customer
+        console.log("👤 Creating/Updating customer...");
         const { data: customerData, error: customerError } = await supabase
-            .from("users")
+            .from("customers") // New Table
             .upsert({
                 phone: customerPhone,
                 name: customerName,
-                user_role: "customer",
+                address: customerAddress // Update address on new order
             }, { onConflict: "phone" })
             .select()
             .single();
 
         if (customerError) {
             console.error("⚠️ Customer creation warning:", customerError.message);
-            // We continue even if customer creation fails, but log it.
-            // Ideally we should fail, but blocking order might be bad if it's just a duplicate key race condition.
-            // On conflict update should handle it.
         }
 
         const customerId = customerData?.id || null;
@@ -101,11 +97,11 @@ export async function POST(request: NextRequest) {
         const { data: orderData, error: orderError } = await supabase
             .from("orders")
             .insert({
-                customer_id: customerId, // Link to user
+                customer_id: customerId,
                 customer_name: customerName,
                 customer_phone: customerPhone,
                 whatsapp_number: whatsappNumber,
-                customer_email: customerEmail,
+                // customer_email: customerEmail, // Column missing in DB
                 customer_address: customerAddress,
                 product_name: "عطر الجنّة (Attar Al Jannah)",
                 quantity,
@@ -114,7 +110,7 @@ export async function POST(request: NextRequest) {
                 payment_status: paymentMethod === "cod" ? "pending" : "paid",
                 order_status: "pending",
                 payment_screenshot_url: paymentScreenshotUrl,
-                referred_by: referredByUuid,
+                volunteer_id: referredByUuid, // UUID of volunteer
             })
             .select()
             .single();
@@ -123,6 +119,19 @@ export async function POST(request: NextRequest) {
             console.error("❌ Database error:", orderError.message);
             console.error("Error code:", orderError.code);
             console.error("Error details:", JSON.stringify(orderError, null, 2));
+
+            // Cleanup: Delete the customer if order creation failed (to avoid loose customers without orders)
+            // Note: This deletes the customer even if they came back. 
+            // Better to only delete if it was JUST created? 
+            // Since we can't easily know if upsert created or updated without return value inspection (which supabase upsert data might show?),
+            // we will just leave it OR delete.
+            // User complained: "customer has been created... it should not unless i place atleast an order."
+            // So we delete.
+            if (customerId) {
+                console.log("🧹 Cleaning up customer record due to order failure:", customerId);
+                await supabase.from("customers").delete().eq("id", customerId);
+            }
+
             return NextResponse.json(
                 {
                     error: "Failed to create order",

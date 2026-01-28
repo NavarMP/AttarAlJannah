@@ -59,7 +59,7 @@ export function AboutDars() {
                     <CardContent className="p-8 md:p-12">
                         <div className="space-y-8">
                             <p className="text-lg text-muted-foreground leading-relaxed text-center">
-                                Minhajul Janna Dars is a dedicated Islamic educational institution committed to spreading
+                                Shaikhuna Parannur Usthad Smarakha Minhajul Janna Dars is a dedicated Islamic educational institution committed to spreading
                                 authentic knowledge and nurturing spiritual growth. Through comprehensive programs and
                                 community-driven initiatives, we strive to illuminate the path towards Paradise.
                             </p>

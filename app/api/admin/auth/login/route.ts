@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isAdminEmail } from "@/lib/config/admin";
 
 export async function POST(request: NextRequest) {
     try {
@@ -27,15 +28,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Check if user has admin role in users table
-        const { data: userRole, error: roleError } = await supabase
-            .from("users")
-            .select("user_role, name")
-            .eq("email", email)
-            .single();
-
-        // If user doesn't exist in users table or is not admin, sign them out
-        if (roleError || !userRole || userRole.user_role !== "admin") {
+        if (!isAdminEmail(authData.user.email)) {
             await supabase.auth.signOut();
             return NextResponse.json(
                 { error: "Access denied. Admin privileges required." },
@@ -48,8 +41,8 @@ export async function POST(request: NextRequest) {
             user: {
                 id: authData.user.id,
                 email: authData.user.email,
-                name: userRole.name || authData.user.email?.split('@')[0],
-                role: userRole.user_role,
+                name: "Admin User",
+                role: "admin",
             },
         });
     } catch (error) {

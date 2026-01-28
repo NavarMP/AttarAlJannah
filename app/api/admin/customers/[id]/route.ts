@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isAdminEmail } from "@/lib/config/admin";
 
 export async function DELETE(
     request: NextRequest,
@@ -15,22 +16,15 @@ export async function DELETE(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // Check if user is admin
-        const { data: adminUser } = await supabase
-            .from("users")
-            .select("user_role")
-            .eq("id", user.id)
-            .single();
-
-        if (!adminUser || adminUser.user_role !== "admin") {
+        if (!isAdminEmail(user.email)) {
             return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
         }
 
         const customerId = params.id;
 
-        // Delete customer from customer_profiles table
+        // Delete customer from customers table
         const { error } = await supabase
-            .from("customer_profiles")
+            .from("customers")
             .delete()
             .eq("id", customerId);
 

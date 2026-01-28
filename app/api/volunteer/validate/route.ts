@@ -17,9 +17,9 @@ export async function GET(request: NextRequest) {
 
         // Query volunteer by volunteer_id with case-insensitive matching
         const { data: volunteer, error } = await supabase
-            .from("users")
+            .from("volunteers") // New Table
             .select("id, name, volunteer_id")
-            .eq("user_role", "volunteer")
+            // .eq("role", "volunteer")
             .ilike("volunteer_id", volunteerId)
             .single();
 

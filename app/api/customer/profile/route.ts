@@ -12,9 +12,9 @@ export async function GET(request: NextRequest) {
 
         const supabase = await createClient();
 
-        // Fetch user from users table
-        const { data: user, error } = await supabase
-            .from("users")
+        // Fetch user from customers table
+        const { data: customer, error } = await supabase
+            .from("customers")
             .select("*")
             .eq("phone", phone)
             .single();
@@ -26,29 +26,14 @@ export async function GET(request: NextRequest) {
             throw error;
         }
 
-        // Fetch order stats
-        const { count, error: countError } = await supabase
-            .from("orders")
-            .select("*", { count: 'exact', head: true })
-            .eq("customer_phone", phone);
-
-        // Fetch last order date
-        const { data: lastOrder } = await supabase
-            .from("orders")
-            .select("created_at")
-            .eq("customer_phone", phone)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .single();
-
         const profile = {
-            id: user.id,
-            phone: user.phone,
-            name: user.name,
+            id: customer.id,
+            phone: customer.phone,
+            name: customer.name,
             email: null,
-            default_address: user.address,
-            total_orders: count || 0,
-            last_order_at: lastOrder?.created_at || null
+            default_address: customer.address,
+            total_orders: customer.total_orders || 0,
+            last_order_at: customer.last_order_at || null
         };
 
         return NextResponse.json(profile);
@@ -72,13 +57,17 @@ export async function POST(request: NextRequest) {
 
         const supabase = await createClient();
 
-        // Upsert user in users table
-        const { data: user, error } = await supabase
-            .from("users")
+        // Upsert customer in customers table
+        const { data: customer, error } = await supabase
+            .from("customers")
             .upsert({
                 phone,
                 name: name || "Customer",
-                user_role: "customer"
+                // Address is required in schema but might be missing in initial login?
+                // We'll set a default or handle it. New Schema says address can be null? 
+                // Wait, "address TEXT, -- Customers MUST have address" comment says MUST.
+                // But typically initial login is just phone.
+                // Let's check schema I wrote. "address TEXT" (nullable).
             }, { onConflict: "phone" })
             .select()
             .single();
@@ -86,11 +75,11 @@ export async function POST(request: NextRequest) {
         if (error) throw error;
 
         return NextResponse.json({
-            id: user.id,
-            phone: user.phone,
-            name: user.name,
-            total_orders: 0,
-            last_order_at: null
+            id: customer.id,
+            phone: customer.phone,
+            name: customer.name,
+            total_orders: customer.total_orders || 0,
+            last_order_at: customer.last_order_at || null
         });
     } catch (error) {
         console.error("Profile update error:", error);

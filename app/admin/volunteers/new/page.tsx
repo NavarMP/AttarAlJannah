@@ -249,11 +249,11 @@ export default function NewVolunteerPage() {
                         {/* Volunteer ID and Password */}
                         <div className="grid md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="volunteer_id">Volunteer ID</Label>
+                                <Label htmlFor="volunteer_id">Volunteer ID *</Label>
                                 <div className="relative">
                                     <Input
                                         id="volunteer_id"
-                                        placeholder="E.g., VOL001"
+                                        placeholder="E.g., Muhammed"
                                         className={volunteerIdExists ? "border-destructive" : ""}
                                         {...register("volunteer_id")}
                                     />
@@ -262,7 +262,6 @@ export default function NewVolunteerPage() {
                                     )}
                                 </div>
                                 <p className="text-xs text-muted-foreground">
-                                    Required (Unique ID for this volunteer)
                                 </p>
                                 {isCheckingVolunteerId && (
                                     <p className="text-sm text-muted-foreground flex items-center gap-1">
@@ -281,17 +280,32 @@ export default function NewVolunteerPage() {
                                     </p>
                                 )}
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="password">Password *</Label>
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    placeholder="Minimum 8 characters"
-                                    {...register("password")}
-                                />
-                                {errors.password && (
-                                    <p className="text-sm text-destructive">{errors.password.message}</p>
-                                )}
+                            <div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="password">Password *</Label>
+                                    <Input
+                                        id="password"
+                                        type="password"
+                                        placeholder="Minimum 8 characters"
+                                        {...register("password")}
+                                    />
+                                    {errors.password && (
+                                        <p className="text-sm text-destructive">{errors.password.message}</p>
+                                    )}
+                                </div>
+                                <br></br>
+                                <div className="space-y-2">
+                                    <Label htmlFor="confirmPassword">Confirm Password *</Label>
+                                    <Input
+                                        id="confirmPassword"
+                                        type="password"
+                                        placeholder="Re-enter password"
+                                        {...register("confirmPassword")}
+                                    />
+                                    {errors.confirmPassword && (
+                                        <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
+                                    )}
+                                </div>
                             </div>
                         </div>
 

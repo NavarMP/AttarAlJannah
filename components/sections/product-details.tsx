@@ -140,7 +140,7 @@ export function ProductDetails() {
                         <div>
                             <h3 className="font-semibold text-lg mb-2">Customer Care</h3>
                             <p className="text-muted-foreground">
-                                Email: <a href="mailto:Minhajuljanna@gmail.com" className="text-primary hover:underline">Minhajuljanna@gmail.com</a>
+                                Email: <a href="mailto:MinhajulJanna786@gmail.com" className="text-primary hover:underline">Minhajuljanna@gmail.com</a>
                             </p>
                         </div>
 

@@ -16,10 +16,10 @@ export async function DELETE(request: NextRequest) {
         // Try to determine if this is a volunteer ID or customer phone
         // Check if it's a volunteer by looking up the volunteer_id
         const { data: volunteer } = await supabase
-            .from("users")
+            .from("volunteers") // New Table
             .select("id")
-            .eq("volunteer_id", phone)
-            .eq("user_role", "volunteer")
+            .ilike("volunteer_id", phone)
+            // .eq("role", "volunteer")
             .maybeSingle();
 
         let order;

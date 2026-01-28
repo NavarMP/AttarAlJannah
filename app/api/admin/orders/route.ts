@@ -18,33 +18,10 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        let { data: userDetails } = await supabase
-            .from("users")
-            .select("user_role, id, phone, email")
-            .eq("id", user.id)
-            .single();
-
-        // Fallback: If no user found by ID, but user has phone/email, try to find by that and link/allow
-        if (!userDetails && (user.phone || user.email)) {
-            let query = supabase.from("users").select("user_role, id, phone, email");
-            if (user.phone) {
-                query = query.eq("phone", user.phone);
-            } else if (user.email) {
-                query = query.eq("email", user.email);
-            }
-            const { data: foundUser } = await query.single();
-
-            if (foundUser) {
-                console.log(`Linking Auth User ${user.id} to Public User ${foundUser.id} by ${user.phone ? 'phone' : 'email'}`);
-                // Optional: Update the ID in public.users? No, ID is PK. We can't easy change it.
-                // We just rely on the found record's role.
-                userDetails = foundUser;
-            }
-        }
-
-        if (userDetails?.user_role !== "admin") {
+        const ADMIN_EMAIL = "admin@attaraljannah.com";
+        if (user.email !== ADMIN_EMAIL) {
             return NextResponse.json({
-                error: `Forbidden - Admin access required. Current role: ${userDetails?.user_role || 'none'}`
+                error: `Forbidden - Admin access required`
             }, { status: 403 });
         }
 
@@ -59,7 +36,7 @@ export async function GET(request: NextRequest) {
             .from("orders")
             .select(`
                 *,
-                volunteer:users!orders_referred_by_fkey(name)
+                volunteer:volunteers(name)
             `, { count: "exact" })
             .order("created_at", { ascending: false });
 
@@ -121,7 +98,7 @@ export async function GET(request: NextRequest) {
                 .from("orders")
                 .select(`
                     *,
-                    volunteer:users!orders_referred_by_fkey(name)
+                    volunteer:volunteers(name)
                 `, { count: "exact" })
                 .order("created_at", { ascending: false });
 

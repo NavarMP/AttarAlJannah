@@ -14,9 +14,9 @@ export async function GET(request: NextRequest) {
 
         // Build query for volunteers
         let query = supabase
-            .from("users")
+            .from("volunteers") // New table
             .select("*", { count: "exact" })
-            .eq("user_role", "volunteer")
+            // .eq("role", "volunteer") // Implied by table
             .order("created_at", { ascending: false });
 
         // Add search filter if provided
@@ -33,14 +33,14 @@ export async function GET(request: NextRequest) {
             throw volunteersError;
         }
 
-        // Get challenge progress for goal using UUID (not readable ID)
+        // Get challenge progress
         const volunteerUUIDs = volunteers?.map(s => s.id) || [];
         const { data: progressData } = await supabase
             .from("challenge_progress")
             .select("volunteer_id, goal")
             .in("volunteer_id", volunteerUUIDs);
 
-        // Get orders for bottle count (using UUID)
+        // Get orders for bottle count (referred_by is now UUID FK)
         const { data: orders } = await supabase
             .from("orders")
             .select("referred_by, quantity, order_status")
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
 
         // Merge data
         const volunteersWithProgress = volunteers?.map(volunteer => {
-            // Match by UUID now
+            // Match by UUID
             const progress = progressData?.find(p => p.volunteer_id === volunteer.id);
 
             // Calculate bottles from orders
@@ -87,144 +87,179 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
-        const supabase = await createClient();
+        // We need Service Role query for Admin Auth management
+        // Standard createClient uses Anon key or User session, which cannot create other users
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+        if (!serviceRoleKey || !supabaseUrl) {
+            console.error("Missing Service Role Key or URL");
+            return NextResponse.json(
+                { error: "Server configuration error - Missing Service Role Key" },
+                { status: 500 }
+            );
+        }
+
+        const { createClient: createSupabaseClient } = require("@supabase/supabase-js");
+        const adminSupabase = createSupabaseClient(supabaseUrl, serviceRoleKey, {
+            auth: {
+                autoRefreshToken: false,
+                persistSession: false
+            }
+        });
 
         const body = await request.json();
         const { name, email, phone, password, address, volunteer_id, goal = 20 } = body;
 
-        if (!password || !volunteer_id) {
+        // Validation
+        if (!password || !volunteer_id || !phone || !name) {
             return NextResponse.json(
-                { error: "Volunteer ID and Password are required" },
+                { error: "Missing required fields (Name, Phone, Volunteer ID, Password)" },
                 { status: 400 }
             );
         }
 
         const finalVolunteerId = volunteer_id;
 
-        // Check if volunteer_id already exists (case-insensitive) - STRICT CHECK
+        // 1. Check for duplicate Volunteer ID in VOLUNTEERS table
+        const { data: existingVolId } = await adminSupabase
+            .from("volunteers")
+            .select("id")
+            .ilike("volunteer_id", finalVolunteerId)
+            .single();
 
-        // Check if volunteer_id already exists (case-insensitive) - STRICT CHECK
-        const { data: existingVolunteerId } = await supabase
-            .from("users")
-            .select("id, volunteer_id")
-            .ilike("volunteer_id", finalVolunteerId);
+        if (existingVolId) {
+            return NextResponse.json(
+                { error: "Volunteer ID already exists" },
+                { status: 400 }
+            );
+        }
 
-        // If ID exists on DIFFERENT user, error. If same user, it's fine (update).
-        // But we don't know the user yet unless we check phone. So check ID globally first.
-        // Actually, if we are "updating" a user, we should allow them to keep their ID? 
-        // But we are creating a *new* volunteer assignment usually. 
-        // If ID exists, deny it to avoid confusion, unless it's the SAME user.
-
-        // Let's first finding the user by phone to see if we are updating.
-        const { data: existingUserByPhone } = await supabase
-            .from("users")
-            .select("id, volunteer_id, user_role, name")
+        // 2. Check for duplicate Phone in VOLUNTEERS table
+        const { data: existingPhone } = await adminSupabase
+            .from("volunteers")
+            .select("id, auth_id")
             .eq("phone", phone)
             .single();
 
-        if (existingVolunteerId && existingVolunteerId.length > 0) {
-            // If ID exists, check if it belongs to the user we are about to update.
-            const idOwner = existingVolunteerId[0];
-            if (existingUserByPhone && idOwner.id === existingUserByPhone.id) {
-                // Same user, allowed (idempotent update)
-            } else {
-                return NextResponse.json(
-                    { error: "Volunteer ID already exists" },
-                    { status: 400 }
-                );
+        // If volunteer exists, we might be updating or it's an error.
+        // For simplicity in this refactor, if phone exists, we assume duplication error for "Create New".
+        // Use PUT/PATCH for updates.
+        if (existingPhone) {
+            return NextResponse.json(
+                { error: "Volunteer with this phone number already exists" },
+                { status: 400 }
+            );
+        }
+
+        // 3. Create Supabase Auth User
+        // We use email if provided, otherwise generate a dummy email or use phone?
+        // Volunteer usually needs Email to login effectively in many Supabase defaults, 
+        // OR Phone auth (OTP). But requirements said "Volunteer has password".
+        // Password login requires Email.
+        // If email is missing, we can construct one: `volunteer_PHONE@attaraljannah.local`
+        const authEmail = email || `${phone}@attaraljannah.local`;
+
+        let authUser: any = null;
+        let isNewUser = true;
+
+        const { data: createdUser, error: authError } = await adminSupabase.auth.admin.createUser({
+            email: authEmail,
+            password: password,
+            email_confirm: true,
+            user_metadata: {
+                name: name,
+                role: 'volunteer',
+                volunteer_id: finalVolunteerId
             }
-        }
+        });
 
-        // Hash password using pgcrypto
-        const { data: hashedPassword, error: hashError } = await supabase
-            .rpc("hash_password", { password });
+        if (authError) {
+            // Check if error is due to existing email
+            // output: { __isAuthError: true, status: 422, code: 'email_exists' } or message check
+            if (authError.code === 'email_exists' || authError.message?.includes('already been registered')) {
+                console.log("ℹ️ Auth user already exists. Linking to existing user:", authEmail);
+                isNewUser = false;
 
-        if (hashError) {
-            console.error("Password hashing error:", hashError);
-        }
-
-        let userId = "";
-
-        if (existingUserByPhone) {
-            // MERGE/UPDATE Logic
-            userId = existingUserByPhone.id;
-            console.log(`Updating existing user ${userId} to be a volunteer`);
-
-            // Don't downgrade Admin to Volunteer
-            const newRole = existingUserByPhone.user_role === 'admin' ? 'admin' : 'volunteer';
-
-            const { error: updateError } = await supabase
-                .from("users")
-                .update({
-                    name, // usage name from form, maybe they want to correct it
-                    email: email || undefined, // Update email if provided
-                    volunteer_id: finalVolunteerId,
-                    user_role: newRole,
-                    password_hash: hashedPassword || password,
-                    address: address || null,
-                })
-                .eq("id", userId);
-
-            if (updateError) throw updateError;
-
-        } else {
-            // CREATE Logic
-            // Check email uniqueness only for NEW users (or if updating email?)
-            // If updating user and email is different, we handled in update? Supabase might error if email unique constraint.
-            if (email) {
-                const { data: existingEmail } = await supabase
-                    .from("users")
-                    .select("id")
-                    .eq("email", email)
-                    .single();
-                if (existingEmail) {
-                    return NextResponse.json({ error: "Email already exists" }, { status: 400 });
+                // Fetch existing user to get ID
+                // listUsers is the most reliable admin way to search by email if strictly needed, 
+                // or if we trust the email is unique in Auth.
+                const { data: { users }, error: listError } = await adminSupabase.auth.admin.listUsers();
+                if (listError) {
+                    console.error("Failed to list users for recovery:", listError);
+                    return NextResponse.json({ error: "Calculated error: User exists but could not be retrieved." }, { status: 500 });
                 }
+
+                // Find user case-insensitively
+                const existingUser = users.find((u: any) => u.email?.toLowerCase() === authEmail.toLowerCase());
+
+                if (!existingUser) {
+                    return NextResponse.json({ error: "User exists (reported by Auth) but could not be found in list." }, { status: 500 });
+                }
+
+                authUser = { user: existingUser };
+            } else {
+                console.error("Auth creation error:", authError);
+                return NextResponse.json({ error: authError.message }, { status: 400 });
             }
-
-            const { data: newUser, error: createError } = await supabase
-                .from("users")
-                .insert({
-                    name,
-                    email,
-                    phone,
-                    volunteer_id: finalVolunteerId,
-                    user_role: "volunteer",
-                    password_hash: hashedPassword || password,
-                    address: address || null,
-                })
-                .select()
-                .single();
-
-            if (createError) throw createError;
-            userId = newUser.id;
+        } else {
+            authUser = createdUser;
         }
 
-        // Check/Create Challenge Progress
-        const { data: existingProgress } = await supabase
-            .from("challenge_progress")
-            .select("id")
-            .eq("volunteer_id", userId)
+        if (!authUser || !authUser.user) {
+            throw new Error("Failed to resolve auth user");
+        }
+
+        // 4. Create Volunteer Profile in 'volunteers' table
+        const { data: newVolunteer, error: dbError } = await adminSupabase
+            .from("volunteers") // New Table
+            .insert({
+                auth_id: authUser.user.id,
+                volunteer_id: finalVolunteerId,
+                name: name,
+                email: authEmail,
+                phone: phone,
+                role: "volunteer",
+                total_sales: 0
+            })
+            .select()
             .single();
 
-        if (!existingProgress) {
-            const { error: progressError } = await supabase
-                .from("challenge_progress")
-                .insert({
-                    volunteer_id: userId,
-                    confirmed_orders: 0,
-                    goal: goal,
-                });
-            if (progressError) console.error("Error creating progress:", progressError);
+        if (dbError) {
+            // Only rollback if we created a NEW user
+            if (isNewUser) {
+                console.log("⚠️ DB Insert failed. Rolling back new Auth User:", authUser.user.id);
+                await adminSupabase.auth.admin.deleteUser(authUser.user.id);
+            }
+            console.error("DB Insertion Error:", dbError);
+            // If it's a conflict constraint (e.g. phone in volunteers), show that
+            if (dbError.code === '23505') { // Unique violation
+                return NextResponse.json({ error: 'Volunteer with this Phone or ID already exists in database.' }, { status: 400 });
+            }
+            throw dbError;
+        }
+
+        // 5. Initialize Challenge Progress
+        const { error: progressError } = await adminSupabase
+            .from("challenge_progress")
+            .insert({
+                volunteer_id: newVolunteer.id, // Using new volunteers.id (UUID)
+                confirmed_orders: 0,
+                goal: goal,
+            });
+
+        if (progressError) {
+            console.error("Progress creation error:", progressError);
+            // Non-fatal, can be created later or ignored
         }
 
         return NextResponse.json({
             success: true,
-            message: existingUserByPhone ? "User updated to Volunteer" : "Volunteer created",
+            message: "Volunteer created successfully",
             volunteer: {
-                id: userId,
-                name: name,
-                volunteerId: finalVolunteerId
+                id: newVolunteer.id,
+                name: newVolunteer.name,
+                volunteerId: newVolunteer.volunteer_id
             }
         }, { status: 201 });
 

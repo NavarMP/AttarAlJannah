@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isAdminEmail } from "@/lib/config/admin";
 
 // GET /api/feedback/[id] - Get single feedback details (admin only)
 export async function GET(
@@ -17,13 +18,8 @@ export async function GET(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: userDetails } = await supabase
-            .from("users")
-            .select("user_role")
-            .eq("id", user.id)
-            .single();
-
-        if (userDetails?.user_role !== "admin") {
+        const ADMIN_EMAIL = "admin@attaraljannah.com";
+        if (user.email !== ADMIN_EMAIL) {
             return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
         }
 
@@ -64,13 +60,8 @@ export async function PATCH(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: userDetails } = await supabase
-            .from("users")
-            .select("user_role")
-            .eq("id", user.id)
-            .single();
-
-        if (userDetails?.user_role !== "admin") {
+        const ADMIN_EMAIL = "admin@attaraljannah.com";
+        if (user.email !== ADMIN_EMAIL) {
             return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
         }
 
@@ -120,13 +111,7 @@ export async function DELETE(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: userDetails } = await supabase
-            .from("users")
-            .select("user_role")
-            .eq("id", user.id)
-            .single();
-
-        if (userDetails?.user_role !== "admin") {
+        if (!isAdminEmail(user.email)) {
             return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
         }
 

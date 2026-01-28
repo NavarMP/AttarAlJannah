@@ -9,14 +9,13 @@ export async function GET(request: NextRequest) {
         const searchParams = request.nextUrl.searchParams;
         const search = searchParams.get("search")?.toLowerCase() || "";
 
-        // 1. Fetch all customers from users table
-        const { data: users, error: usersError } = await supabase
-            .from("users")
+        // 1. Fetch all customers from customers table
+        const { data: customers, error: customersError } = await supabase
+            .from("customers")
             .select("*")
-            .eq("user_role", "customer")
             .order("created_at", { ascending: false });
 
-        if (usersError) throw usersError;
+        if (customersError) throw customersError;
 
         // 2. Fetch all orders to calculate stats and get details
         const { data: orders, error: ordersError } = await supabase
@@ -26,9 +25,9 @@ export async function GET(request: NextRequest) {
         if (ordersError) throw ordersError;
 
         // 3. Aggregate stats and Find Guest Customers
-        // Create a map of existing users by phone for easy lookup
-        const userMap = new Map();
-        users?.forEach(u => userMap.set(u.phone, u));
+        // Create a map of existing customers by phone for easy lookup
+        const customerMap = new Map();
+        customers?.forEach(c => customerMap.set(c.phone, c));
 
         // Group orders by phone
         const ordersByPhone = new Map<string, any[]>();
@@ -42,40 +41,44 @@ export async function GET(request: NextRequest) {
 
         const allCustomers: any[] = [];
 
-        // A. Process Registered Users
-        if (users) {
-            for (const user of users) {
-                const userOrders = ordersByPhone.get(user.phone) || [];
+        // A. Process Registered Customers
+        if (customers) {
+            for (const customer of customers) {
+                const userOrders = ordersByPhone.get(customer.phone) || [];
 
                 // Calculate stats
+                // Trust the total_orders in table or recalculate?
+                // Table might be more efficient if triggered update.
+                // But recalculating ensures consistency with current orders fetch.
                 const totalOrders = userOrders.length;
                 const lastOrder = userOrders.length > 0
                     ? userOrders.reduce((latest, current) =>
                         new Date(current.created_at) > new Date(latest) ? current.created_at : latest
                         , userOrders[0].created_at)
-                    : null;
+                    : customer.last_order_at;
 
-                // Get email from latest order
+                // Get email from latest order if not in profile
                 const sortedOrders = [...userOrders].sort((a, b) =>
                     new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
                 );
                 const email = sortedOrders.find(o => o.customer_email)?.customer_email || null;
 
                 allCustomers.push({
-                    id: user.id,
-                    phone: user.phone,
-                    name: user.name,
-                    email: email,
+                    id: customer.id,
+                    phone: customer.phone,
+                    name: customer.name,
+                    email: email, // Customers table doesn't have email in schema currently (only phone/address)
+                    address: customer.address,
                     total_orders: totalOrders,
                     last_order_at: lastOrder,
-                    created_at: user.created_at
+                    created_at: customer.created_at
                 });
             }
         }
 
         // B. Process Guest Customers (in Orders but not in Users)
         for (const [phone, userOrders] of ordersByPhone.entries()) {
-            if (!userMap.has(phone)) {
+            if (!customerMap.has(phone)) {
                 // This is a guest
                 const totalOrders = userOrders.length;
                 // Get latest order for details

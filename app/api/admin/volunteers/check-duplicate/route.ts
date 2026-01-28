@@ -23,9 +23,9 @@ export async function GET(request: NextRequest) {
         // Check if name exists (case-insensitive)
         if (name && name.length >= 2) {
             let nameQuery = supabase
-                .from("users")
+                .from("volunteers") // New Table
                 .select("id, name")
-                .eq("user_role", "volunteer")
+                // .eq("role", "volunteer")
                 .ilike("name", name);
 
             // Exclude current volunteer in edit mode
@@ -44,12 +44,11 @@ export async function GET(request: NextRequest) {
         }
 
         // Check if volunteer_id exists (case-insensitive)
-        // volunteer_id is a TEXT field in users table (e.g., "VOL001")
         if (volunteerId && volunteerId.trim() !== "") {
             let volunteerIdQuery = supabase
-                .from("users")
+                .from("volunteers") // New Table
                 .select("id, volunteer_id")
-                .eq("user_role", "volunteer")
+                // .eq("role", "volunteer")
                 .ilike("volunteer_id", volunteerId);
 
             // Exclude current volunteer in edit mode

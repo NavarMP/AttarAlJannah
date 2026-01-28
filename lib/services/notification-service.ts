@@ -250,6 +250,9 @@ export class NotificationService {
     /**
      * Create system announcement for multiple users
      */
+    /**
+     * Create system announcement for multiple users
+     */
     static async createSystemAnnouncement(
         title: string,
         message: string,
@@ -265,14 +268,48 @@ export class NotificationService {
         const notifications: CreateNotificationParams[] = [];
 
         if (targetType === "all") {
-            // Fetch all users
-            const { data: users } = await supabase.from("users").select("id, role");
+            // Fetch volunteers
+            const { data: volunteers } = await supabase.from("volunteers").select("auth_id, role");
+            // Check auth_id availability. If notifications use internal UUID (not Auth ID), use `id`.
+            // Notifications usually target the UUID used in the system.
+            // For volunteers, `id` is the UUID. `auth_id` is for Auth. 
+            // Notifications link to `user_id`. In `app/api/notifications/route.ts`, we check against `user.id` (Auth ID) OR `volunteer_id` (UUID) ??
+            // If `notifications.user_id` should match the logged in user's ID...
+            // If Volunteer logs in via Supabase Auth, `user.id` is Auth ID.
+            // If `volunteers` table ID is different...
+            // Step 158: `users` table had `id` as UUID. `volunteers` table has `id` (UUID) and `auth_id`.
+            // If Volunteer logs in, `session.user.id` is `auth_id`.
+            // So `notifications.user_id` MUST be `auth_id` for them to see it via Supabase client?
+            // OR the notification API queries `user_id` matching `user.id`.
+            // SO we should use `auth_id` for volunteers if available.
 
-            if (users) {
-                users.forEach((user) => {
+            if (volunteers) {
+                volunteers.forEach((v) => {
+                    if (v.auth_id) {
+                        notifications.push({
+                            user_id: v.auth_id,
+                            user_role: (v.role || "volunteer") as any,
+                            type: "system_announcement",
+                            title,
+                            message,
+                            action_url: options?.actionUrl,
+                            metadata: { priority: options?.priority || "medium" },
+                        });
+                    }
+                });
+            }
+
+            // Fetch Customers? If needed.
+            // Customers usually don't have Auth ID if simple auth.
+            // If we notify them, they need to access via api/notifications?phone=...
+            // which looks up their ID.
+            // So we should use `id` (UUID) for customers.
+            const { data: customers } = await supabase.from("customers").select("id");
+            if (customers) {
+                customers.forEach((c) => {
                     notifications.push({
-                        user_id: user.id,
-                        user_role: user.role as any,
+                        user_id: c.id,
+                        user_role: "customer",
                         type: "system_announcement",
                         title,
                         message,
@@ -292,17 +329,85 @@ export class NotificationService {
                 metadata: { priority: options?.priority || "medium" },
             });
         } else if (targetType === "role" && options?.targetRole) {
-            // Fetch users by role
-            const { data: users } = await supabase
-                .from("users")
-                .select("id, role")
-                .eq("role", options.targetRole);
+            if (options.targetRole === "volunteer") {
+                const { data: users } = await supabase
+                    .from("volunteers")
+                    .select("auth_id, role")
+                    .eq("role", "volunteer");
 
-            if (users) {
-                users.forEach((user) => {
+                if (users) {
+                    users.forEach((user) => {
+                        if (user.auth_id) {
+                            notifications.push({
+                                user_id: user.auth_id,
+                                user_role: "volunteer",
+                                type: "system_announcement",
+                                title,
+                                message,
+                                action_url: options?.actionUrl,
+                                metadata: { priority: options?.priority || "medium" },
+                            });
+                        }
+                    });
+                }
+            } else if (options.targetRole === "customer") {
+                const { data: users } = await supabase
+                    .from("customers")
+                    .select("id");
+
+                if (users) {
+                    users.forEach((user) => {
+                        notifications.push({
+                            user_id: user.id,
+                            user_role: "customer",
+                            type: "system_announcement",
+                            title,
+                            message,
+                            action_url: options?.actionUrl,
+                            metadata: { priority: options?.priority || "medium" },
+                        });
+                    });
+                }
+            } else if (options.targetRole === "admin") {
+                // Use service role to find admins from Auth
+                const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+                const adminSupabase = createSupabaseClient(
+                    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                    process.env.SUPABASE_SERVICE_ROLE_KEY!
+                );
+
+                const { data: { users: authUsers } } = await adminSupabase.auth.admin.listUsers();
+                const { ALLOWED_ADMINS } = await import("@/lib/config/admin");
+
+                const adminIds = authUsers
+                    .filter(u => u.email && ALLOWED_ADMINS.includes(u.email))
+                    .map(u => u.id);
+
+                if (adminIds.length > 0) {
+                    adminIds.forEach((id) => {
+                        notifications.push({
+                            user_id: id,
+                            user_role: "admin",
+                            type: "system_announcement",
+                            title,
+                            message,
+                            action_url: options?.actionUrl,
+                            metadata: { priority: options?.priority || "medium" },
+                        });
+                    });
+                }
+            }
+        } else if (targetType === "individual" && options?.targetUserIds) {
+            // ... strict check ...
+            const ids = options.targetUserIds;
+
+            // Check Volunteers (Auth ID)
+            const { data: vols } = await supabase.from("volunteers").select("auth_id, role").in("auth_id", ids);
+            if (vols) {
+                vols.forEach(v => {
                     notifications.push({
-                        user_id: user.id,
-                        user_role: user.role as any,
+                        user_id: v.auth_id!,
+                        user_role: (v.role || "volunteer") as any,
                         type: "system_announcement",
                         title,
                         message,
@@ -311,18 +416,45 @@ export class NotificationService {
                     });
                 });
             }
-        } else if (targetType === "individual" && options?.targetUserIds) {
-            // Fetch specific users
-            const { data: users } = await supabase
-                .from("users")
-                .select("id, role")
-                .in("id", options.targetUserIds);
 
-            if (users) {
-                users.forEach((user) => {
+            // Check Customers (ID)
+            const { data: custs } = await supabase.from("customers").select("id").in("id", ids);
+            if (custs) {
+                custs.forEach(c => {
                     notifications.push({
-                        user_id: user.id,
-                        user_role: user.role as any,
+                        user_id: c.id,
+                        user_role: "customer",
+                        type: "system_announcement",
+                        title,
+                        message,
+                        action_url: options?.actionUrl,
+                        metadata: { priority: options?.priority || "medium" },
+                    });
+                });
+            }
+
+            // Check Admins (Auth Check)
+            // Ideally we check if IDs are in the admin list we fetch? 
+            // For now, if we can't easily verify ID is admin without fetching all, we might skip or just Optimistically add?
+            // Safer to skip strict check for individual targeting for now, or fetch list.
+            // Let's just fetch list.
+            const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+            const adminSupabase = createSupabaseClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                process.env.SUPABASE_SERVICE_ROLE_KEY!
+            );
+            const { data: { users: authUsers } } = await adminSupabase.auth.admin.listUsers();
+            const { ALLOWED_ADMINS } = await import("@/lib/config/admin");
+
+            const adminIds = authUsers
+                .filter(u => u.email && ALLOWED_ADMINS.includes(u.email) && ids.includes(u.id))
+                .map(u => u.id);
+
+            if (adminIds) {
+                adminIds.forEach(id => {
+                    notifications.push({
+                        user_id: id,
+                        user_role: "admin",
                         type: "system_announcement",
                         title,
                         message,
@@ -348,16 +480,26 @@ export class NotificationService {
      * Notify admin of an action
      */
     static async notifyAdmins(title: string, message: string, actionUrl?: string, metadata?: Record<string, any>) {
-        const supabase = await createClient();
+        // Use service role to find admins
+        const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+        const adminSupabase = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
 
-        const { data: admins } = await supabase.from("users").select("id").eq("role", "admin");
+        const { ALLOWED_ADMINS } = await import("@/lib/config/admin");
+        const { data: { users: authUsers } } = await adminSupabase.auth.admin.listUsers();
 
-        if (!admins || admins.length === 0) {
+        const adminIds = authUsers
+            .filter(u => u.email && ALLOWED_ADMINS.includes(u.email))
+            .map(u => u.id);
+
+        if (adminIds.length === 0) {
             return { data: [], error: null };
         }
 
-        const notifications: CreateNotificationParams[] = admins.map((admin) => ({
-            user_id: admin.id,
+        const notifications: CreateNotificationParams[] = adminIds.map((id) => ({
+            user_id: id,
             user_role: "admin",
             type: "admin_action",
             title,

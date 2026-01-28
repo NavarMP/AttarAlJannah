@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isAdminEmail } from "@/lib/config/admin";
 import { NotificationService } from "@/lib/services/notification-service";
 
 // POST /api/notifications/send-manual - Send manual notifications (admin only)
@@ -15,13 +16,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: userDetails } = await supabase
-            .from("users")
-            .select("user_role")
-            .eq("email", user.email)
-            .single();
-
-        if (userDetails?.user_role !== "admin") {
+        if (!isAdminEmail(user.email)) {
             return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
         }
 

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Phone } from "lucide-react";
+import { Loader2, User } from "lucide-react";
 import { toast } from "sonner";
 import { useCustomerAuth } from "@/lib/contexts/customer-auth-context";
 import { CountryCodeSelect } from "@/components/ui/country-code-select";
@@ -69,7 +69,7 @@ export default function CustomerLoginPage() {
             <Card className="w-full max-w-md glass-strong rounded-3xl">
                 <CardHeader className="text-center space-y-4">
                     <div className="mx-auto w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-gold-500/20 flex items-center justify-center">
-                        <Phone className="w-10 h-10 text-primary" />
+                        <User className="w-10 h-10 text-primary" />
                     </div>
                     <div>
                         <CardTitle className="text-3xl font-bold">Customer Login</CardTitle>

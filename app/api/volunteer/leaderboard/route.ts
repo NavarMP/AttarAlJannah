@@ -9,9 +9,9 @@ export async function GET() {
 
         // Get all volunteers
         const { data: volunteers, error: volunteersError } = await supabase
-            .from("users")
+            .from("volunteers") // New Table
             .select("id, name, volunteer_id")
-            .eq("user_role", "volunteer")
+            // .eq("role", "volunteer") // Implied
             .order("name");
 
         if (volunteersError) {

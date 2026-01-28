@@ -1,12 +1,33 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isAdminEmail } from "@/lib/config/admin";
 
 export async function GET() {
     try {
         const supabase = await createClient();
 
+        // Verify user is admin
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        if (!isAdminEmail(user.email)) {
+            return NextResponse.json({
+                error: `Forbidden - Admin access required`
+            }, { status: 403 });
+        }
+
+        // Use service role client
+        const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+        const adminSupabase = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+
         // Get all orders to calculate bottle quantities and order counts
-        const { data: allOrders } = await supabase
+        const { data: allOrders } = await adminSupabase
             .from("orders")
             .select("quantity, order_status, total_price");
 
@@ -25,7 +46,7 @@ export async function GET() {
         const totalRevenue = deliveredOrders.reduce((sum, order) => sum + Number(order.total_price), 0);
 
         // Get recent orders
-        const { data: recentOrders } = await supabase
+        const { data: recentOrders } = await adminSupabase
             .from("orders")
             .select("*")
             .order("created_at", { ascending: false })
