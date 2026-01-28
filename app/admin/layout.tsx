@@ -4,8 +4,10 @@ import { useAuth } from "@/lib/contexts/auth-context";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { LogOut, LayoutDashboard, Package, Menu, X, Users, Trophy } from "lucide-react";
+import { LogOut, LayoutDashboard, Package, Menu, X, Users, Trophy, MessageSquare, Bell } from "lucide-react";
 import { ThemeToggle } from "@/components/custom/theme-toggle";
+import { NotificationBell } from "@/components/notifications/notification-bell";
+import { NotificationComposer } from "@/components/notifications/notification-composer";
 import Link from "next/link";
 import { toast } from "sonner";
 import Image from "next/image";
@@ -19,6 +21,7 @@ export default function AdminLayout({
     const router = useRouter();
     const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [showComposer, setShowComposer] = useState(false);
 
     // Don't apply layout protection to login page
     const isLoginPage = pathname === "/admin/login";
@@ -140,6 +143,15 @@ export default function AdminLayout({
                             Customers
                         </Button>
                     </Link>
+                    <Link href="/admin/feedback">
+                        <Button
+                            variant="ghost"
+                            className={`w-full justify-start rounded-xl ${pathname.startsWith("/admin/feedback") ? "bg-primary/10 text-primary" : ""}`}
+                        >
+                            <MessageSquare className="mr-2 h-5 w-5" />
+                            Feedback
+                        </Button>
+                    </Link>
                 </nav>
 
                 <div className="p-4 border-t border-border space-y-2">
@@ -173,7 +185,19 @@ export default function AdminLayout({
                         </Button>
                         <h2 className="text-xl font-semibold">Admin Dashboard</h2>
                     </div>
-                    <ThemeToggle />
+                    <div className="flex items-center gap-3">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowComposer(true)}
+                            className="rounded-xl"
+                        >
+                            <Bell className="h-4 w-4 mr-2" />
+                            Send Notification
+                        </Button>
+                        <NotificationBell />
+                        <ThemeToggle />
+                    </div>
                 </header>
 
                 {/* Page Content */}
@@ -181,6 +205,9 @@ export default function AdminLayout({
                     {children}
                 </main>
             </div>
+
+            {/* Notification Composer Dialog */}
+            <NotificationComposer open={showComposer} onOpenChange={setShowComposer} />
         </div>
     );
 }

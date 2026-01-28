@@ -8,7 +8,7 @@ import { Camera, X, RotateCcw, Check } from "lucide-react";
 import { toast } from "sonner";
 
 interface CameraCaptureProps {
-    onCapture: (file: File) => void;
+    onCapture: (file: File, dataUrl: string) => void;
     onClose: () => void;
 }
 
@@ -103,7 +103,7 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
     };
 
     const confirmPhoto = () => {
-        if (!canvasRef.current) return;
+        if (!canvasRef.current || !capturedImage) return;
 
         canvasRef.current.toBlob(
             (blob) => {
@@ -111,7 +111,8 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
                     const file = new File([blob], `payment-screenshot-${Date.now()}.jpg`, {
                         type: "image/jpeg",
                     });
-                    onCapture(file);
+                    // Pass both file and data URL
+                    onCapture(file, capturedImage);
                     toast.success("Photo captured successfully!");
                     onClose();
                 }

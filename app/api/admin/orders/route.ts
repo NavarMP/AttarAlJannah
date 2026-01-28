@@ -11,11 +11,35 @@ export async function GET(request: NextRequest) {
 
         const supabase = await createClient();
 
-        let query = supabase
+        // Verify user is admin
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { data: userDetails } = await supabase
+            .from("users")
+            .select("user_role")
+            .eq("id", user.id)
+            .single();
+
+        if (userDetails?.user_role !== "admin") {
+            return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
+        }
+
+        // Use service role client to bypass RLS for admin queries
+        const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+        const adminSupabase = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+
+        let query = adminSupabase
             .from("orders")
             .select(`
                 *,
-                volunteer:users!orders_referred_by_fkey(name)
+                volunteer:users(name)
             `, { count: "exact" })
             .order("created_at", { ascending: false });
 
@@ -43,17 +67,41 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
+        console.log(`Admin Orders Fetch: Found ${count} orders (returning ${orders?.length})`);
+
+        // DEBUG: If 0 orders found, verify if ANY orders exist in the table to rule out Join issues
+        if ((!count || count === 0) && !search && status === "all") {
+            const { count: totalRaw, error: rawError } = await adminSupabase.from("orders").select("*", { count: "exact", head: true });
+            console.log(`DEBUG: Total Raw Orders in DB: ${totalRaw}. Error: ${rawError?.message}`);
+
+            // If raw orders exist but main query failed, it implies the JOIN or SELECT format is wrong.
+            // We can attempt a fallback fetch without the volunteer join if needed.
+            if (totalRaw && totalRaw > 0) {
+                console.log("Attempting fallback fetch without join...");
+                const { data: fallbackOrders, error: fallbackError } = await adminSupabase
+                    .from("orders")
+                    .select("*")
+                    .order("created_at", { ascending: false })
+                    .range(from, to);
+
+                if (!fallbackError && fallbackOrders) {
+                    orders = fallbackOrders;
+                    count = totalRaw;
+                }
+            }
+        }
+
         // If searching and no results, try searching by UUID prefix
         // We'll need to fetch without the text search and filter by UUID client-side
         if (search && (!orders || orders.length === 0)) {
             const searchTerm = search.trim().toLowerCase();
 
             // Reset query and search by UUID client-side
-            let uuidQuery = supabase
+            let uuidQuery = adminSupabase
                 .from("orders")
                 .select(`
                     *,
-                    volunteer:users!orders_referred_by_fkey(name)
+                    volunteer:users(name)
                 `, { count: "exact" })
                 .order("created_at", { ascending: false });
 

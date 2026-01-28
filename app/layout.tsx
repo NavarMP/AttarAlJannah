@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 import { SmoothScrollProvider } from "@/components/providers/smooth-scroll-provider";
 import { AuthProvider } from "@/lib/contexts/auth-context";
 import { CustomerAuthProvider } from "@/lib/contexts/customer-auth-context";
+import { NotificationProvider } from "@/lib/contexts/notification-context";
 import { Toaster } from "sonner";
 import { CustomCursor } from "@/components/custom/custom-cursor";
 
@@ -52,11 +53,13 @@ export default function RootLayout({
                 >
                     <AuthProvider>
                         <CustomerAuthProvider>
-                            <SmoothScrollProvider>
-                                <CustomCursor />
-                                {children}
-                                <Toaster richColors position="top-center" />
-                            </SmoothScrollProvider>
+                            <NotificationProvider>
+                                <SmoothScrollProvider>
+                                    <CustomCursor />
+                                    {children}
+                                    <Toaster richColors position="top-center" />
+                                </SmoothScrollProvider>
+                            </NotificationProvider>
                         </CustomerAuthProvider>
                     </AuthProvider>
                 </ThemeProvider>

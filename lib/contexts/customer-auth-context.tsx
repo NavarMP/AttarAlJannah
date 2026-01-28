@@ -10,7 +10,7 @@ interface CustomerAuthContextType {
     loading: boolean;
     signInWithPhone: (phone: string) => Promise<void>;
     verifyOTP: (phone: string, otp: string) => Promise<void>;
-    loginWithPhone: (phone: string) => Promise<void>;
+    loginWithPhone: (phone: string, createIfMissing?: boolean) => Promise<void>;
     signOut: () => Promise<void>;
     refreshProfile: () => Promise<void>;
 }
@@ -40,6 +40,9 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
                 const profile = await response.json();
                 if (profile) {
                     setCustomerProfile(profile);
+                    if (profile.id) {
+                        localStorage.setItem("customerUuid", profile.id);
+                    }
                     return true;
                 }
             }
@@ -134,38 +137,63 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     };
 
     const signOut = async () => {
-        const { error } = await supabase.auth.signOut();
-        if (error) throw error;
+        try {
+            await supabase.auth.signOut();
+        } catch (error) {
+            console.error("Error signing out from Supabase:", error);
+        }
+        // Always clear local state
+        setUser(null);
         setCustomerProfile(null);
         localStorage.removeItem("customerPhone");
     };
 
-    const loginWithPhone = async (phone: string) => {
+    const loginWithPhone = async (phone: string, createIfMissing = true) => {
         // Phone already includes country code from the calling code
         // Store phone in localStorage for simple auth
         localStorage.setItem("customerPhone", phone);
 
         // Fetch or create customer profile
         const response = await fetch(`/api/customer/profile?phone=${encodeURIComponent(phone)}`);
+
         if (response.ok) {
             const profile = await response.json();
-            setCustomerProfile(profile);
-            // Create a minimal user object
-            setUser({ phone: phone } as User);
-        } else {
+            if (profile) {
+                setCustomerProfile(profile);
+                // Save UUID for notifications/other usages
+                if (profile.id) {
+                    localStorage.setItem("customerUuid", profile.id);
+                }
+                setUser({ phone: phone } as User);
+                return;
+            }
+        }
+
+        // Profile not found
+        if (createIfMissing) {
             // Create new profile
             const createResponse = await fetch('/api/customer/profile', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ phone: phone }),
             });
+
             if (createResponse.ok) {
                 const profile = await createResponse.json();
                 setCustomerProfile(profile);
+                if (profile.id) {
+                    localStorage.setItem("customerUuid", profile.id);
+                }
                 setUser({ phone: phone } as User);
             } else {
+                // Clean up if creation failed
+                localStorage.removeItem("customerPhone");
                 throw new Error('Failed to create customer profile');
             }
+        } else {
+            // Clean up if creation not allowed and profile missing
+            localStorage.removeItem("customerPhone");
+            throw new Error('No customer found with this phone number');
         }
     };
 

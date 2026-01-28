@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Package, TrendingUp, Trophy, Plus, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { calculateCommission } from "@/lib/utils/commission-utils";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
 interface DashboardStats {
     confirmedBottles: number;
@@ -120,9 +121,26 @@ export default function VolunteerDashboardPage() {
                     <h1 className="text-4xl font-bold text-foreground">
                         Welcome back, {volunteerName}!
                     </h1>
-                    <p className="text-muted-foreground mt-2">
-                        Track your progress and manage your orders
-                    </p>
+                    <div className="flex justify-between items-start mt-2">
+                        <p className="text-muted-foreground">
+                            Track your progress and manage your orders
+                        </p>
+                        <div className="flex gap-2">
+                            {/* We need to ensure logic that links Volunteer ID to Notifications exists.
+                                Currently relying on 'volunteerUuid' in localStorage which the Provider now reads.
+                            */}
+                            {/* <NotificationBell /> is not imported. Needs import. And needs to be inside Provider. 
+                                Root layout likely has Provider.
+                            */}
+                            <Button
+                                variant="outline"
+                                onClick={handleLogout}
+                                className="rounded-xl"
+                            >
+                                <span className="mr-2">Logout</span>
+                            </Button>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Progress Card */}

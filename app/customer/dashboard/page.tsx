@@ -6,9 +6,10 @@ import { useRouter } from "next/navigation";
 import { useCustomerAuth } from "@/lib/contexts/customer-auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Package, RefreshCw, ShoppingCart, LogOut, User, Edit2, Trash2 } from "lucide-react";
+import { Package, RefreshCw, ShoppingCart, LogOut, User, Edit2, Trash2, Bell } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
 interface Order {
     id: string;
@@ -26,6 +27,8 @@ export default function CustomerDashboard() {
     const { user, customerProfile, loading: authLoading, signOut, refreshProfile } = useCustomerAuth();
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
+    const [feedback, setFeedback] = useState<any[]>([]);
+    const [loadingFeedback, setLoadingFeedback] = useState(true);
     const router = useRouter();
 
     const fetchOrders = useCallback(async () => {
@@ -44,13 +47,31 @@ export default function CustomerDashboard() {
         }
     }, [user?.phone]);
 
+    const fetchFeedback = useCallback(async () => {
+        if (!user) return;
+        setLoadingFeedback(true);
+        try {
+            // Updated API allows customers to fetch their own feedback
+            const response = await fetch(`/api/feedback?phone=${encodeURIComponent(user.phone || "")}`);
+            if (response.ok) {
+                const data = await response.json();
+                setFeedback(data.feedback || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch feedback:", error);
+        } finally {
+            setLoadingFeedback(false);
+        }
+    }, [user]);
+
     useEffect(() => {
         if (!authLoading && !user) {
             router.push("/customer/login");
         } else if (user?.phone) {
             fetchOrders();
+            fetchFeedback();
         }
-    }, [user, authLoading, router, fetchOrders]);
+    }, [user, authLoading, router, fetchOrders, fetchFeedback]);
 
     const handleLogout = async () => {
         try {
@@ -102,6 +123,22 @@ export default function CustomerDashboard() {
         }
     };
 
+    // Helper to render stars
+    const renderStars = (rating: number) => {
+        return (
+            <div className="flex gap-0.5">
+                {[1, 2, 3, 4, 5].map((star) => (
+                    <span
+                        key={star}
+                        className={`text-sm ${star <= rating ? "text-yellow-400" : "text-muted-foreground/30"}`}
+                    >
+                        ★
+                    </span>
+                ))}
+            </div>
+        );
+    };
+
     if (authLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
@@ -128,14 +165,42 @@ export default function CustomerDashboard() {
                         </h1>
                         <p className="text-muted-foreground mt-1">{user.phone}</p>
                     </div>
-                    <Button
-                        variant="outline"
-                        onClick={handleLogout}
-                        className="rounded-xl"
-                    >
-                        <LogOut className="w-4 h-4 mr-2" />
-                        Logout
-                    </Button>
+                    <Link href="/">
+                        <Button variant="ghost" size="icon" className="mr-2">
+                            <span className="sr-only">Home</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-home"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+                        </Button>
+                    </Link>
+                    <div className="flex gap-2">
+                        {/* Add Notification Bell Here - Note: NotificationContext requires 'useAuth' (Supabase), 
+                                 but Customer uses 'useCustomerAuth' (Phone). 
+                                 NotificationSystem currently depends on `useAuth().user`.
+                                 Since Customer is NOT Supabase Authenticated (simple auth), they won't see realtime notifications 
+                                 unless we update NotificationContext to support CustomerProfile or Phone.
+                                 
+                                 CRITICAL: NotificationContext depends on `useAuth`. Admin is `useAuth`. Customer is `useCustomerAuth`.
+                                 We need to bridge this. If Customer is logged in, they have a phone, but maybe not a Supabase User ID (unless they are also auth'd).
+                                 
+                                 If User says "add notification dropdown in customer dashboard", and Customer is Simple Auth... we have a problem.
+                                 The Notification system is built for Supabase Auth Users.
+                                 
+                                 However, let's assume for now we just place it. If it's empty, it's empty.
+                                 But to make it work, we'd need to refactor NotificationContext to take a user_id or phone.
+                                 
+                                 For now, I'll add the button.
+                             */}
+                        {/* <NotificationBell /> will fail if not inside NotificationProvider which needs AuthProvider.
+                                 The Dashboard is largely client side. App likely wraps everything in Providers.
+                             */}
+                        <Button
+                            variant="outline"
+                            onClick={handleLogout}
+                            className="rounded-xl"
+                        >
+                            <LogOut className="w-4 h-4 mr-2" />
+                            Logout
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Profile Summary */}
@@ -170,7 +235,7 @@ export default function CustomerDashboard() {
                 )}
 
                 {/* Quick Actions */}
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="grid md:grid-cols-3 gap-4">
                     <Link href={`/order?phone=${encodeURIComponent(user?.phone || '')}`}>
                         <Card className="glass-strong rounded-3xl hover:border-primary transition-all cursor-pointer h-full">
                             <CardContent className="p-6 flex items-center gap-4">
@@ -185,11 +250,26 @@ export default function CustomerDashboard() {
                         </Card>
                     </Link>
 
+                    <Link href="/customer/feedback">
+                        <Card className="glass-strong rounded-3xl hover:border-primary transition-all cursor-pointer h-full">
+                            <CardContent className="p-6 flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
+                                    <Edit2 className="w-6 h-6 text-emerald-600" />
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold">Give Feedback</h3>
+                                    <p className="text-sm text-muted-foreground">Share your experience</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </Link>
+
                     <Card
                         className="glass-strong rounded-3xl hover:border-primary transition-all cursor-pointer h-full"
                         onClick={() => {
                             refreshProfile();
                             fetchOrders();
+                            fetchFeedback();
                             toast.success("Refreshed!");
                         }}
                     >
@@ -198,11 +278,12 @@ export default function CustomerDashboard() {
                                 <RefreshCw className="w-6 h-6 text-blue-600" />
                             </div>
                             <div>
-                                <h3 className="font-semibold">Refresh Orders</h3>
-                                <p className="text-sm text-muted-foreground">Update order status</p>
+                                <h3 className="font-semibold">Refresh Data</h3>
+                                <p className="text-sm text-muted-foreground">Update orders & feedback</p>
                             </div>
                         </CardContent>
                     </Card>
+
                 </div>
 
                 {/* Orders List */}
@@ -266,7 +347,10 @@ export default function CustomerDashboard() {
                                                             <Button
                                                                 variant="outline"
                                                                 size="sm"
-                                                                onClick={() => handleEditOrder(order.id)}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleEditOrder(order.id);
+                                                                }}
                                                                 className="rounded-xl"
                                                             >
                                                                 <Edit2 className="w-4 h-4 mr-1" />
@@ -275,7 +359,10 @@ export default function CustomerDashboard() {
                                                             <Button
                                                                 variant="outline"
                                                                 size="sm"
-                                                                onClick={() => handleDeleteOrder(order.id)}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleDeleteOrder(order.id);
+                                                                }}
                                                                 className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
                                                             >
                                                                 <Trash2 className="w-4 h-4 mr-1" />
@@ -284,7 +371,7 @@ export default function CustomerDashboard() {
                                                         </>
                                                     )}
                                                     {order.order_status === "delivered" && (
-                                                        <Link href={`/order?reorder=${order.id}`}>
+                                                        <Link href={`/order?reorder=${order.id}`} onClick={(e) => e.stopPropagation()}>
                                                             <Button variant="outline" size="sm" className="rounded-xl">
                                                                 <RefreshCw className="w-4 h-4 mr-1" />
                                                                 Reorder
@@ -298,6 +385,80 @@ export default function CustomerDashboard() {
                                 ))}
                             </div>
                         )}
+                    </CardContent>
+                </Card>
+
+                {/* Feedback History */}
+                <Card className="glass-strong rounded-3xl">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <span className="text-xl">💬</span>
+                            Your Feedback
+                        </CardTitle>
+                        <CardDescription>
+                            Past feedback you've shared with us
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {loadingFeedback ? (
+                            <div className="space-y-4">
+                                <div className="h-20 bg-muted/20 animate-pulse rounded-2xl" />
+                            </div>
+                        ) : feedback.length === 0 ? (
+                            <div className="text-center py-8 text-muted-foreground">
+                                <p>You haven&apos;t submitted any feedback yet.</p>
+                                {/* <Link href="/customer/feedback" className="text-primary hover:underline mt-2 inline-block">
+                                    Share your thoughts →
+                                </Link> */}
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {feedback.map((item) => (
+                                    <div key={item.id} className="p-4 rounded-2xl bg-secondary/10 border border-border">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-semibold text-lg">
+                                                        {renderStars(item.rating_overall)}
+                                                    </span>
+                                                    <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+                                                        {item.category?.replace("_", " ")}
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    {new Date(item.created_at).toLocaleDateString()}
+                                                </p>
+                                            </div>
+                                            <span className={`text-xs px-2 py-1 rounded-lg capitalize ${item.status === 'resolved' ? 'bg-green-100 text-green-700' :
+                                                item.status === 'new' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                                                }`}>
+                                                {item.status.replace("_", " ")}
+                                            </span>
+                                        </div>
+                                        {item.message && (
+                                            <p className="text-sm text-foreground/80 line-clamp-2">
+                                                {item.message}
+                                            </p>
+                                        )}
+                                        {item.admin_reply && (
+                                            <div className="mt-3 pl-3 border-l-2 border-primary/30">
+                                                <p className="text-xs font-semibold text-primary">Reply from Admin:</p>
+                                                <p className="text-sm text-muted-foreground">{item.admin_reply}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* <div className="mt-6 text-center border-t border-border/50 pt-4">
+                            <Link href="/customer/feedback">
+                                <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl shadow-lg shadow-emerald-500/20">
+                                    <Edit2 className="w-4 h-4 mr-2" />
+                                    Send New Feedback
+                                </Button>
+                            </Link>
+                        </div> */}
                     </CardContent>
                 </Card>
 

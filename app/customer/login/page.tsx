@@ -32,12 +32,33 @@ export default function CustomerLoginPage() {
         try {
             // Combine country code and phone number
             const fullPhone = `${countryCode}${phone}`;
-            await loginWithPhone(fullPhone);
+            // Pass false to prevent creating new profile if not found
+            await loginWithPhone(fullPhone, false);
             toast.success("Login successful!");
-            router.push("/customer/dashboard");
-        } catch (error) {
+
+            // Handle return URL
+            const params = new URLSearchParams(window.location.search);
+            const returnUrl = params.get("returnUrl");
+            if (returnUrl) {
+                router.push(returnUrl);
+            } else {
+                router.push("/customer/dashboard");
+            }
+        } catch (error: any) {
             console.error("Login error:", error);
-            toast.error("Failed to log in. Please try again.");
+            if (error.message === 'No customer found with this phone number') {
+                toast.error(
+                    <div className="flex flex-col gap-2">
+                        <span>No account found with this number.</span>
+                        <Link href="/order" className="underline font-bold text-primary hover:text-gray-200">
+                            Place an order first →
+                        </Link>
+                    </div>,
+                    { duration: 5000 }
+                );
+            } else {
+                toast.error("Failed to log in. Please try again.");
+            }
         } finally {
             setLoading(false);
         }

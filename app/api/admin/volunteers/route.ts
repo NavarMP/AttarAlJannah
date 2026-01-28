@@ -135,18 +135,20 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Check if email already exists
-        const { data: existingEmail } = await supabase
-            .from("users")
-            .select("id")
-            .eq("email", email)
-            .single();
+        // Check if email already exists (only if email is provided)
+        if (email) {
+            const { data: existingEmail } = await supabase
+                .from("users")
+                .select("id")
+                .eq("email", email)
+                .single();
 
-        if (existingEmail) {
-            return NextResponse.json(
-                { error: "Email already exists" },
-                { status: 400 }
-            );
+            if (existingEmail) {
+                return NextResponse.json(
+                    { error: "Email already exists" },
+                    { status: 400 }
+                );
+            }
         }
 
         // Hash password using pgcrypto

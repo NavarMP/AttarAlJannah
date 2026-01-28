@@ -373,17 +373,78 @@ export default function OrdersPage() {
                 </AlertDialogContent>
             </AlertDialog>
 
-            {/* Bulk Delete Button - Floating */}
+            {/* Bulk Actions - Floating */}
             {selectedOrders.size > 0 && (
-                <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
-                    <Button
-                        onClick={() => setBulkDeleteDialogOpen(true)}
-                        className="rounded-full shadow-lg bg-destructive hover:bg-destructive/90 text-white px-6 py-6 flex items-center gap-2"
-                        size="lg"
-                    >
-                        <Trash className="w-5 h-5" />
-                        Delete {selectedOrders.size} selected
-                    </Button>
+                <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300 flex flex-col gap-2 glass-strong p-4 rounded-3xl border border-border shadow-2xl">
+                    <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold">{selectedOrders.size} selected</span>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedOrders(new Set());
+                            }}
+                            className="h-6 w-6 p-0 rounded-full"
+                        >
+                            <span className="sr-only">Clear selection</span>
+                            ×
+                        </Button>
+                    </div>
+
+                    <div className="flex gap-2">
+                        <select
+                            className="h-10 rounded-xl border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus:ring-2 focus:ring-ring"
+                            onChange={async (e) => {
+                                const value = e.target.value;
+                                if (!value) return;
+
+                                setBulkDeleting(true); // Reuse loading state
+                                try {
+                                    const response = await fetch("/api/admin/orders/bulk-update", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({
+                                            orderIds: Array.from(selectedOrders),
+                                            status: value
+                                        }),
+                                    });
+
+                                    const data = await response.json();
+
+                                    if (response.ok) {
+                                        toast.success(data.message);
+                                        setSelectedOrders(new Set());
+                                        fetchOrders();
+                                    } else {
+                                        toast.error(data.error || "Failed to update orders");
+                                    }
+                                } catch (error) {
+                                    console.error("Bulk update error:", error);
+                                    toast.error("An error occurred");
+                                } finally {
+                                    setBulkDeleting(false);
+                                    e.target.value = ""; // Reset select
+                                }
+                            }}
+                            defaultValue=""
+                        >
+                            <option value="" disabled>Change Status...</option>
+                            <option value="pending">Mark Pending</option>
+                            <option value="confirmed">Mark Confirmed</option>
+                            <option value="delivered">Mark Delivered</option>
+                        </select>
+
+                        <Button
+                            onClick={() => setBulkDeleteDialogOpen(true)}
+                            variant="destructive"
+                            size="icon"
+                            className="rounded-xl shrink-0"
+                            title="Delete Selected"
+                        >
+                            <Trash className="w-4 h-4" />
+                        </Button>
+                    </div>
                 </div>
             )}
 
@@ -405,7 +466,7 @@ export default function OrdersPage() {
                             disabled={bulkDeleting}
                             className="bg-destructive hover:bg-destructive/90"
                         >
-                            {bulkDeleting ? "Deleting from database..." : `Delete ${selectedOrders.size} Order(s)`}
+                            {bulkDeleting ? "Deleting..." : `Delete ${selectedOrders.size} Order(s)`}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
