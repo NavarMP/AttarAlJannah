@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Package, TrendingUp, Trophy, Plus, DollarSign } from "lucide-react";
+import { Package, TrendingUp, Trophy, Plus, DollarSign, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { calculateCommission } from "@/lib/utils/commission-utils";
 import { NotificationBell } from "@/components/notifications/notification-bell";
@@ -240,12 +240,12 @@ export default function VolunteerDashboardPage() {
                         </CardHeader>
                         <CardContent>
                             <p className="text-3xl font-bold text-gold-500">
-                                ₹{calculateCommission(stats.confirmedBottles).toLocaleString()}
+                                ₹{calculateCommission(stats.confirmedBottles, stats.goal).toLocaleString()}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
-                                {stats.confirmedBottles > 20
-                                    ? `₹10 per bottle after 20 (${stats.confirmedBottles - 20} eligible)`
-                                    : `Sales after 20 bottles earn ₹10 each`
+                                {stats.confirmedBottles > stats.goal
+                                    ? `₹10 per bottle after ${stats.goal} (${stats.confirmedBottles - stats.goal} eligible)`
+                                    : `Sales after ${stats.goal} bottles earn ₹10 each`
                                 }
                             </p>
                         </CardContent>
@@ -260,6 +260,24 @@ export default function VolunteerDashboardPage() {
                             >
                                 <Plus className="w-8 h-8" />
                                 <span className="text-lg font-semibold">Place New Order</span>
+                            </Button>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="glass border-primary-300 dark:border-primary-700">
+                        <CardContent className="pt-6">
+                            <Button
+                                size="lg"
+                                variant="outline"
+                                className="w-full h-full min-h-[120px] border-2 border-primary-500 hover:bg-emerald-50 dark:hover:bg-emerald-950 flex flex-col gap-2 rounded-xl"
+                                onClick={() => {
+                                    const link = `${window.location.origin}/order?ref=${volunteerId}`;
+                                    navigator.clipboard.writeText(link);
+                                    toast.success("Referral link copied to clipboard!");
+                                }}
+                            >
+                                <Share2 className="w-8 h-8 text-primary-500" />
+                                <span className="text-lg font-semibold text-primary-500">Share Link</span>
                             </Button>
                         </CardContent>
                     </Card>

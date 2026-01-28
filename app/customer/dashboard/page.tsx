@@ -10,6 +10,7 @@ import { Package, RefreshCw, ShoppingCart, LogOut, User, Edit2, Trash2, Bell } f
 import Link from "next/link";
 import { toast } from "sonner";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { AssignVolunteerDialog } from "@/components/assign-volunteer-dialog";
 
 interface Order {
     id: string;
@@ -21,6 +22,7 @@ interface Order {
     order_status: string;
     payment_method: string;
     created_at: string;
+    volunteer_id?: string | null;
 }
 
 export default function CustomerDashboard() {
@@ -342,33 +344,17 @@ export default function CustomerDashboard() {
                                                     <p className="text-2xl font-bold text-primary">₹{order.total_price}</p>
                                                 </div>
                                                 <div className="flex gap-2">
-                                                    {order.order_status === "pending" && (
-                                                        <>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleEditOrder(order.id);
+                                                    {(!order.volunteer_id) && (
+                                                        <div onClick={(e) => e.stopPropagation()}>
+                                                            <AssignVolunteerDialog
+                                                                orderId={order.id}
+                                                                customerPhone={user?.phone || ""}
+                                                                onSuccess={() => {
+                                                                    toast.success("Order updated!");
+                                                                    fetchOrders();
                                                                 }}
-                                                                className="rounded-xl"
-                                                            >
-                                                                <Edit2 className="w-4 h-4 mr-1" />
-                                                                Edit
-                                                            </Button>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleDeleteOrder(order.id);
-                                                                }}
-                                                                className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
-                                                            >
-                                                                <Trash2 className="w-4 h-4 mr-1" />
-                                                                Delete
-                                                            </Button>
-                                                        </>
+                                                            />
+                                                        </div>
                                                     )}
                                                     {order.order_status === "delivered" && (
                                                         <Link href={`/order?reorder=${order.id}`} onClick={(e) => e.stopPropagation()}>

@@ -34,11 +34,11 @@ export async function GET(
             .limit(1)
             .maybeSingle();
 
-        // Get order statistics using UUID (referred_by is UUID)
+        // Get order statistics using UUID
         const { data: orders } = await supabase
             .from("orders")
             .select("*")
-            .eq("referred_by", volunteer.id); // volunteer.id is UUID
+            .eq("volunteer_id", volunteer.id); // volunteer.id is UUID
 
         const totalBottles = orders?.reduce((sum, o) => sum + (o.quantity || 0), 0) || 0;
         const confirmedBottles = orders

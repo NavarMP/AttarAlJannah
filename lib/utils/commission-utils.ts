@@ -13,10 +13,11 @@ export interface CommissionBreakdown {
 /**
  * Calculate commission based on confirmed bottles
  * @param confirmedBottles - Number of confirmed bottles delivered
+ * @param goal - The sales goal threshold (default 20)
  * @returns Total commission amount in ₹
  */
-export function calculateCommission(confirmedBottles: number): number {
-    const COMMISSION_THRESHOLD = 20;
+export function calculateCommission(confirmedBottles: number, goal: number = 20): number {
+    const COMMISSION_THRESHOLD = goal;
     const COMMISSION_PER_BOTTLE = 10;
 
     if (confirmedBottles <= COMMISSION_THRESHOLD) {
@@ -29,10 +30,11 @@ export function calculateCommission(confirmedBottles: number): number {
 /**
  * Get detailed commission breakdown
  * @param confirmedBottles - Number of confirmed bottles delivered
+ * @param goal - The sales goal threshold (default 20)
  * @returns Detailed commission breakdown
  */
-export function getCommissionBreakdown(confirmedBottles: number): CommissionBreakdown {
-    const COMMISSION_THRESHOLD = 20;
+export function getCommissionBreakdown(confirmedBottles: number, goal: number = 20): CommissionBreakdown {
+    const COMMISSION_THRESHOLD = goal;
     const COMMISSION_PER_BOTTLE = 10;
 
     const bottlesEligibleForCommission = Math.max(0, confirmedBottles - COMMISSION_THRESHOLD);

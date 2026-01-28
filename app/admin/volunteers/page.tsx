@@ -343,7 +343,7 @@ export default function VolunteersPage() {
                                             </TableCell>
                                             <TableCell>
                                                 <span className="font-semibold text-gold-600 dark:text-gold-400">
-                                                    ₹{calculateCommission(volunteer.confirmed_bottles)}
+                                                    ₹{calculateCommission(volunteer.confirmed_bottles, volunteer.goal)}
                                                 </span>
                                             </TableCell>
                                             <TableCell className="text-right">

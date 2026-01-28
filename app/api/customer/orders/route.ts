@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
         if (orderId) {
             const { data: order, error } = await supabase
                 .from("orders")
-                .select("*")
+                .select("*, volunteers(name)")
                 .eq("id", orderId)
                 .in("customer_phone", phoneVariations)
                 .single();
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
         // Otherwise fetch all orders for the customer
         const { data: orders, error } = await supabase
             .from("orders")
-            .select("*")
+            .select("*, volunteers(name)")
             .in("customer_phone", phoneVariations)
             .order("created_at", { ascending: false });
 

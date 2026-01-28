@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
                 .from("orders")
                 .select("*")
                 .eq("id", orderId)
-                .eq("referred_by", volunteer.id)
+                .eq("volunteer_id", volunteer.id)
                 .single();
 
             if (error) {
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
         const { data: orders, error } = await supabase
             .from("orders")
             .select("*")
-            .eq("referred_by", volunteer.id)
+            .eq("volunteer_id", volunteer.id)
             .order("created_at", { ascending: false });
 
         if (error) {

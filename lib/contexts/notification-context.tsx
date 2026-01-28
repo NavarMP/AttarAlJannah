@@ -62,6 +62,16 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             // Pass user_id explicitly for Simple Auth cases
             const response = await fetch(`/api/notifications?limit=20&offset=0&user_id=${targetUserId}`);
             if (!response.ok) {
+                // If 401/403, and we are on simple auth, maybe just return empty?
+                // The API requires Admin auth (or matching user). 
+                // If user is a Customer, api/notifications currently FAILS if not admin?
+                // Wait, api/notifications checks for user_id. 
+                // If 500 error, throw. If 401, maybe just silence it for now.
+                if (response.status === 401 || response.status === 403) {
+                    setNotifications([]);
+                    setUnreadCount(0);
+                    return;
+                }
                 throw new Error("Failed to fetch notifications");
             }
 

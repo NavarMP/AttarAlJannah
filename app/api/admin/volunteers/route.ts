@@ -40,11 +40,11 @@ export async function GET(request: NextRequest) {
             .select("volunteer_id, goal")
             .in("volunteer_id", volunteerUUIDs);
 
-        // Get orders for bottle count (referred_by is now UUID FK)
+        // Get orders for bottle count (volunteer_id is now UUID FK)
         const { data: orders } = await supabase
             .from("orders")
-            .select("referred_by, quantity, order_status")
-            .in("referred_by", volunteerUUIDs)
+            .select("volunteer_id, quantity, order_status")
+            .in("volunteer_id", volunteerUUIDs)
             .in("order_status", ["confirmed", "delivered"]);
 
         // Merge data
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
             const progress = progressData?.find(p => p.volunteer_id === volunteer.id);
 
             // Calculate bottles from orders
-            const volunteerOrders = orders?.filter(o => o.referred_by === volunteer.id) || [];
+            const volunteerOrders = orders?.filter(o => o.volunteer_id === volunteer.id) || [];
             const confirmedBottles = volunteerOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
 
             const goal = progress?.goal || 20;

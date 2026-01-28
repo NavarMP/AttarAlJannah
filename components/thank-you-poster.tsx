@@ -3,23 +3,26 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Download, Upload } from "lucide-react";
+import { Download, Upload, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { Select } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 interface ThankYouPosterProps {
     customerName: string;
-    templateImagePath?: string; // Path to poster template image
 }
 
 export function ThankYouPoster({
     customerName,
-    templateImagePath = "/assets/thank-you-poster-template.png"
 }: ThankYouPosterProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [isGenerating, setIsGenerating] = useState(true);
+    const [status, setStatus] = useState<"idle" | "configuring" | "generating" | "completed">("idle");
+    const [language, setLanguage] = useState<"en" | "ml">("en");
     const [imageLoaded, setImageLoaded] = useState(false);
 
     const generatePoster = useCallback(() => {
+        if (status !== "generating") return;
+
         const canvas = canvasRef.current;
         if (!canvas) return;
 
@@ -27,8 +30,8 @@ export function ThankYouPoster({
         if (!ctx) return;
 
         // Set canvas size
-        const width = 1200;
-        const height = 630;
+        const width = 1080;
+        const height = 1350;
         canvas.width = width;
         canvas.height = height;
 
@@ -36,83 +39,50 @@ export function ThankYouPoster({
         const img = new Image();
         img.crossOrigin = "anonymous";
 
+        // Select asset based on language
+        const templatePath = language === "en" ? "/assets/thankYou_En.svg" : "/assets/thankYou_Ml.svg";
+
         img.onload = () => {
             // Draw the template image as background
             ctx.drawImage(img, 0, 0, width, height);
 
             // Configure text styling for customer name
-            ctx.textAlign = "center";
+            ctx.textAlign = "center"; // Alignment relative to placement point
             ctx.textBaseline = "middle";
 
-            // Add text shadow for better readability
-            ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-            ctx.shadowBlur = 10;
-            ctx.shadowOffsetX = 2;
-            ctx.shadowOffsetY = 2;
+            // User Requirement: X=600, Y=60 (approx), Size=40pt
+            // 40pt is approx 53.33px. Let's use 54px.
+            const x = 600;
+            const y = 60;
+            const fontSize = 40;
+
+            // Font settings
+            // If Malayalam, we might want a font that supports it well, but system fonts usually handle it.
+            // Using a bold sans-serif is safe.
+            ctx.font = `bold ${fontSize}px sans-serif`;
+            ctx.fillStyle = "#ffffff"; // Assuming white text
 
             // Draw customer name
-            // Adjust font size based on name length
-            const fontSize = customerName.length > 20 ? 48 : customerName.length > 15 ? 56 : 64;
-            ctx.font = `bold ${fontSize}px sans-serif`;
-            ctx.fillStyle = "#ffffff";
-
-            // Draw name at center-ish position (you can adjust Y position)
-            // Assuming name goes in the middle-lower area
-            ctx.fillText(customerName, width / 2, height / 2 + 50);
+            ctx.fillText(customerName, x, y);
 
             setImageLoaded(true);
-            setIsGenerating(false);
+            setStatus("completed");
         };
 
         img.onerror = () => {
-            console.error("Failed to load poster template");
-            // Fallback: Create a simple poster if template doesn't load
-            createFallbackPoster(ctx, width, height, customerName);
-            setIsGenerating(false);
+            console.error("Failed to load poster template:", templatePath);
+            toast.error(`Failed to load ${language === "en" ? "English" : "Malayalam"} template`);
+            setStatus("configuring"); // Go back
         };
 
-        img.src = templateImagePath;
-    }, [customerName, templateImagePath]);
+        img.src = templatePath;
+    }, [customerName, language, status]);
 
     useEffect(() => {
-        generatePoster();
-    }, [generatePoster]);
-
-    const createFallbackPoster = (
-        ctx: CanvasRenderingContext2D,
-        width: number,
-        height: number,
-        name: string
-    ) => {
-        // Simple fallback design if template image doesn't load
-        const gradient = ctx.createLinearGradient(0, 0, width, height);
-        gradient.addColorStop(0, "#1a472a");
-        gradient.addColorStop(0.5, "#2d5f3d");
-        gradient.addColorStop(1, "#1a472a");
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, width, height);
-
-        // Border
-        ctx.strokeStyle = "#d4af37";
-        ctx.lineWidth = 8;
-        ctx.strokeRect(30, 30, width - 60, height - 60);
-
-        // Text
-        ctx.fillStyle = "#d4af37";
-        ctx.font = "bold 72px serif";
-        ctx.textAlign = "center";
-        ctx.fillText("Thank You", width / 2, 200);
-
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 56px sans-serif";
-        ctx.fillText(name, width / 2, 340);
-
-        ctx.fillStyle = "#d4af37";
-        ctx.font = "bold 36px Arial";
-        ctx.fillText("عطر الجنّة", width / 2, 450);
-
-        setImageLoaded(true);
-    };
+        if (status === "generating") {
+            generatePoster();
+        }
+    }, [status, generatePoster]);
 
     const downloadPoster = () => {
         const canvas = canvasRef.current;
@@ -124,7 +94,7 @@ export function ThankYouPoster({
 
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement("a");
-                link.download = `thank-you-${customerName.replace(/\s+/g, "-").toLowerCase()}.png`;
+                link.download = `thank-you-${language}-${customerName.replace(/\s+/g, "-").toLowerCase()}.png`;
                 link.href = url;
                 link.click();
                 URL.revokeObjectURL(url);
@@ -136,23 +106,59 @@ export function ThankYouPoster({
         }
     };
 
-    return (
-        <Card className="glass-strong rounded-3xl overflow-hidden">
-            <CardContent className="p-6 space-y-4">
-                {!imageLoaded && (
-                    <div className="text-center p-4 text-sm text-muted-foreground">
-                        <Upload className="w-8 h-8 mx-auto mb-2 text-primary" />
-                        <p>Place your poster template at:</p>
-                        <code className="bg-muted px-2 py-1 rounded text-xs">
-                            /public/assets/thank-you-poster-template.png
-                        </code>
-                        <p className="mt-2 text-xs">
-                            The customer name will be overlaid on the template.
-                        </p>
-                    </div>
-                )}
+    const handleGenerateClick = () => {
+        setStatus("generating");
+    };
 
-                <div className="relative rounded-2xl overflow-hidden border-2 border-primary/30">
+    const reset = () => {
+        setStatus("idle");
+        setImageLoaded(false);
+    };
+
+    if (status === "idle") {
+        return (
+            <Button
+                onClick={() => setStatus("configuring")}
+                className="w-full bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600 rounded-2xl"
+            >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Generate Thank You Poster
+            </Button>
+        );
+    }
+
+    if (status === "configuring") {
+        return (
+            <Card className="glass-strong rounded-3xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                <CardContent className="p-6 space-y-4">
+                    <div className="space-y-2">
+                        <Label>Select Language</Label>
+                        <Select
+                            value={language}
+                            onChange={(e) => setLanguage(e.target.value as "en" | "ml")}
+                        >
+                            <option value="en">English</option>
+                            <option value="ml">Malayalam</option>
+                        </Select>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button variant="outline" onClick={reset} className="flex-1">
+                            Cancel
+                        </Button>
+                        <Button onClick={handleGenerateClick} className="flex-1">
+                            Generate
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    return (
+        <Card className="glass-strong rounded-3xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <CardContent className="p-6 space-y-4">
+                <div className="relative rounded-2xl overflow-hidden border-2 border-primary/30 bg-black/5">
+                    {/* Preview could be scaled down since 1080x1350 is huge */}
                     <canvas
                         ref={canvasRef}
                         className="w-full h-auto"
@@ -160,18 +166,18 @@ export function ThankYouPoster({
                     />
                 </div>
 
-                <Button
-                    onClick={downloadPoster}
-                    disabled={isGenerating}
-                    className="w-full bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600 rounded-2xl"
-                >
-                    <Download className="w-4 h-4 mr-2" />
-                    Download Thank You Poster
-                </Button>
-
-                {/* <p className="text-xs text-center text-muted-foreground">
-                    💡 Tip: You can customize the poster template by placing your own design at the path above
-                </p> */}
+                <div className="flex flex-col gap-2">
+                    <Button
+                        onClick={downloadPoster}
+                        className="w-full bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600 rounded-2xl"
+                    >
+                        <Download className="w-4 h-4 mr-2" />
+                        Download Poster
+                    </Button>
+                    <Button variant="ghost" onClick={() => setStatus("configuring")} className="text-muted-foreground">
+                        Change Language
+                    </Button>
+                </div>
             </CardContent>
         </Card>
     );

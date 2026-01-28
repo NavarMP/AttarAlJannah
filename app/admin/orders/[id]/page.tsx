@@ -6,12 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Phone, MessageCircle, Image as ImageIcon, Trash2, Pencil } from "lucide-react";
+import { ArrowLeft, Phone, MessageCircle, Image as ImageIcon, Trash2, Pencil, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import Image from "next/image";
 import Link from "next/link";
 import { OrderBill } from "@/components/order-bill";
+import { ThankYouPoster } from "@/components/thank-you-poster";
 import { AutoHideContainer } from "@/components/custom/auto-hide-container";
 
 interface Order {
@@ -203,6 +204,18 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                         <div>
                             <p className="text-sm text-muted-foreground">Address</p>
                             <p className="font-medium">{order.customer_address}</p>
+                            {/* Google Maps Link */}
+                            {order.customer_address && (
+                                <a
+                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.customer_address)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-sm font-medium text-primary transition-colors"
+                                >
+                                    <MapPin className="w-4 h-4" />
+                                    View on Maps
+                                </a>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
@@ -262,6 +275,16 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                     </Card>
                 )
             }
+
+            {/* Thank You Poster */}
+            <Card className="rounded-3xl">
+                <CardHeader>
+                    <CardTitle>Thank You Poster</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <ThankYouPoster customerName={order.customer_name} />
+                </CardContent>
+            </Card>
 
             {/* Order Bill/Invoice */}
             <div>

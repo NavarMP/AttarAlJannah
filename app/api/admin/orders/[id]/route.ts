@@ -48,7 +48,7 @@ export async function PATCH(
         // First, get the current order to check previous status, volunteer info, and quantity
         const { data: currentOrder, error: fetchError } = await supabase
             .from("orders")
-            .select("order_status, referred_by, quantity")
+            .select("order_status, volunteer_id, quantity")
             .eq("id", id)
             .single();
 
@@ -58,7 +58,7 @@ export async function PATCH(
         }
 
         const previousStatus = currentOrder.order_status;
-        const volunteerId = currentOrder.referred_by;
+        const volunteerId = currentOrder.volunteer_id;
         const orderQuantity = currentOrder.quantity;
 
         console.log("=== Order Status Update ===");

@@ -9,6 +9,7 @@ import { CheckCircle2, Loader2, ShoppingBag, Pencil } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useCustomerAuth } from "@/lib/contexts/customer-auth-context";
+import { ThankYouPoster } from "@/components/thank-you-poster";
 
 // Lazy load heavy components
 const LazyOrderBill = dynamic(() => import("@/components/order-bill").then(mod => ({ default: mod.OrderBill })), {
@@ -140,6 +141,13 @@ function ThanksContent() {
                         </div>
                     </CardContent>
                 </Card>
+
+                {/* Thank You Poster Generator */}
+                {order && (
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-600">
+                        <ThankYouPoster customerName={order.customer_name} />
+                    </div>
+                )}
 
                 {/* Order Bill - Loads Asynchronously */}
                 {order && showBill && (

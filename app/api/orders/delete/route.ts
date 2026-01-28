@@ -31,7 +31,7 @@ export async function DELETE(request: NextRequest) {
                 .from("orders")
                 .select("*")
                 .eq("id", orderId)
-                .eq("referred_by", volunteer.id)
+                .eq("volunteer_id", volunteer.id)
                 .maybeSingle();
 
             order = result.data;

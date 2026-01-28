@@ -23,13 +23,13 @@ export async function GET() {
         const volunteerIds = volunteers?.map(v => v.id) || [];
         const { data: orders } = await supabase
             .from("orders")
-            .select("referred_by, quantity, total_price, order_status")
-            .in("referred_by", volunteerIds)
+            .select("volunteer_id, quantity, total_price, order_status")
+            .in("volunteer_id", volunteerIds)
             .in("order_status", ["confirmed", "delivered"]);
 
         // Combine data and calculate rankings based on bottles
         const leaderboardData = volunteers?.map(volunteer => {
-            const volunteerOrders = orders?.filter(o => o.referred_by === volunteer.id) || [];
+            const volunteerOrders = orders?.filter(o => o.volunteer_id === volunteer.id) || [];
 
             // Calculate total bottles (sum of quantities)
             const confirmedBottles = volunteerOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);

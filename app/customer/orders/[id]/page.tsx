@@ -4,11 +4,14 @@ import { use, useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Phone, MessageCircle, Image as ImageIcon, Package } from "lucide-react";
+import { ArrowLeft, Phone, MessageCircle, Image as ImageIcon, Package, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import Image from "next/image";
 import Link from "next/link";
+import { OrderBill } from "@/components/order-bill";
+import { ThankYouPoster } from "@/components/thank-you-poster";
 import { useCustomerAuth } from "@/lib/contexts/customer-auth-context";
+import { AssignVolunteerDialog } from "@/components/assign-volunteer-dialog";
 
 interface Order {
     id: string;
@@ -25,6 +28,8 @@ interface Order {
     order_status: string;
     payment_screenshot_url: string | null;
     created_at: string;
+    volunteer_id?: string | null;
+    volunteers?: { name: string } | null;
 }
 
 export default function CustomerOrderDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -87,9 +92,21 @@ export default function CustomerOrderDetailsPage({ params }: { params: Promise<{
                             <ArrowLeft className="h-4 w-4" />
                         </Button>
                     </Link>
-                    <div>
-                        <h1 className="text-3xl font-bold">Order Details</h1>
-                        <p className="text-muted-foreground">Order ID: {order.id.slice(0, 8)}</p>
+                    <div className="flex flex-col md:flex-row md:items-center gap-4">
+                        <div>
+                            <h1 className="text-3xl font-bold">Order Details</h1>
+                            <p className="text-muted-foreground">Order ID: {order.id.slice(0, 8)}</p>
+                        </div>
+                        {!order.volunteer_id && (
+                            <AssignVolunteerDialog
+                                orderId={order.id}
+                                customerPhone={user?.phone || ""}
+                                onSuccess={() => {
+                                    toast.success("Order updated!");
+                                    fetchOrder();
+                                }}
+                            />
+                        )}
                     </div>
                 </div>
 
@@ -179,7 +196,24 @@ export default function CustomerOrderDetailsPage({ params }: { params: Promise<{
                             <div>
                                 <p className="text-sm text-muted-foreground">Delivery Address</p>
                                 <p className="font-medium">{order.customer_address}</p>
+                                <a
+                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.customer_address)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-block mt-2"
+                                >
+                                    <Button variant="outline" size="sm" className="rounded-xl">
+                                        <MapPin className="w-4 h-4 mr-2" />
+                                        View on Maps
+                                    </Button>
+                                </a>
                             </div>
+                            {order.volunteers && (
+                                <div className="pt-2 border-t border-border/50">
+                                    <p className="text-sm text-muted-foreground">Referred by Volunteer</p>
+                                    <p className="font-medium text-primary">{order.volunteers.name}</p>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
@@ -205,6 +239,20 @@ export default function CustomerOrderDetailsPage({ params }: { params: Promise<{
                         </CardContent>
                     </Card>
                 )}
+
+                {/* Thank You Poster */}
+                {order && (
+                    <div className="mb-6">
+                        <h2 className="text-2xl font-bold text-foreground mb-4">Your Poster</h2>
+                        <ThankYouPoster customerName={order.customer_name} />
+                    </div>
+                )}
+
+                {/* Order Bill/Invoice */}
+                <div>
+                    <h2 className="text-2xl font-bold text-foreground mb-4">Order Invoice</h2>
+                    <OrderBill order={order} />
+                </div>
             </div>
         </div>
     );
