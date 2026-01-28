@@ -396,7 +396,7 @@ export default function CustomerDashboard() {
                             Your Feedback
                         </CardTitle>
                         <CardDescription>
-                            Past feedback you've shared with us
+                            Past feedback you&apos;ve shared with us
                         </CardDescription>
                     </CardHeader>
                     <CardContent>

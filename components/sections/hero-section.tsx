@@ -186,8 +186,7 @@ function LoginButton() {
 
     return (
         <>
-            {/* Notification Permission Button - Top Left */}
-            <NotificationPermissionButton />
+            
 
             {/* Profile/Login Buttons - Top Right */}
             <AutoHideContainer className="fixed top-6 right-6 z-50 flex gap-2 items-center">
@@ -237,41 +236,5 @@ function LoginButton() {
                 )}
             </AutoHideContainer>
         </>
-    );
-}
-
-function NotificationPermissionButton() {
-    const [permission, setPermission] = useState<NotificationPermission>("default");
-
-    useEffect(() => {
-        if ("Notification" in window) {
-            setPermission(Notification.permission);
-        }
-    }, []);
-
-    if (permission === "granted") return null;
-
-    return (
-        <AutoHideContainer className="fixed top-6 left-6 z-50">
-            <Button
-                onClick={async () => {
-                    if (!("Notification" in window)) {
-                        toast.error("This browser does not support notifications");
-                        return;
-                    }
-                    const result = await Notification.requestPermission();
-                    setPermission(result);
-                    if (result === 'granted') {
-                        toast.success("Notifications enabled!");
-                    } else {
-                        toast.error("Permission denied");
-                    }
-                }}
-                className="rounded-full shadow-lg bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 w-12 h-12 p-0"
-                title="Enable Notifications"
-            >
-                <Bell className="w-5 h-5" />
-            </Button>
-        </AutoHideContainer>
     );
 }
