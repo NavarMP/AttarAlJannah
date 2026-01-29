@@ -19,7 +19,7 @@ export default function LegalLayout({
                     <Link href="/" className="flex items-center gap-3 group">
                         <div className="relative w-8 h-8 md:w-10 md:h-10 transition-transform group-hover:scale-105">
                             <Image
-                                src="/assets/dars logo.svg"
+                                src="/assets/typography.svg"
                                 alt="Attar Al Jannah Logo"
                                 fill
                                 className="object-contain dark:brightness-[180%] dark:contrast-75"
