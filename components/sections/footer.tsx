@@ -35,7 +35,7 @@ export function Footer() {
     return (
         <footer className="relative py-12 px-4 border-t border-border bg-gradient-to-b from-background to-primary/5 dark:to-primary/10">
             <div className="max-w-6xl mx-auto">
-                <div className="grid md:grid-cols-4 gap-8 mb-8">
+                <div className="grid md:grid-cols-5 gap-8 mb-8">
                     {/* Brand Section with Logo */}
                     <div className="md:col-span-1 space-y-3">
                         <div className="flex justify-center md:justify-start">
@@ -107,6 +107,25 @@ export function Footer() {
                                     {location.name}
                                 </Link>
                             ))}
+                        </div>
+                    </div>
+
+                    {/* Legal Section */}
+                    <div className="space-y-3">
+                        <h4 className="font-semibold text-foreground">Legal</h4>
+                        <div className="space-y-2 flex flex-col">
+                            <Link href="/legal/privacy-policy" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                                Privacy Policy
+                            </Link>
+                            <Link href="/legal/terms-of-service" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                                Terms of Service
+                            </Link>
+                            <Link href="/legal/refund-policy" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                                Refund Policy
+                            </Link>
+                            <Link href="/legal/shipping-policy" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                                Shipping Policy
+                            </Link>
                         </div>
                     </div>
 
