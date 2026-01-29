@@ -24,7 +24,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Plus, Search, Edit, Trash2, TrendingUp, Award, Loader2, Trash } from "lucide-react";
+import { Users, Plus, Search, Edit, Trash2, TrendingUp, Award, Loader2, Trash, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { calculateCommission } from "@/lib/utils/commission-utils";
@@ -179,6 +179,12 @@ export default function VolunteersPage() {
         }
     };
 
+    const handleCopyReferralLink = (volunteerId: string) => {
+        const link = `${window.location.origin}/order?ref=${volunteerId}`;
+        navigator.clipboard.writeText(link);
+        toast.success("Referral link copied to clipboard");
+    };
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -294,10 +300,11 @@ export default function VolunteersPage() {
                                         <TableHead>Name</TableHead>
                                         <TableHead>Email</TableHead>
                                         <TableHead>Phone</TableHead>
-                                        <TableHead>Sales</TableHead>
+                                        <TableHead>Bottles</TableHead>
                                         <TableHead>Goal</TableHead>
                                         <TableHead>Progress</TableHead>
                                         <TableHead>Commission</TableHead>
+                                        <TableHead>Ref Link</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -345,6 +352,20 @@ export default function VolunteersPage() {
                                                 <span className="font-semibold text-gold-600 dark:text-gold-400">
                                                     ₹{calculateCommission(volunteer.confirmed_bottles, volunteer.goal)}
                                                 </span>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleCopyReferralLink(volunteer.volunteer_id);
+                                                    }}
+                                                    title="Copy Referral Link"
+                                                >
+                                                    <Link2 className="h-4 w-4" />
+                                                </Button>
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex items-center justify-end gap-2">
