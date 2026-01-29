@@ -31,6 +31,7 @@ export default function VolunteerOrdersPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
+    const [sort, setSort] = useState("newest");
 
     useEffect(() => {
         const id = localStorage.getItem("volunteerId");
@@ -75,8 +76,23 @@ export default function VolunteerOrdersPage() {
             filtered = filtered.filter(order => order.order_status === statusFilter);
         }
 
+        // Apply sorting
+        filtered.sort((a, b) => {
+            switch (sort) {
+                case "oldest":
+                    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+                case "amount_high":
+                    return b.total_price - a.total_price;
+                case "amount_low":
+                    return a.total_price - b.total_price;
+                case "newest":
+                default:
+                    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            }
+        });
+
         setFilteredOrders(filtered);
-    }, [search, statusFilter, orders]);
+    }, [search, statusFilter, sort, orders]);
 
     const handleDeleteOrder = async (orderId: string) => {
         if (!confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
@@ -170,6 +186,16 @@ export default function VolunteerOrdersPage() {
                             <option value="confirmed">Confirmed</option>
                             <option value="delivered">Delivered</option>
                         </Select>
+                        <Select
+                            value={sort}
+                            onChange={(e) => setSort(e.target.value)}
+                            className="w-full md:w-48"
+                        >
+                            <option value="newest">Newest First</option>
+                            <option value="oldest">Oldest First</option>
+                            <option value="amount_high">Amount (High-Low)</option>
+                            <option value="amount_low">Amount (Low-High)</option>
+                        </Select>
                     </div>
                 </Card>
 
@@ -238,12 +264,12 @@ export default function VolunteerOrdersPage() {
                                                 </p>
                                             </div>
                                             <div className={`px-3 py-1 rounded-full text-xs font-medium ${order.order_status === "delivered"
-                                                    ? "bg-emerald-500/20 text-emerald-500"
-                                                    : order.order_status === "confirmed"
-                                                        ? "bg-blue-500/20 text-blue-500"
-                                                        : order.order_status === "cancelled"
-                                                            ? "bg-red-500/20 text-red-500"
-                                                            : "bg-yellow-500/20 text-yellow-500"
+                                                ? "bg-emerald-500/20 text-emerald-500"
+                                                : order.order_status === "confirmed"
+                                                    ? "bg-blue-500/20 text-blue-500"
+                                                    : order.order_status === "cancelled"
+                                                        ? "bg-red-500/20 text-red-500"
+                                                        : "bg-yellow-500/20 text-yellow-500"
                                                 }`}>
                                                 {getStatusText(order.order_status)}
                                             </div>

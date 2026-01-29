@@ -33,6 +33,8 @@ export default function OrdersPage() {
     const [page, setPage] = useState(1);
     const [statusFilter, setStatusFilter] = useState("all");
     const [search, setSearch] = useState("");
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
     const [searchInput, setSearchInput] = useState(""); // For debouncing
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
@@ -62,6 +64,9 @@ export default function OrdersPage() {
                 page: page.toString(),
             });
 
+            if (startDate) queryParams.append("startDate", startDate);
+            if (endDate) queryParams.append("endDate", endDate);
+
             console.log("Fetching orders with search:", search);
             const response = await fetch(`/api/admin/orders?${queryParams}`);
 
@@ -82,7 +87,7 @@ export default function OrdersPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, statusFilter, search]);
+    }, [page, statusFilter, search, startDate, endDate]);
 
     useEffect(() => {
         fetchOrders();
@@ -187,14 +192,30 @@ export default function OrdersPage() {
 
             {/* Filters */}
             <Card className="p-4 rounded-3xl">
-                <div className="flex flex-col md:flex-row gap-4">
-                    <div className="flex-1 relative">
+                <div className="flex flex-col md:flex-row gap-4 items-center">
+                    <div className="relative flex-1 w-full">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Search by customer name, phone, or Order ID..."
                             value={searchInput}
                             onChange={(e) => setSearchInput(e.target.value)}
                             className="pl-10"
+                        />
+                    </div>
+                    <div className="flex gap-2 w-full md:w-auto">
+                        <Input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="w-full md:w-40"
+                            placeholder="Start Date"
+                        />
+                        <Input
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="w-full md:w-40"
+                            placeholder="End Date"
                         />
                     </div>
                     <Select

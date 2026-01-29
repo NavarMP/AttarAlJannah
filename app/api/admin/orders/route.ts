@@ -7,6 +7,8 @@ export async function GET(request: NextRequest) {
         const searchParams = request.nextUrl.searchParams;
         const status = searchParams.get("status");
         const search = searchParams.get("search");
+        const startDate = searchParams.get("startDate");
+        const endDate = searchParams.get("endDate");
         const page = parseInt(searchParams.get("page") || "1");
         const pageSize = 20;
 
@@ -42,6 +44,15 @@ export async function GET(request: NextRequest) {
 
         if (status && status !== "all") {
             query = query.eq("order_status", status);
+        }
+
+        if (startDate) {
+            query = query.gte("created_at", `${startDate}T00:00:00.000Z`);
+        }
+
+        if (endDate) {
+            // End of the day
+            query = query.lte("created_at", `${endDate}T23:59:59.999Z`);
         }
 
         if (search) {

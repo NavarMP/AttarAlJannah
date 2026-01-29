@@ -48,6 +48,7 @@ export default function VolunteersPage() {
     const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
+    const [sort, setSort] = useState("created_at");
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
@@ -70,6 +71,7 @@ export default function VolunteersPage() {
             params.append("page", currentPage.toString());
             params.append("limit", "50"); // Show 50 per page
             if (searchQuery) params.append("search", searchQuery);
+            params.append("sort", sort);
 
             const response = await fetch(`/api/admin/volunteers?${params.toString()}`);
             if (!response.ok) throw new Error("Failed to fetch volunteers");
@@ -94,14 +96,14 @@ export default function VolunteersPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, searchQuery]);
+    }, [currentPage, searchQuery, sort]);
 
     useEffect(() => {
-        setCurrentPage(1); // Reset to page 1 when search changes
+        setCurrentPage(1); // Reset to page 1 when search or sort changes
         fetchVolunteers();
         // Clear selection when search changes
         setSelectedVolunteers(new Set());
-    }, [searchQuery, fetchVolunteers]);
+    }, [searchQuery, sort, fetchVolunteers]);
 
     useEffect(() => {
         fetchVolunteers();
@@ -254,17 +256,32 @@ export default function VolunteersPage() {
                 </Card>
             </div>
 
-            {/* Search */}
+            {/* Search and Sort */}
             <Card className="glass-strong">
                 <CardContent className="pt-6">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Search by name, volunteer ID, or email..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10"
-                        />
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search by name, volunteer ID, email, or phone..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-10"
+                            />
+                        </div>
+                        <div className="w-full md:w-48">
+                            <select
+                                className="w-full h-10 px-3 py-2 rounded-md border border-input bg-background text-sm"
+                                value={sort}
+                                onChange={(e) => setSort(e.target.value)}
+                            >
+                                <option value="created_at">Newest First</option>
+                                <option value="name">Name (A-Z)</option>
+                                <option value="bottles">Most Bottles</option>
+                                <option value="goal">Highest Goal</option>
+                                <option value="progress">Highest Progress</option>
+                            </select>
+                        </div>
                     </div>
                 </CardContent>
             </Card>

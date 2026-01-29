@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { LogOut, LayoutDashboard, Package, Menu, X, Users, Trophy, MessageSquare, Bell } from "lucide-react";
 import { ThemeToggle } from "@/components/custom/theme-toggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
-import { NotificationComposer } from "@/components/notifications/notification-composer";
 import Link from "next/link";
 import { toast } from "sonner";
 import Image from "next/image";
@@ -21,7 +20,6 @@ export default function AdminLayout({
     const router = useRouter();
     const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [showComposer, setShowComposer] = useState(false);
 
     // Don't apply layout protection to login page
     const isLoginPage = pathname === "/admin/login";
@@ -186,15 +184,16 @@ export default function AdminLayout({
                         <h2 className="text-xl font-semibold">Admin Dashboard</h2>
                     </div>
                     <div className="flex items-center gap-3">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowComposer(true)}
-                            className="rounded-xl"
-                        >
-                            <Bell className="h-4 w-4 mr-2" />
-                            Send Notification
-                        </Button>
+                        <Link href="/admin/notifications">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="rounded-xl"
+                            >
+                                <Bell className="h-4 w-4 mr-2" />
+                                Send Notification
+                            </Button>
+                        </Link>
                         <NotificationBell />
                         <ThemeToggle />
                     </div>
@@ -206,8 +205,6 @@ export default function AdminLayout({
                 </main>
             </div>
 
-            {/* Notification Composer Dialog */}
-            <NotificationComposer open={showComposer} onOpenChange={setShowComposer} />
         </div>
     );
 }

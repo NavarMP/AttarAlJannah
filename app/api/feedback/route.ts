@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
 
         // Search
         if (search) {
-            query = query.or(`subject.ilike.%${search}%,message.ilike.%${search}%,email.ilike.%${search}%`);
+            query = query.or(`subject.ilike.%${search}%,message.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`);
         }
 
         // Sorting

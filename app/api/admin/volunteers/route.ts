@@ -10,22 +10,40 @@ export async function GET(request: NextRequest) {
         const page = parseInt(searchParams.get("page") || "1");
         const limit = parseInt(searchParams.get("limit") || "10");
         const search = searchParams.get("search") || "";
+        const sort = searchParams.get("sort") || "created_at";
         const offset = (page - 1) * limit;
+
+        // Determine if we need in-memory sorting (for computed fields)
+        const isMemorySort = sort === "bottles" || sort === "goal" || sort === "progress";
 
         // Build query for volunteers
         let query = supabase
-            .from("volunteers") // New table
-            .select("*", { count: "exact" })
-            // .eq("role", "volunteer") // Implied by table
-            .order("created_at", { ascending: false });
+            .from("volunteers")
+            .select("*", { count: "exact" });
+
+        // Apply DB-level sorting if applicable
+        if (!isMemorySort) {
+            if (sort === "name") {
+                query = query.order("name", { ascending: true });
+            } else {
+                // Default to created_at DESC
+                query = query.order("created_at", { ascending: false });
+            }
+        } else {
+            // For memory sort, we might still want a stable DB sort order
+            query = query.order("created_at", { ascending: false });
+        }
 
         // Add search filter if provided
         if (search) {
-            query = query.or(`name.ilike.%${search}%,volunteer_id.ilike.%${search}%,email.ilike.%${search}%`);
+            query = query.or(`name.ilike.%${search}%,volunteer_id.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`);
         }
 
-        // Apply pagination
-        query = query.range(offset, offset + limit - 1);
+        // Apply pagination ONLY if we are NOT doing memory sort
+        // If memory sort, we must fetch all matching records to sort them correctly
+        if (!isMemorySort) {
+            query = query.range(offset, offset + limit - 1);
+        }
 
         const { data: volunteers, error: volunteersError, count } = await query;
 
@@ -35,27 +53,35 @@ export async function GET(request: NextRequest) {
 
         // Get challenge progress
         const volunteerUUIDs = volunteers?.map(s => s.id) || [];
-        const { data: progressData } = await supabase
-            .from("challenge_progress")
-            .select("volunteer_id, goal")
-            .in("volunteer_id", volunteerUUIDs);
+        // Note: If fetching ALL (memory sort), this might hit URL length limits for 'in' clause if too many users.
+        // But for < few hundred it's fine. If 1000+, we should rethink.
+        // Optimization: If memory sort, maybe fetch ALL challenge_progress and match in memory?
+        // Or chunk it? For now, we assume admin panel scale is manageable.
 
-        // Get orders for bottle count (volunteer_id is now UUID FK)
-        const { data: orders } = await supabase
-            .from("orders")
-            .select("volunteer_id, quantity, order_status")
-            .in("volunteer_id", volunteerUUIDs)
-            .in("order_status", ["confirmed", "delivered"]);
+        // Optimizing for larger sets if memory sort:
+        let progressData: any[] = [];
+        let orders: any[] = [];
+
+        if (volunteerUUIDs.length > 0) {
+            const { data: prog } = await supabase
+                .from("challenge_progress")
+                .select("volunteer_id, goal")
+                .in("volunteer_id", volunteerUUIDs);
+            progressData = prog || [];
+
+            const { data: ord } = await supabase
+                .from("orders")
+                .select("volunteer_id, quantity, order_status")
+                .in("volunteer_id", volunteerUUIDs)
+                .in("order_status", ["confirmed", "delivered"]);
+            orders = ord || [];
+        }
 
         // Merge data
-        const volunteersWithProgress = volunteers?.map(volunteer => {
-            // Match by UUID
+        let volunteersWithProgress = volunteers?.map(volunteer => {
             const progress = progressData?.find(p => p.volunteer_id === volunteer.id);
-
-            // Calculate bottles from orders
             const volunteerOrders = orders?.filter(o => o.volunteer_id === volunteer.id) || [];
-            const confirmedBottles = volunteerOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
-
+            const confirmedBottles = volunteerOrders.reduce((sum: number, o: any) => sum + (o.quantity || 0), 0);
             const goal = progress?.goal || 20;
 
             return {
@@ -64,10 +90,25 @@ export async function GET(request: NextRequest) {
                 goal: goal,
                 progress_percentage: Math.round((confirmedBottles / goal) * 100)
             };
-        });
+        }) || [];
+
+        // Apply In-Memory Sorting
+        if (isMemorySort) {
+            volunteersWithProgress.sort((a, b) => {
+                if (sort === "bottles") return b.confirmed_bottles - a.confirmed_bottles;
+                if (sort === "goal") return b.goal - a.goal;
+                if (sort === "progress") return b.progress_percentage - a.progress_percentage;
+                return 0;
+            });
+        }
+
+        // Apply Pagination for Memory Sort
+        const finalVolunteers = isMemorySort
+            ? volunteersWithProgress.slice(offset, offset + limit)
+            : volunteersWithProgress;
 
         return NextResponse.json({
-            volunteers: volunteersWithProgress,
+            volunteers: finalVolunteers,
             pagination: {
                 page,
                 limit,
