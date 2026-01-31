@@ -25,9 +25,9 @@ export default function ShippingPolicyPage() {
                         Estimated delivery time depends on the destination:
                     </p>
                     <ul className="list-disc pl-6 mb-4 space-y-2">
-                        <li>Kerala: 2-4 business days</li>
-                        <li>South India (outside Kerala): 3-6 business days</li>
-                        <li>Rest of India: 5-8 business days</li>
+                        <li>Kerala: 5-7 business days</li>
+                        <li>South India (outside Kerala): 7-10 business days</li>
+                        <li>Rest of India: 10-14 business days</li>
                     </ul>
                     <p className="mb-4">
                         Please note that these are estimated timelines and actual delivery times may vary due to external factors such as courier delays, holidays, or weather conditions.
