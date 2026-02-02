@@ -88,7 +88,7 @@ export function HeroSection() {
                 <div ref={imageRef} className="relative w-72 h-72 md:w-96 md:h-96 mx-auto mb-8">
                     <div className="relative w-full h-full">
                         <Image
-                            src="/assets/attar.svg"
+                            src="/assets/attar.png"
                             alt="Attar Al Jannah"
                             fill
                             className="object-contain drop-shadow-2xl"

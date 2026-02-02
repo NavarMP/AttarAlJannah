@@ -158,7 +158,7 @@ export function DeliveryDashboard({ volunteerId }: DeliveryDashboardProps) {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-lg">
                             <DollarSign className="w-5 h-5 text-gold-500" />
-                            Delivery Commission
+                            Earned Commission
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -171,7 +171,7 @@ export function DeliveryDashboard({ volunteerId }: DeliveryDashboardProps) {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-lg">
                             <Package className="w-5 h-5 text-emerald-500" />
-                            Rate
+                            Commission
                         </CardTitle>
                     </CardHeader>
                     <CardContent>

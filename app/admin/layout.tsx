@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/contexts/auth-context";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { LogOut, LayoutDashboard, Package, Menu, X, Users, Trophy, MessageSquare, Bell, Truck } from "lucide-react";
+import { LogOut, LayoutDashboard, Package, Menu, X, Users, Trophy, MessageSquare, Bell, Truck, BarChart3, Map } from "lucide-react";
 import { ThemeToggle } from "@/components/custom/theme-toggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import Link from "next/link";
@@ -88,17 +88,14 @@ export default function AdminLayout({
                 `}
             >
                 <div className="p-6 border-b border-border flex items-center justify-between">
-                    <div className="flex-1">
-                        <div className="flex justify-start mb-2">
-                            <Image
-                                src="/assets/typography.svg"
-                                alt="عطر الجنّة"
-                                width={150}
-                                height={40}
-                                className="h-8 w-auto"
-                            />
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-1">Admin Panel</p>
+                    <div className="flex-1 justify-start mb-2">
+                        <Image
+                            src="/assets/typography.svg"
+                            alt="عطر الجنّة"
+                            width={150}
+                            height={40}
+                            className="h-8 w-auto"
+                        />
                     </div>
                     <Button
                         variant="ghost"
@@ -115,6 +112,12 @@ export default function AdminLayout({
                         <Button variant="ghost" className="w-full justify-start rounded-xl">
                             <LayoutDashboard className="mr-2 h-5 w-5" />
                             Dashboard
+                        </Button>
+                    </Link>
+                    <Link href="/admin/notifications">
+                        <Button variant="ghost" className="w-full justify-start rounded-xl">
+                            <Bell className="mr-2 h-5 w-5" />
+                            Send Notification
                         </Button>
                     </Link>
                     <Link href="/admin/volunteers">
@@ -135,12 +138,6 @@ export default function AdminLayout({
                             Orders
                         </Button>
                     </Link>
-                    <Link href="/admin/delivery-requests">
-                        <Button variant="ghost" className="w-full justify-start rounded-xl">
-                            <Truck className="mr-2 h-5 w-5" />
-                            Delivery Requests
-                        </Button>
-                    </Link>
                     <Link href="/admin/customers">
                         <Button variant="ghost" className="w-full justify-start rounded-xl">
                             <Users className="mr-2 h-5 w-5" />
@@ -154,6 +151,24 @@ export default function AdminLayout({
                         >
                             <MessageSquare className="mr-2 h-5 w-5" />
                             Feedback
+                        </Button>
+                    </Link>
+                    <Link href="/admin/delivery-requests">
+                        <Button variant="ghost" className="w-full justify-start rounded-xl">
+                            <Truck className="mr-2 h-5 w-5" />
+                            Delivery Requests
+                        </Button>
+                    </Link>
+                    <Link href="/admin/delivery-zones">
+                        <Button variant="ghost" className="w-full justify-start rounded-xl">
+                            <Map className="mr-2 h-5 w-5" />
+                            Delivery Zones
+                        </Button>
+                    </Link>
+                    <Link href="/admin/analytics">
+                        <Button variant="ghost" className="w-full justify-start rounded-xl">
+                            <BarChart3 className="mr-2 h-5 w-5" />
+                            Analytics
                         </Button>
                     </Link>
                 </nav>
@@ -187,21 +202,17 @@ export default function AdminLayout({
                         >
                             <Menu className="h-5 w-5" />
                         </Button>
-                        <h2 className="text-xl font-semibold">Admin Dashboard</h2>
+                        <h2 className="text-xl font-semibold">Admin</h2>
                     </div>
                     <div className="flex items-center gap-3">
-                        <Link href="/admin/notifications">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="rounded-xl"
-                            >
-                                <Bell className="h-4 w-4 mr-2" />
-                                Send Notification
-                            </Button>
-                        </Link>
                         <NotificationBell />
                         <ThemeToggle />
+                        <Link href="/">
+                            <Button variant="ghost" size="icon" className="mr-2">
+                                <span className="sr-only">Home</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-home"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+                            </Button>
+                        </Link>
                     </div>
                 </header>
 

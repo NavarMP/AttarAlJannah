@@ -169,13 +169,31 @@ export async function PATCH(
                 console.log("⚠ No volunteer referral on this order");
             }
         }
-        console.log("=== End Status Update ===\n");
+        console.log("✓ Progress updated successfully\n");
 
-        return NextResponse.json({ order: data });
+        // Trigger notification for status change
+        try {
+            const { NotificationService } = await import("@/lib/services/notification-service");
+            await NotificationService.notifyOrderStatusChange({
+                orderId: id,
+                newStatus: order_status,
+                customerId: data.customer_id || undefined,
+                volunteerId: data.volunteer_id || undefined,
+            });
+            console.log("📧 Status change notification sent");
+        } catch (notifError) {
+            console.error("⚠️ Notification error (non-blocking):", notifError);
+        }
+
+        return NextResponse.json({
+            success: true,
+            data,
+            progressUpdated: true
+        });
     } catch (error) {
-        console.error("Order API error:", error);
+        console.error("Order status update error:", error);
         return NextResponse.json(
-            { error: "Failed to update order" },
+            { error: "Failed to update order status" },
             { status: 500 }
         );
     }

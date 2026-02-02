@@ -120,20 +120,41 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        if (!orderData) {
+            console.error("❌ Order data is null");
+            return NextResponse.json(
+                { error: "Order creation failed - no data returned" },
+                { status: 500 }
+            );
+        }
+
         console.log("✅ Order created successfully:", orderData.id);
+
+        // Trigger notification for order creation
+        try {
+            const { NotificationService } = await import("@/lib/services/notification-service");
+            await NotificationService.notifyOrderCreated(orderData.id);
+            console.log("📧 Order creation notifications sent");
+        } catch (notifError) {
+            console.error("⚠️ Notification error (non-blocking):", notifError);
+            // Don't fail the order creation if notification fails
+        }
 
         // Return order data including ID for Razorpay payment processing
         return NextResponse.json({
             success: true,
-            order: orderData,
+            orderId: orderData.id,
+            message: "Order created successfully",
             // Frontend will use this to create Razorpay order
             needsPayment: true,
         });
-    } catch (error) {
-        console.error("❌ Server error:", error);
-        console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
+    } catch (error: any) {
+        console.error("❌ Unexpected error in order creation:", error);
         return NextResponse.json(
-            { error: "Internal server error", details: error instanceof Error ? error.message : "Unknown error" },
+            {
+                error: "An unexpected error occurred",
+                details: error.message,
+            },
             { status: 500 }
         );
     }

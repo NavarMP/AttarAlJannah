@@ -70,25 +70,6 @@ export default function AdminDashboard() {
                 <Card className="rounded-3xl">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium text-muted-foreground">
-                            Pending
-                        </CardTitle>
-                        <Clock className="h-5 w-5 text-orange-500" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-2">
-                            <div className="text-3xl font-bold">
-                                {stats?.pendingBottles || 0}
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                                {stats?.pendingOrders || 0} orders
-                            </p>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="rounded-3xl">
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">
                             Delivered
                         </CardTitle>
                         <CheckCircle className="h-5 w-5 text-green-500" />

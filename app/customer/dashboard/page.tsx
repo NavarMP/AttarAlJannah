@@ -11,6 +11,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { AssignVolunteerDialog } from "@/components/assign-volunteer-dialog";
+import { ThemeToggle } from "@/components/custom";
 
 interface Order {
     id: string;
@@ -167,14 +168,8 @@ export default function CustomerDashboard() {
                         <h1 className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-gold-500">
                             Welcome Back!
                         </h1>
-                        <p className="text-muted-foreground mt-1">{user.phone}</p>
+                        <p className="text-muted-foreground mt-1">{customerProfile?.name || user?.phone}</p>
                     </div>
-                    <Link href="/">
-                        <Button variant="ghost" size="icon" className="mr-2">
-                            <span className="sr-only">Home</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-home"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
-                        </Button>
-                    </Link>
                     <div className="flex gap-2">
                         {/* Add Notification Bell Here - Note: NotificationContext requires 'useAuth' (Supabase), 
                                  but Customer uses 'useCustomerAuth' (Phone). 
@@ -196,6 +191,14 @@ export default function CustomerDashboard() {
                         {/* <NotificationBell /> will fail if not inside NotificationProvider which needs AuthProvider.
                                  The Dashboard is largely client side. App likely wraps everything in Providers.
                              */}
+                        < NotificationBell />
+                        < ThemeToggle />
+                        <Link href="/">
+                            <Button variant="ghost" size="icon" className="mr-2">
+                                <span className="sr-only">Home</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-home"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+                            </Button>
+                        </Link>
                         <Button
                             variant="outline"
                             onClick={handleLogout}
@@ -449,15 +452,6 @@ export default function CustomerDashboard() {
                         </div> */}
                     </CardContent>
                 </Card>
-
-                {/* Back to Home */}
-                <div className="text-center">
-                    <Link href="/">
-                        <Button variant="ghost" className="rounded-xl">
-                            ← Back to Home
-                        </Button>
-                    </Link>
-                </div>
             </div>
         </div>
     );

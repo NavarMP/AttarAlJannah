@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 import { useEffect, useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -222,14 +222,18 @@ export default function OrdersPage() {
                     </div>
                     <Select
                         value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="w-full md:w-48"
+                        onValueChange={setStatusFilter}
                     >
-                        <option value="all">All Status</option>
-                        <option value="ordered">Ordered</option>
-                        <option value="delivered">Delivered</option>
-                        <option value="cant_reach">Can&apos;t Reach</option>
-                        <option value="cancelled">Cancelled</option>
+                        <SelectTrigger className="w-full md:w-48">
+                            <SelectValue placeholder="All Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Status</SelectItem>
+                            <SelectItem value="ordered">Ordered</SelectItem>
+                            <SelectItem value="delivered">Delivered</SelectItem>
+                            <SelectItem value="cant_reach">Can&apos;t Reach</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                        </SelectContent>
                     </Select>
                 </div>
             </Card>

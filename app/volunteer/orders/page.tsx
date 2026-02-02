@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Package, ArrowLeft, CheckCircle2, Clock, XCircle, Edit2, Trash2, Search } from "lucide-react";
 import { toast } from "sonner";
 
@@ -178,23 +178,31 @@ export default function VolunteerOrdersPage() {
                         </div>
                         <Select
                             value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            className="w-full md:w-48"
+                            onValueChange={setStatusFilter}
                         >
-                            <option value="all">All Status</option>
-                            <option value="pending">Pending</option>
-                            <option value="confirmed">Confirmed</option>
-                            <option value="delivered">Delivered</option>
+                            <SelectTrigger className="w-full md:w-48">
+                                <SelectValue placeholder="All Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Status</SelectItem>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="confirmed">Confirmed</SelectItem>
+                                <SelectItem value="delivered">Delivered</SelectItem>
+                            </SelectContent>
                         </Select>
                         <Select
                             value={sort}
-                            onChange={(e) => setSort(e.target.value)}
-                            className="w-full md:w-48"
+                            onValueChange={setSort}
                         >
-                            <option value="newest">Newest First</option>
-                            <option value="oldest">Oldest First</option>
-                            <option value="amount_high">Amount (High-Low)</option>
-                            <option value="amount_low">Amount (Low-High)</option>
+                            <SelectTrigger className="w-full md:w-48">
+                                <SelectValue placeholder="Sort by" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="newest">Newest First</SelectItem>
+                                <SelectItem value="oldest">Oldest First</SelectItem>
+                                <SelectItem value="amount_high">Amount (High-Low)</SelectItem>
+                                <SelectItem value="amount_low">Amount (Low-High)</SelectItem>
+                            </SelectContent>
                         </Select>
                     </div>
                 </Card>

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Download, Upload, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { Select } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 
 interface ThankYouPosterProps {
@@ -135,10 +135,15 @@ export function ThankYouPoster({
                         <Label>Select Language</Label>
                         <Select
                             value={language}
-                            onChange={(e) => setLanguage(e.target.value as "en" | "ml")}
+                            onValueChange={(v) => setLanguage(v as "en" | "ml")}
                         >
-                            <option value="en">English</option>
-                            <option value="ml">Malayalam</option>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select Language" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="en">English</SelectItem>
+                                <SelectItem value="ml">Malayalam</SelectItem>
+                            </SelectContent>
                         </Select>
                     </div>
                     <div className="flex gap-2">

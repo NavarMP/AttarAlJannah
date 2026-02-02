@@ -101,6 +101,15 @@ export async function POST(
             // Not critical
         }
 
+        // Trigger notification for delivery assignment
+        try {
+            const { NotificationService } = await import("@/lib/services/notification-service");
+            await NotificationService.notifyDeliveryAssigned(orderId, volunteer.id);
+            console.log("📧 Delivery assignment notification sent");
+        } catch (notifError) {
+            console.error("⚠️ Notification error (non-blocking):", notifError);
+        }
+
         return NextResponse.json({
             success: true,
             message: "Delivery volunteer assigned successfully",
@@ -116,6 +125,7 @@ export async function POST(
         return NextResponse.json(
             { error: "Internal server error" },
             { status: 500 }
-        );
+        )
+            ;
     }
 }

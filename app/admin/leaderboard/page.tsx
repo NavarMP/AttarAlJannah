@@ -18,8 +18,7 @@ export default function AdminLeaderboardPage() {
                 <div className="flex items-center justify-between mb-6">
                     <Link href="/admin/dashboard">
                         <Button variant="outline" className="rounded-2xl">
-                            <ArrowLeft className="w-4 h-4 mr-2" />
-                            Back to Dashboard
+                            <ArrowLeft className="w-4 h-4" />
                         </Button>
                     </Link>
                     <ThemeToggle />

@@ -113,7 +113,7 @@ export default function FeedbackDetailPage({ params }: { params: Promise<{ id: s
                 <p className="text-muted-foreground">Feedback not found</p>
                 <Link href="/admin/feedback">
                     <Button variant="outline" className="mt-4 rounded-xl">
-                        Back to Feedback
+                        <ArrowLeft className="w-4 h-4" />
                     </Button>
                 </Link>
             </div>

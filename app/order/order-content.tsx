@@ -118,7 +118,7 @@ export function OrderContent() {
                         cleanPhone = cleanPhone.slice(3);
                     } else {
                         // Generic fallback using regex
-                        const match = cleanPhone.match(/^(\+\d{1,4})(\d+)$/);
+                        const match = cleanPhone.match(/^(\+\d{1,3})(\d+)$/);
                         if (match) {
                             countryCode = match[1];
                             cleanPhone = match[2];

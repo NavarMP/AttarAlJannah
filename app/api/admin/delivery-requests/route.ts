@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -84,7 +84,8 @@ export async function PATCH(request: NextRequest) {
             );
         }
 
-        const supabase = await createClient();
+        // Use Admin Client to bypass RLS for updates
+        const supabase = createAdminClient();
 
         // Fetch the delivery request
         const { data: deliveryRequest, error: fetchError } = await supabase
@@ -174,6 +175,28 @@ export async function PATCH(request: NextRequest) {
                 // Not critical, continue
             }
 
+            // Trigger notifications for approval
+            try {
+                const { NotificationService } = await import("@/lib/services/notification-service");
+
+                // Notify volunteer of approval
+                await NotificationService.notifyDeliveryRequestUpdate(
+                    requestId,
+                    'approved',
+                    deliveryRequest.volunteer_id
+                );
+
+                // Notify delivery assigned (volunteer + customer)
+                await NotificationService.notifyDeliveryAssigned(
+                    deliveryRequest.order_id,
+                    deliveryRequest.volunteer_id
+                );
+
+                console.log("📧 Delivery request approval notifications sent");
+            } catch (notifError) {
+                console.error("⚠️ Notification error (non-blocking):", notifError);
+            }
+
             return NextResponse.json({
                 success: true,
                 message: "Delivery request approved successfully",
@@ -195,6 +218,19 @@ export async function PATCH(request: NextRequest) {
                     { error: "Failed to reject delivery request" },
                     { status: 500 }
                 );
+            }
+
+            // Trigger notification for rejection
+            try {
+                const { NotificationService } = await import("@/lib/services/notification-service");
+                await NotificationService.notifyDeliveryRequestUpdate(
+                    requestId,
+                    'rejected',
+                    deliveryRequest.volunteer_id
+                );
+                console.log("📧 Delivery request rejection notification sent");
+            } catch (notifError) {
+                console.error("⚠️ Notification error (non-blocking):", notifError);
             }
 
             return NextResponse.json({

@@ -4,7 +4,7 @@ import { use, useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Phone, MessageCircle, Image as ImageIcon, Trash2, Pencil, MapPin, Truck } from "lucide-react";
@@ -365,14 +365,18 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                     <div className="space-y-2">
                         <Label htmlFor="status">Order Status</Label>
                         <Select
-                            id="status"
                             value={newStatus}
-                            onChange={(e) => setNewStatus(e.target.value)}
+                            onValueChange={setNewStatus}
                         >
-                            <option value="ordered">Ordered</option>
-                            <option value="delivered">Delivered</option>
-                            <option value="cant_reach">Can&apos;t Reach</option>
-                            <option value="cancelled">Cancelled</option>
+                            <SelectTrigger id="status">
+                                <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ordered">Ordered</SelectItem>
+                                <SelectItem value="delivered">Delivered</SelectItem>
+                                <SelectItem value="cant_reach">Can&apos;t Reach</SelectItem>
+                                <SelectItem value="cancelled">Cancelled</SelectItem>
+                            </SelectContent>
                         </Select>
                     </div>
                     <Button

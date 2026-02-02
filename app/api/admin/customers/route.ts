@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
         // 2. Fetch all orders to calculate stats and get details
         const { data: orders, error: ordersError } = await supabase
             .from("orders")
-            .select("customer_phone, customer_email, customer_name, created_at");
+            .select("customer_phone, customer_name, created_at");
 
         if (ordersError) throw ordersError;
 

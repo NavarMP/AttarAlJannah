@@ -79,29 +79,44 @@ export async function POST(request: NextRequest) {
 
             console.log(`📊 Total bottles for volunteer: ${totalBottles}, New commission: ₹${newCommission}`);
 
-            // Update volunteer's referral commission
+            // Update volunteer's commission
             await supabase
                 .from("volunteers")
-                .update({
-                    total_referral_commission: newCommission,
-                })
+                .update({ commission: newCommission })
                 .eq("id", order.volunteer_id);
 
-            console.log("✅ Referral commission updated");
+            console.log("💰 Volunteer commission updated");
+        }
+
+        // Trigger notifications for payment verification
+        try {
+            const { NotificationService } = await import("@/lib/services/notification-service");
+
+            // Notify payment verified
+            await NotificationService.notifyPaymentVerified(order_id);
+
+            // Notify status change to 'ordered'
+            await NotificationService.notifyOrderStatusChange({
+                orderId: order_id,
+                newStatus: 'ordered',
+                customerId: order.customer_id || undefined,
+                volunteerId: order.volunteer_id || undefined,
+            });
+
+            console.log("📧 Payment verification notifications sent");
+        } catch (notifError) {
+            console.error("⚠️ Notification error (non-blocking):", notifError);
         }
 
         return NextResponse.json({
             success: true,
-            message: "Payment verified successfully",
-            order,
+            message: "Payment verified and order confirmed",
+            orderId: order_id,
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error("❌ Payment verification error:", error);
         return NextResponse.json(
-            {
-                error: "Payment verification failed",
-                details: error instanceof Error ? error.message : "Unknown error"
-            },
+            { error: "Payment verification failed", details: error.message },
             { status: 500 }
         );
     }

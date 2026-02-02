@@ -78,7 +78,7 @@ export function SearchableSelect({
                     />
                     <CommandList>
                         <CommandEmpty>{emptyMessage}</CommandEmpty>
-                        <CommandGroup className="max-h-64 overflow-y-auto">
+                        <CommandGroup className="max-h-64 overflow-y-auto" data-lenis-prevent>
                             {filteredOptions.length > 0 ? (
                                 filteredOptions.map((option) => (
                                     <CommandItem

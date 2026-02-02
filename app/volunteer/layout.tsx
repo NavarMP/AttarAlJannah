@@ -4,10 +4,12 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Menu, X, LayoutDashboard, Package, Trophy, Award, LogOut } from "lucide-react";
+import { Menu, X, LayoutDashboard, Package, Trophy, Award, LogOut, Truck, Map, Bell,  } from "lucide-react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/custom/theme-toggle";
 import Image from "next/image";
+import { NotificationBell } from "@/components/notifications/notification-bell";
+import Home from "../page";
 
 export default function VolunteerLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
@@ -15,6 +17,7 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
     const [volunteerId, setVolunteerId] = useState<string>("");
     const [volunteerName, setVolunteerName] = useState<string>("");
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     useEffect(() => {
         // Skip auth check on login page
@@ -61,9 +64,8 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
                             height={40}
                             className="h-8 w-auto"
                         />
-                        <ThemeToggle />
+                        
                     </div>
-
                     <nav className="flex-1 p-4 space-y-2">
                         <Link href="/volunteer/dashboard">
                             <Button
@@ -90,6 +92,21 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
                             >
                                 <Trophy className="mr-2 h-5 w-5" />
                                 Leaderboard
+                            </Button>
+                        </Link>
+                        <Link href="/volunteer/delivery" onClick={() => setIsSidebarOpen(false)}>
+                            <Button variant="ghost" className="w-full justify-start rounded-xl">
+                                <Truck className="mr-2 h-5 w-5" />
+                                Delivery
+                            </Button>
+                        </Link>
+                        <Link href="/volunteer/zones">
+                            <Button
+                                variant="ghost"
+                                className={`w-full justify-start rounded-xl ${pathname === "/volunteer/zones" ? "bg-primary text-primary-foreground" : ""}`}
+                            >
+                                <Map className="mr-2 h-5 w-5" />
+                                Zones
                             </Button>
                         </Link>
                     </nav>
@@ -137,7 +154,6 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
                                     height={32}
                                     className="h-6 w-auto"
                                 />
-                                <ThemeToggle />
                             </div>
                         </div>
 
@@ -158,6 +174,18 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
                                 <Button variant="ghost" className="w-full justify-start rounded-xl">
                                     <Trophy className="mr-2 h-5 w-5" />
                                     Leaderboard
+                                </Button>
+                            </Link>
+                            <Link href="/volunteer/delivery" onClick={() => setIsSidebarOpen(false)}>
+                                <Button variant="ghost" className="w-full justify-start rounded-xl">
+                                    <Truck className="mr-2 h-5 w-5" />
+                                    Delivery
+                                </Button>
+                            </Link>
+                            <Link href="/volunteer/zones" onClick={() => setIsSidebarOpen(false)}>
+                                <Button variant="ghost" className="w-full justify-start rounded-xl">
+                                    <Map className="mr-2 h-5 w-5" />
+                                    Zones
                                 </Button>
                             </Link>
                         </nav>
@@ -181,7 +209,31 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
             )}
 
             {/* Main Content */}
-            <main className="flex-1">
+            <main className="flex-1 bg-background">
+                {/* Header */}
+                <header className="h-16 border-b border-border flex items-center justify-between px-4 lg:px-6">
+                    <div className="flex items-center gap-4">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="lg:hidden rounded-xl"
+                            onClick={() => setSidebarOpen(true)}
+                        >
+                            <Menu className="h-5 w-5" />
+                        </Button>
+                        <h2 className="text-xl font-semibold">Volunteer</h2>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <NotificationBell />
+                        <ThemeToggle />
+                        <Link href="/">
+                            <Button variant="ghost" size="icon" className="mr-2">
+                                <span className="sr-only">Home</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-home"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+                            </Button>
+                        </Link>
+                    </div>
+                </header>
                 {children}
             </main>
         </div>

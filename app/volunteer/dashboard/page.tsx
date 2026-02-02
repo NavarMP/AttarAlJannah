@@ -10,8 +10,7 @@ import { Package, TrendingUp, Trophy, Plus, DollarSign, Share2 } from "lucide-re
 import { toast } from "sonner";
 import { calculateCommission } from "@/lib/utils/commission-utils";
 import { NotificationBell } from "@/components/notifications/notification-bell";
-import { DeliveryDashboard } from "@/components/volunteer/delivery-dashboard";
-import { EnhancedLeaderboard } from "@/components/volunteer/enhanced-leaderboard";
+
 
 interface DashboardStats {
     confirmedBottles: number;
@@ -127,21 +126,6 @@ export default function VolunteerDashboardPage() {
                         <p className="text-muted-foreground">
                             Track your progress and manage your orders
                         </p>
-                        <div className="flex gap-2">
-                            {/* We need to ensure logic that links Volunteer ID to Notifications exists.
-                                Currently relying on 'volunteerUuid' in localStorage which the Provider now reads.
-                            */}
-                            {/* <NotificationBell /> is not imported. Needs import. And needs to be inside Provider. 
-                                Root layout likely has Provider.
-                            */}
-                            <Button
-                                variant="outline"
-                                onClick={handleLogout}
-                                className="rounded-xl"
-                            >
-                                <span className="mr-2">Logout</span>
-                            </Button>
-                        </div>
                     </div>
                 </div>
 
@@ -186,7 +170,7 @@ export default function VolunteerDashboardPage() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-lg">
                                 <Package className="w-5 h-5 text-blue-500" />
-                                Confirmed Orders
+                                Total Orders
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -194,24 +178,7 @@ export default function VolunteerDashboardPage() {
                                 {stats.confirmedOrders}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
-                                Total orders confirmed
-                            </p>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="glass">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-lg">
-                                <Package className="w-5 h-5 text-orange-500" />
-                                Pending Orders
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-3xl font-bold text-foreground">
-                                {stats.pendingOrders}
-                            </p>
-                            <p className="text-sm text-muted-foreground mt-1">
-                                Awaiting admin verification
+                                orders
                             </p>
                         </CardContent>
                     </Card>
@@ -286,16 +253,7 @@ export default function VolunteerDashboardPage() {
                 </div>
 
                 {/* Delivery Management Section */}
-                <div className="space-y-4">
-                    <h2 className="text-2xl font-bold">Delivery Management</h2>
-                    <DeliveryDashboard volunteerId={volunteerId} />
-                </div>
 
-                {/* Enhanced Leaderboard */}
-                <div className="space-y-4">
-                    <h2 className="text-2xl font-bold">Volunteer Rankings</h2>
-                    <EnhancedLeaderboard />
-                </div>
             </div>
         </main>
     );
