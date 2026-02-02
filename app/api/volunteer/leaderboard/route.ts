@@ -1,66 +1,92 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
+        const { searchParams } = new URL(request.url);
+        const metric = searchParams.get("metric") || "overall"; // referral | delivery | revenue | overall
+        const period = searchParams.get("period") || "all"; // all | month | week
+        const limit = parseInt(searchParams.get("limit") || "100");
+
         const supabase = await createClient();
 
-        // Get all volunteers
-        const { data: volunteers, error: volunteersError } = await supabase
-            .from("volunteers") // New Table
-            .select("id, name, volunteer_id")
-            // .eq("role", "volunteer") // Implied
-            .order("name");
+        // First, refresh the materialized view to get latest data
+        await supabase.rpc("refresh_leaderboard_stats");
 
-        if (volunteersError) {
-            console.error("Volunteers fetch error:", volunteersError);
-            throw volunteersError;
+        // Build query from materialized view
+        let query = supabase
+            .from("volunteer_leaderboard_stats")
+            .select("*");
+
+        // Apply time period filter if not "all"
+        if (period === "month") {
+            const oneMonthAgo = new Date();
+            oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+            query = query.gte("created_at", oneMonthAgo.toISOString());
+        } else if (period === "week") {
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+            query = query.gte("created_at", oneWeekAgo.toISOString());
         }
 
-        // Get all orders for volunteers to calculate bottle quantities
-        const volunteerIds = volunteers?.map(v => v.id) || [];
-        const { data: orders } = await supabase
-            .from("orders")
-            .select("volunteer_id, quantity, total_price, order_status")
-            .in("volunteer_id", volunteerIds)
-            .in("order_status", ["confirmed", "delivered"]);
+        // Sort by selected metric
+        let sortColumn = "overall_score";
+        switch (metric) {
+            case "referral":
+                sortColumn = "referred_bottles";
+                break;
+            case "delivery":
+                sortColumn = "delivered_orders";
+                break;
+            case "revenue":
+                sortColumn = "total_commission";
+                break;
+            case "overall":
+            default:
+                sortColumn = "overall_score";
+                break;
+        }
 
-        // Combine data and calculate rankings based on bottles
-        const leaderboardData = volunteers?.map(volunteer => {
-            const volunteerOrders = orders?.filter(o => o.volunteer_id === volunteer.id) || [];
+        query = query.order(sortColumn, { ascending: false });
 
-            // Calculate total bottles (sum of quantities)
-            const confirmedBottles = volunteerOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
-            const totalRevenue = volunteerOrders.reduce((sum, o) => sum + o.total_price, 0);
+        // Apply limit
+        if (limit > 0) {
+            query = query.limit(limit);
+        }
 
-            return {
-                id: volunteer.id,
-                name: volunteer.name,
-                volunteer_id: volunteer.volunteer_id,
-                confirmed_bottles: confirmedBottles,
-                confirmed_orders_count: volunteerOrders.reduce((count, o) => count + 1, 0),
-                total_revenue: totalRevenue
-            };
-        }) || [];
+        const { data: leaderboardData, error } = await query;
 
-        // Sort by confirmed_bottles descending
-        leaderboardData.sort((a, b) => b.confirmed_bottles - a.confirmed_bottles);
+        if (error) {
+            console.error("Leaderboard fetch error:", error);
+            throw error;
+        }
 
-        // Add rank with tie handling
+        // Add rank with tie handling based on selected metric
         let currentRank = 1;
-        const rankedLeaderboard = leaderboardData.map((entry, index) => {
-            if (index > 0 && entry.confirmed_bottles < leaderboardData[index - 1].confirmed_bottles) {
-                currentRank = index + 1;
+        const rankedLeaderboard = (leaderboardData || []).map((entry, index) => {
+            if (index > 0) {
+                const currentValue = entry[sortColumn];
+                const previousValue = leaderboardData[index - 1][sortColumn];
+
+                if (currentValue < previousValue) {
+                    currentRank = index + 1;
+                }
             }
+
             return {
                 ...entry,
                 rank: currentRank
             };
         });
 
-        return NextResponse.json({ leaderboard: rankedLeaderboard });
+        return NextResponse.json({
+            leaderboard: rankedLeaderboard,
+            metric,
+            period,
+            total: rankedLeaderboard.length
+        });
 
     } catch (error) {
         console.error("Leaderboard API error:", error);

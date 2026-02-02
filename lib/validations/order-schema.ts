@@ -31,25 +31,14 @@ export const orderSchema = z.object({
         .string()
         .min(2, "State is required")
         .regex(/^[a-zA-Z\s-]+$/, "State should only contain letters"),
- 
+
     // Optional location link
     locationLink: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
 
     quantity: z.number().min(1, "Quantity must be at least 1").max(50, "Maximum 50 bottles per order"),
-    paymentMethod: z.enum(["cod", "upi"]),
-    paymentScreenshot: z.any().optional(),
-}).refine(
-    (data) => {
-        // If payment method is UPI, screenshot is required
-        if (data.paymentMethod === "upi" && !data.paymentScreenshot) {
-            return false;
-        }
-        return true;
-    },
-    {
-        message: "Payment screenshot is required for UPI payments",
-        path: ["paymentScreenshot"],
-    }
-);
+
+    // Payment method removed - all orders use Razorpay
+    // paymentScreenshot removed - not needed for Razorpay
+});
 
 export type OrderFormData = z.infer<typeof orderSchema>;

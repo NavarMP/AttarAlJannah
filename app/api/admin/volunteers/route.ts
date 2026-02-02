@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
                 .from("orders")
                 .select("volunteer_id, quantity, order_status")
                 .in("volunteer_id", volunteerUUIDs)
-                .in("order_status", ["confirmed", "delivered"]);
+                .in("order_status", ["ordered", "delivered"]);
             orders = ord || [];
         }
 

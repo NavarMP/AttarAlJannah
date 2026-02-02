@@ -40,10 +40,17 @@ export async function GET(
             .select("*")
             .eq("volunteer_id", volunteer.id); // volunteer.id is UUID
 
+        // Calculate stats with new status values
         const totalBottles = orders?.reduce((sum, o) => sum + (o.quantity || 0), 0) || 0;
+
         const confirmedBottles = orders
-            ?.filter(o => o.order_status === "confirmed" || o.order_status === "delivered")
+            ?.filter(o => o.order_status === "ordered" || o.order_status === "delivered")
             .reduce((sum, o) => sum + (o.quantity || 0), 0) || 0;
+
+        const deliveredBottles = orders
+            ?.filter(o => o.order_status === "delivered")
+            .reduce((sum, o) => sum + (o.quantity || 0), 0) || 0;
+
         const pendingBottles = orders
             ?.filter(o => o.order_status === "pending")
             .reduce((sum, o) => sum + (o.quantity || 0), 0) || 0;
@@ -51,13 +58,13 @@ export async function GET(
         return NextResponse.json({
             volunteer: {
                 ...volunteer,
-                confirmed_bottles: confirmedBottles,
+                confirmed_bottles: confirmedBottles, // Using confirmedOrders for confirmed_bottles
                 goal: progress?.goal || 20,
                 progress_percentage: progress ? Math.round((confirmedBottles / progress.goal) * 100) : 0,
                 stats: {
                     totalBottles,
                     confirmedBottles,
-                    pendingBottles
+                    deliveredBottles
                 }
             }
         });

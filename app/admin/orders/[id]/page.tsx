@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Phone, MessageCircle, Image as ImageIcon, Trash2, Pencil, MapPin } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, Phone, MessageCircle, Image as ImageIcon, Trash2, Pencil, MapPin, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import Image from "next/image";
@@ -14,6 +15,7 @@ import Link from "next/link";
 import { OrderBill } from "@/components/order-bill";
 import { ThankYouPoster } from "@/components/thank-you-poster";
 import { AutoHideContainer } from "@/components/custom/auto-hide-container";
+import { DeliveryManagement } from "@/components/admin/delivery-management";
 
 interface Order {
     id: string;
@@ -29,6 +31,10 @@ interface Order {
     payment_status: string;
     order_status: string;
     payment_screenshot_url: string | null;
+    volunteer_id?: string;
+    is_delivery_duty?: boolean;
+    delivery_method?: string;
+    delivery_fee?: number;
     created_at: string;
 }
 
@@ -41,6 +47,10 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
     const [newStatus, setNewStatus] = useState("");
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [volunteerIdInput, setVolunteerIdInput] = useState("");
+    const [deliveryMethod, setDeliveryMethod] = useState("volunteer");
+    const [assigningDelivery, setAssigningDelivery] = useState(false);
+    const [deliveryRequests, setDeliveryRequests] = useState<any[]>([]);
 
     const fetchOrder = useCallback(async () => {
         try {
@@ -51,6 +61,17 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
             const data = await response.json();
             setOrder(data);
             setNewStatus(data.order_status);
+
+            // Fetch delivery requests for this order
+            try {
+                const requestsRes = await fetch(`/api/admin/delivery-requests?orderId=${id}`);
+                if (requestsRes.ok) {
+                    const requestsData = await requestsRes.json();
+                    setDeliveryRequests(requestsData.requests || []);
+                }
+            } catch (error) {
+                console.error("Failed to fetch delivery requests:", error);
+            }
         } catch (error) {
             console.error("Failed to fetch order:", error);
             toast.error("Failed to load order");
@@ -114,6 +135,39 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
         }
     };
 
+    const handleAssignDelivery = async () => {
+        if (!volunteerIdInput.trim()) {
+            toast.error("Please enter a volunteer ID");
+            return;
+        }
+
+        setAssigningDelivery(true);
+        try {
+            const response = await fetch(`/api/admin/orders/${id}/assign-delivery`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    volunteerId: volunteerIdInput,
+                    deliveryMethod,
+                }),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || "Failed to assign delivery");
+            }
+
+            const data = await response.json();
+            toast.success(`Delivery assigned to ${data.volunteer.name}`);
+            setVolunteerIdInput("");
+            fetchOrder(); // Refresh to show updated delivery info
+        } catch (error: any) {
+            toast.error(error.message || "Failed to assign delivery");
+        } finally {
+            setAssigningDelivery(false);
+        }
+    };
+
     if (loading) {
         return <div className="text-center py-12">Loading order details...</div>;
     }
@@ -138,7 +192,7 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
 
             {/* Floating Action Buttons - Auto-hide on scroll */}
             <AutoHideContainer className="fixed top-20 right-6 z-40 flex flex-col gap-2 md:static md:absolute md:right-0 md:top-1 md:flex-row md:ml-auto">
-                {order.order_status === 'pending' && (
+                {order.order_status === 'ordered' && (
                     <Button
                         variant="outline"
                         className="rounded-xl"
@@ -286,6 +340,16 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                 </CardContent>
             </Card>
 
+            {/* Delivery Management */}
+            <DeliveryManagement
+                orderId={order.id}
+                volunteerId={order.volunteer_id}
+                isDeliveryDuty={order.is_delivery_duty}
+                deliveryMethod={order.delivery_method}
+                deliveryFee={order.delivery_fee}
+                onRefresh={fetchOrder}
+            />
+
             {/* Order Bill/Invoice */}
             <div>
                 <h2 className="text-2xl font-bold text-foreground mb-4">Order Invoice</h2>
@@ -305,9 +369,10 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                             value={newStatus}
                             onChange={(e) => setNewStatus(e.target.value)}
                         >
-                            <option value="pending">Pending</option>
-                            <option value="confirmed">Confirmed</option>
+                            <option value="ordered">Ordered</option>
                             <option value="delivered">Delivered</option>
+                            <option value="cant_reach">Can&apos;t Reach</option>
+                            <option value="cancelled">Cancelled</option>
                         </Select>
                     </div>
                     <Button

@@ -83,14 +83,18 @@ export async function PATCH(
 
         console.log("✓ Order status updated successfully");
 
-        // Update challenge_progress if status changed to confirmed or delivered
-        // Count bottles (quantity) not orders
-        if (volunteerId && (order_status === "confirmed" || order_status === "delivered")) {
-            console.log("→ Volunteer order detected, checking if we should update progress...");
 
-            // Only increment if previous status was pending
-            if (previousStatus === "pending") {
-                console.log(`→ Status changed from pending to ${order_status}`);
+        // Update challenge_progress for volunteer orders
+        // NEW STATUS LOGIC: 'ordered' and 'delivered' count toward commission
+        if (volunteerId && (order_status === "ordered" || order_status === "delivered")) {
+            console.log("→ Volunteer order detected, checking progress update...");
+
+            // Increment bottles if this is a new qualifying order or reactivated from cancelled/cant_reach
+            const shouldIncrement = previousStatus === "cant_reach" || previousStatus === "cancelled" ||
+                (!previousStatus || (previousStatus !== "ordered" && previousStatus !== "delivered"));
+
+            if (shouldIncrement) {
+                console.log(`→ Status changed to ${order_status} - adding to commission`);
                 console.log(`→ Adding ${orderQuantity} bottles to volunteer ${volunteerId}'s progress`);
 
                 // Get current progress
@@ -138,7 +142,27 @@ export async function PATCH(
                     }
                 }
             } else {
-                console.log(`⚠ Previous status was ${previousStatus}, not pending - no update needed`);
+                console.log(`⚠ Status was already ${previousStatus} - no update needed`);
+            }
+        } else if (volunteerId && (order_status === "cant_reach" || order_status === "cancelled")) {
+            // If order is cancelled/cant_reach, subtract from progress if it was previously counted
+            if (previousStatus === "ordered" || previousStatus === "delivered") {
+                console.log(`→ Order moved to ${order_status}, removing ${orderQuantity} bottles from progress`);
+
+                const { data: progress } = await supabase
+                    .from("challenge_progress")
+                    .select("confirmed_orders")
+                    .eq("volunteer_id", volunteerId)
+                    .single();
+
+                if (progress) {
+                    const newTotal = Math.max(0, progress.confirmed_orders - orderQuantity);
+                    await supabase
+                        .from("challenge_progress")
+                        .update({ confirmed_orders: newTotal })
+                        .eq("volunteer_id", volunteerId);
+                    console.log(`✅ Removed ${orderQuantity} bottles. New total: ${newTotal}`);
+                }
             }
         } else {
             if (!volunteerId) {

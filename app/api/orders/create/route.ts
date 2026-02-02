@@ -10,17 +10,24 @@ export async function POST(request: NextRequest) {
         const whatsappNumber = formData.get("whatsappNumber") as string;
         const customerEmail = formData.get("customerEmail") as string || null;
         const customerAddress = formData.get("customerAddress") as string;
+        const productName = formData.get("productName") as string || "عطر الجنّة (Attar Al Jannah)";
         const quantity = parseInt(formData.get("quantity") as string);
         const totalPrice = parseFloat(formData.get("totalPrice") as string);
-        const paymentMethod = formData.get("paymentMethod") as "cod" | "upi";
         const referredBy = formData.get("referredBy") as string || null;
-        const paymentScreenshot = formData.get("paymentScreenshot") as File | null;
+
+        // Get individual address fields for structured storage
+        const houseBuilding = formData.get("houseBuilding") as string;
+        const town = formData.get("town") as string;
+        const post = formData.get("post") as string;
+        const city = formData.get("city") as string;
+        const district = formData.get("district") as string;
+        const state = formData.get("state") as string;
+        const pincode = formData.get("pincode") as string;
+        const locationLink = formData.get("locationLink") as string || null;
 
         // Check environment variables
         if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
             console.error("❌ Supabase environment variables are not set!");
-            console.error("NEXT_PUBLIC_SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL ? "Set" : "Missing");
-            console.error("NEXT_PUBLIC_SUPABASE_ANON_KEY:", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "Set" : "Missing");
             return NextResponse.json(
                 { error: "Server configuration error - Supabase not configured" },
                 { status: 500 }
@@ -31,36 +38,12 @@ export async function POST(request: NextRequest) {
 
         const supabase = await createClient();
 
-        let paymentScreenshotUrl: string | null = null;
-
-        // Upload payment screenshot if provided
-        if (paymentScreenshot && paymentMethod === "upi") {
-            console.log("📤 Uploading payment screenshot...");
-            const fileExt = paymentScreenshot.name.split(".").pop();
-            const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-
-            const { data: uploadData, error: uploadError } = await supabase.storage
-                .from("payment-screenshots")
-                .upload(fileName, paymentScreenshot);
-
-            if (uploadError) {
-                console.error("❌ Upload error:", uploadError.message);
-                console.error("Upload error details:", JSON.stringify(uploadError, null, 2));
-            } else {
-                console.log("✅ Screenshot uploaded:", fileName);
-                const { data: { publicUrl } } = supabase.storage
-                    .from("payment-screenshots")
-                    .getPublicUrl(fileName);
-                paymentScreenshotUrl = publicUrl;
-            }
-        }
-
         // If referredBy is provided, look up the volunteer's UUID from their volunteer_id (string)
         let referredByUuid: string | null = null;
         if (referredBy) {
             console.log("🔍 Looking up volunteer with ID:", referredBy);
             const { data: volunteer, error: volunteerError } = await supabase
-                .from("volunteers") // New Table
+                .from("volunteers")
                 .select("id")
                 .ilike("volunteer_id", referredBy) // Case insensitive lookup
                 .single();
@@ -77,7 +60,7 @@ export async function POST(request: NextRequest) {
         // Create or update customer
         console.log("👤 Creating/Updating customer...");
         const { data: customerData, error: customerError } = await supabase
-            .from("customers") // New Table
+            .from("customers")
             .upsert({
                 phone: customerPhone,
                 name: customerName,
@@ -92,7 +75,8 @@ export async function POST(request: NextRequest) {
 
         const customerId = customerData?.id || null;
 
-        // Create order
+        // Create order - NO payment_method or payment_screenshot_url
+        // All orders use Razorpay, status starts as 'ordered'
         console.log("💾 Inserting order into database...");
         const { data: orderData, error: orderError } = await supabase
             .from("orders")
@@ -101,16 +85,16 @@ export async function POST(request: NextRequest) {
                 customer_name: customerName,
                 customer_phone: customerPhone,
                 whatsapp_number: whatsappNumber,
-                // customer_email: customerEmail, // Column missing in DB
                 customer_address: customerAddress,
-                product_name: "عطر الجنّة (Attar Al Jannah)",
+                product_name: productName,
                 quantity,
                 total_price: totalPrice,
-                payment_method: paymentMethod,
-                payment_status: paymentMethod === "cod" ? "pending" : "paid",
-                order_status: "pending",
-                payment_screenshot_url: paymentScreenshotUrl,
-                volunteer_id: referredByUuid, // UUID of volunteer
+                payment_status: "pending", // Will be updated after Razorpay payment
+                order_status: "payment_pending", // Will change to 'ordered' after payment verification
+                volunteer_id: referredByUuid, // Referral volunteer UUID
+                // Razorpay fields will be updated after payment
+                razorpay_order_id: null,
+                razorpay_payment_id: null,
             })
             .select()
             .single();
@@ -120,13 +104,7 @@ export async function POST(request: NextRequest) {
             console.error("Error code:", orderError.code);
             console.error("Error details:", JSON.stringify(orderError, null, 2));
 
-            // Cleanup: Delete the customer if order creation failed (to avoid loose customers without orders)
-            // Note: This deletes the customer even if they came back. 
-            // Better to only delete if it was JUST created? 
-            // Since we can't easily know if upsert created or updated without return value inspection (which supabase upsert data might show?),
-            // we will just leave it OR delete.
-            // User complained: "customer has been created... it should not unless i place atleast an order."
-            // So we delete.
+            // Cleanup: Delete the customer if order creation failed
             if (customerId) {
                 console.log("🧹 Cleaning up customer record due to order failure:", customerId);
                 await supabase.from("customers").delete().eq("id", customerId);
@@ -144,9 +122,12 @@ export async function POST(request: NextRequest) {
 
         console.log("✅ Order created successfully:", orderData.id);
 
+        // Return order data including ID for Razorpay payment processing
         return NextResponse.json({
             success: true,
-            order: orderData
+            order: orderData,
+            // Frontend will use this to create Razorpay order
+            needsPayment: true,
         });
     } catch (error) {
         console.error("❌ Server error:", error);

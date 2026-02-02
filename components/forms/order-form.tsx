@@ -10,11 +10,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, CheckCircle2, Upload, QrCode, Copy, Camera, X, AlertTriangle } from "lucide-react";
+import { Loader2, CheckCircle2, Copy } from "lucide-react";
 import { LocationLink } from "@/components/ui/location-link";
 import { toast } from "sonner";
-import Image from "next/image";
-import { CameraCapture } from "@/components/ui/camera-capture";
+import { loadRazorpayScript, createRazorpayOptions, openRazorpayCheckout, type RazorpayResponse } from "@/lib/config/razorpay-config";
+
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { CountryCodeSelect, COUNTRY_CODES } from "@/components/ui/country-code-select";
 import { INDIAN_STATES, DISTRICTS_BY_STATE } from "@/lib/data/indian-locations";
@@ -38,11 +38,7 @@ const PRODUCT_PRICE = 313;
 
 export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFormProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isSuccess, setIsSuccess] = useState(false);
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-    const [showCamera, setShowCamera] = useState(false);
-    const [capturedFile, setCapturedFile] = useState<File | null>(null);
-    const [screenshotError, setScreenshotError] = useState<string | null>(null);
+    const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
     // Volunteer referral state
     const [volunteerReferralId, setVolunteerReferralId] = useState<string>(volunteerId || "");
@@ -67,7 +63,6 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
         mode: "onChange",
         defaultValues: {
             quantity: 1,
-            paymentMethod: "upi",
             customerPhoneCountry: "+91",
             whatsappNumberCountry: "+91",
         },
@@ -215,7 +210,6 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
         return () => subscription.unsubscribe();
     }, [watch]);
 
-    const paymentMethod = watch("paymentMethod");
     const quantity = watch("quantity") || 1;
     const phoneNumber = watch("customerPhone");
     const selectedState = watch("state");
@@ -304,68 +298,10 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
         }
     }, [selectedState, setValue, watch]);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            // Validate file type
-            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic'];
-            if (!validTypes.includes(file.type.toLowerCase())) {
-                toast.error('Please upload a valid image file (JPG, PNG, WEBP, or HEIC)');
-                e.target.value = ''; // Clear the input
-                return;
-            }
 
-            // Validate file size (10MB max)
-            const maxSize = 10 * 1024 * 1024; // 10MB in bytes
-            if (file.size > maxSize) {
-                toast.error('Image size must be less than 10MB');
-                e.target.value = ''; // Clear the input
-                return;
-            }
 
-            const url = URL.createObjectURL(file);
-            setPreviewUrl(url);
-            setCapturedFile(file);
-            setScreenshotError(null); // Clear error when file is selected
-        }
-    };
-
-    const handleRemoveFile = () => {
-        // Clear preview and file
-        if (previewUrl) {
-            URL.revokeObjectURL(previewUrl);
-        }
-        setPreviewUrl(null);
-        setCapturedFile(null);
-        // Reset the file input
-        const fileInput = document.getElementById('paymentScreenshot') as HTMLInputElement;
-        if (fileInput) {
-            fileInput.value = '';
-        }
-    };
-
-    const handleCameraCapture = (file: File) => {
-        setCapturedFile(file);
-        const url = URL.createObjectURL(file);
-        setPreviewUrl(url);
-        setShowCamera(false);
-        setScreenshotError(null); // Clear error when file is captured
-    };
 
     const onSubmit = async (data: OrderFormData) => {
-        // Validate UPI payment screenshot before submission
-        if (data.paymentMethod === "upi" && !capturedFile && (!data.paymentScreenshot || !data.paymentScreenshot[0])) {
-            setScreenshotError("Please upload a payment screenshot for UPI payments");
-            // Scroll to the payment screenshot field
-            const screenshotField = document.getElementById('paymentScreenshot');
-            if (screenshotField) {
-                screenshotField.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                // Focus on the field to draw attention
-                setTimeout(() => screenshotField.focus(), 300);
-            }
-            return;
-        }
-
         setIsSubmitting(true);
 
         try {
@@ -389,7 +325,10 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
             }
             formData.append("quantity", data.quantity.toString());
             formData.append("totalPrice", totalPrice.toString());
-            formData.append("paymentMethod", data.paymentMethod);
+            formData.append("productName", "Attar Al Jannah");
+
+            // No payment_method - all orders use Razorpay
+
             // Add referred_by if volunteer ID is provided and validated
             if (volunteerId) {
                 formData.append("referredBy", volunteerId);
@@ -397,12 +336,14 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                 formData.append("referredBy", volunteerReferralId.trim());
             }
 
-            // Handle file upload - use captured file if available, otherwise use form file input
-            if (capturedFile) {
-                formData.append("paymentScreenshot", capturedFile);
-            } else if (data.paymentScreenshot && data.paymentScreenshot[0]) {
-                formData.append("paymentScreenshot", data.paymentScreenshot[0]);
-            }
+            // Add individual address fields for database storage
+            formData.append("houseBuilding", data.houseBuilding);
+            formData.append("town", data.town);
+            formData.append("post", data.post);
+            formData.append("city", data.city);
+            formData.append("district", data.district);
+            formData.append("state", data.state);
+            formData.append("pincode", data.pincode);
 
             const response = await fetch("/api/orders/create", {
                 method: "POST",
@@ -414,22 +355,103 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
             }
 
             const result = await response.json();
-            const orderId = result.order?.id;
+            const order = result.order;
 
-            if (orderId) {
-                toast.success("Order submitted successfully!");
-                // Show loading toast during redirect
-                toast.loading("Preparing your order details...", { duration: Infinity });
-
-                // Clear saved form data on successful submission
-                localStorage.removeItem('orderFormData');
-
-                // Small delay to ensure toast shows
-                await new Promise(resolve => setTimeout(resolve, 300));
-                // Redirect to thanks page with order ID
-                window.location.href = `/thanks?orderId=${orderId}`;
-            } else {
+            if (!order?.id) {
                 throw new Error("Order ID not received");
+            }
+
+            console.log("✅ Order created, initiating payment:", order.id);
+
+            // Now create Razorpay order and process payment
+            setIsProcessingPayment(true);
+            toast.loading("Preparing payment...", { id: "payment-loading" });
+
+            try {
+                // Step 1: Load Razorpay script
+                const scriptLoaded = await loadRazorpayScript();
+                if (!scriptLoaded) {
+                    throw new Error("Failed to load payment gateway");
+                }
+
+                // Step 2: Create Razorpay order
+                const razorpayResponse = await fetch("/api/razorpay/create-order", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        amount: totalPrice,
+                        orderId: order.id,
+                        customerInfo: {
+                            name: data.customerName,
+                            phone: `${phoneCountryCode}${data.customerPhone}`,
+                        },
+                    }),
+                });
+
+                if (!razorpayResponse.ok) {
+                    throw new Error("Failed to create payment order");
+                }
+
+                const razorpayData = await razorpayResponse.json();
+                toast.dismiss("payment-loading");
+
+                // Step 3: Open Razorpay checkout
+                const options = createRazorpayOptions({
+                    orderId: razorpayData.razorpayOrderId,
+                    amount: totalPrice,
+                    customerName: data.customerName,
+                    customerEmail: data.customerEmail || undefined,
+                    customerPhone: `${phoneCountryCode}${data.customerPhone}`,
+                    onSuccess: async (paymentResponse: RazorpayResponse) => {
+                        console.log("💳 Payment successful:", paymentResponse);
+                        toast.loading("Verifying payment...", { id: "verify-payment" });
+
+                        try {
+                            // Step 4: Verify payment
+                            const verifyResponse = await fetch("/api/razorpay/verify", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                    razorpay_order_id: paymentResponse.razorpay_order_id,
+                                    razorpay_payment_id: paymentResponse.razorpay_payment_id,
+                                    razorpay_signature: paymentResponse.razorpay_signature,
+                                    order_id: order.id,
+                                }),
+                            });
+
+                            if (!verifyResponse.ok) {
+                                throw new Error("Payment verification failed");
+                            }
+
+                            toast.dismiss("verify-payment");
+                            toast.success("Payment successful!");
+
+                            // Clear saved form data
+                            localStorage.removeItem('orderFormData');
+
+                            // Redirect to thanks page
+                            await new Promise(resolve => setTimeout(resolve, 500));
+                            window.location.href = `/thanks?orderId=${order.id}`;
+                        } catch (verifyError) {
+                            toast.dismiss("verify-payment");
+                            toast.error("Payment verification failed. Please contact support.");
+                            console.error("Verification error:", verifyError);
+                        } finally {
+                            setIsProcessingPayment(false);
+                        }
+                    },
+                    onDismiss: () => {
+                        setIsProcessingPayment(false);
+                        toast.info("Payment cancelled. You can retry anytime.");
+                    },
+                });
+
+                await openRazorpayCheckout(options);
+            } catch (paymentError) {
+                toast.dismiss("payment-loading");
+                toast.error("Payment initialization failed. Please try again.");
+                console.error("Payment error:", paymentError);
+                setIsProcessingPayment(false);
             }
         } catch (error) {
             toast.error("Failed to submit order. Please try again.");
@@ -747,152 +769,33 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                         </p>
                     </div>
 
-                    {/* Payment Method */}
-                    <div className="space-y-2">
-                        <Label htmlFor="paymentMethod">Payment Method *</Label>
-                        <Select id="paymentMethod" {...register("paymentMethod")}>
-                            <option value="cod">Cash on Delivery (COD)</option>
-                            <option value="upi">UPI / Online Payment</option>
-                        </Select>
-                    </div>
-
-                    {/* UPI Payment Details */}
-                    {paymentMethod === "upi" && (
-                        <div className="space-y-4 p-4 rounded-2xl bg-gradient-to-r from-primary/10 to-gold-500/10 border border-primary/30 dark:border-primary/20">
-                            <div className="flex items-center gap-2 text-primary dark:text-primary">
-                                <QrCode className="w-5 h-5" />
-                                <h3 className="font-semibold">UPI Payment Information</h3>
-                            </div>
-
-                            <div className="space-y-3 text-sm">
-                                <div>
-                                    <p className="text-muted-foreground">UPI ID:</p>
-                                    <p className="font-mono font-semibold text-foreground">placeholder@upi</p>
-                                </div>
-                                <div>
-                                    <p className="text-muted-foreground">Account Holder:</p>
-                                    <p className="font-semibold text-foreground">Minhajul Janna</p>
-                                </div>
-                                <div>
-                                    <p className="text-muted-foreground">Amount to Pay:</p>
-                                    <p className="text-2xl font-bold text-primary dark:text-primary">₹{totalPrice}</p>
-                                </div>
-                            </div>
-
-                            {/* UPI Payment QR Code */}
-                            <div className="bg-white p-4 rounded-lg w-64 h-64 mx-auto flex items-center justify-center border-2 border-primary/30 shadow-lg">
-                                <div className="relative w-full h-full">
-                                    <Image
-                                        src="/assets/Payment QR.webp"
-                                        alt="UPI Payment QR Code"
-                                        fill
-                                        className="object-contain"
-                                    />
-                                </div>
-                            </div>
-                            <p className="text-center text-sm text-muted-foreground">Scan to pay ₹{totalPrice}</p>
-
-                            {/* Upload or Capture Screenshot */}
-                            <div className="space-y-3">
-                                <Label htmlFor="paymentScreenshot">Payment Screenshot *</Label>
-
-                                <div className={`p-4 rounded-xl border-2 transition-colors ${screenshotError
-                                    ? 'border-red-500 bg-red-50 dark:bg-red-950/20'
-                                    : 'border-border bg-background'
-                                    }`}>
-                                    <div className="flex flex-col sm:flex-row gap-3">
-                                        {/* File Upload */}
-                                        <div className="flex-1">
-                                            <Input
-                                                id="paymentScreenshot"
-                                                type="file"
-                                                accept="image/*"
-                                                {...register("paymentScreenshot")}
-                                                onChange={handleFileChange}
-                                                className="cursor-pointer"
-                                            />
-                                        </div>
-
-                                        {/* Camera Button */}
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => setShowCamera(true)}
-                                            className="sm:w-auto w-full"
-                                        >
-                                            <Camera className="mr-2 h-4 w-4" />
-                                            Take Photo
-                                        </Button>
-                                    </div>
-
-                                    <p className="text-xs text-muted-foreground mt-2">
-                                        Upload from gallery or use camera to capture payment screen
-                                    </p>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                        <strong>Supported:</strong> JPG, PNG, WEBP, HEIC • <strong>Max size:</strong> 10 MB
-                                    </p>
-
-                                    {screenshotError && (
-                                        <p className="text-sm text-red-500 font-medium mt-2 flex items-center gap-1">
-                                            <span className="text-red-500">⚠</span>
-                                            {screenshotError}
-                                        </p>
-                                    )}
-
-                                    {previewUrl && (
-                                        <div className="relative w-full h-48 rounded-md overflow-hidden border mt-3">
-                                            <Image
-                                                src={previewUrl}
-                                                alt="Payment screenshot preview"
-                                                fill
-                                                className="object-contain"
-                                            />
-                                            {/* Remove Button */}
-                                            <button
-                                                type="button"
-                                                onClick={handleRemoveFile}
-                                                className="absolute top-2 right-2 p-1.5 rounded-full bg-red-500 hover:bg-red-600 text-white shadow-lg transition-colors z-10"
-                                                aria-label="Remove screenshot"
-                                            >
-                                                <X className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
                     {/* Submit Button */}
                     <Button
                         type="submit"
                         size="lg"
                         className="w-full bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600 rounded-2xl"
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || isProcessingPayment}
                     >
-                        {isSubmitting ? (
+                        {isProcessingPayment ? (
                             <>
                                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                Submitting Order...
+                                Processing Payment...
+                            </>
+                        ) : isSubmitting ? (
+                            <>
+                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                Creating Order...
                             </>
                         ) : (
-                            `Place Order - ₹${totalPrice}`
+                            `Proceed to Payment - ₹${totalPrice}`
                         )}
                     </Button>
 
                     <p className="text-xs text-center text-muted-foreground">
-                        * Orders will be confirmed after admin verification {paymentMethod === "upi" && "of payment screenshot"}
+                        * Secure payment powered by Razorpay
                     </p>
                 </CardContent>
             </Card>
-
-            {/* Camera Modal */}
-            {showCamera && (
-                <CameraCapture
-                    onCapture={handleCameraCapture}
-                    onClose={() => setShowCamera(false)}
-                />
-            )}
         </form>
     );
 }

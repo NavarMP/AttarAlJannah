@@ -134,7 +134,7 @@ export function AboutDars() {
                 </Card>
 
                 {/* Contact & Support */}
-                <Card className="glass-strong border-primary/30 dark:border-primary/20 rounded-3xl">
+                {/* <Card className="glass-strong border-primary/30 dark:border-primary/20 rounded-3xl">
                     <CardContent className="p-8 md:p-12">
                         <div className="space-y-8">
                             <div className="text-center">
@@ -146,9 +146,9 @@ export function AboutDars() {
                                 </p>
                             </div>
 
-                            <div className="grid md:grid-cols-2 gap-8">
+                            <div className="grid md:grid-cols-2 gap-8"> */}
                                 {/* Phone & Email */}
-                                <div className="space-y-6">
+                                {/* <div className="space-y-6">
                                     <div className="space-y-3">
                                         <div className="flex items-center gap-2 text-primary">
                                             <Phone className="w-5 h-5" />
@@ -177,10 +177,10 @@ export function AboutDars() {
                                             {contactInfo.email}
                                         </Link>
                                     </div>
-                                </div>
+                                </div> */}
 
                                 {/* Locations */}
-                                <div className="space-y-3">
+                                {/* <div className="space-y-3">
                                     <div className="flex items-center gap-2 text-primary">
                                         <MapPin className="w-5 h-5" />
                                         <h4 className="font-semibold">Locations</h4>
@@ -205,10 +205,10 @@ export function AboutDars() {
                                         ))}
                                     </div>
                                 </div>
-                            </div>
+                            </div> */}
 
                             {/* Social Media */}
-                            <div className="space-y-4 pt-6 border-t border-border">
+                            {/* <div className="space-y-4 pt-6 border-t border-border">
                                 <h4 className="font-semibold text-center text-foreground">
                                     Follow Us
                                 </h4>
@@ -233,7 +233,7 @@ export function AboutDars() {
                             </div>
                         </div>
                     </CardContent>
-                </Card>
+                </Card> */}
             </div>
         </section>
     );

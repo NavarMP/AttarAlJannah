@@ -64,9 +64,12 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: "Order not found or you don't have permission to delete it" }, { status: 404 });
         }
 
-        // Only allow deletion of pending orders
-        if (order.order_status !== "pending") {
-            return NextResponse.json({ error: "Only pending orders can be deleted" }, { status: 403 });
+        // Allow deletion only of 'ordered' status (before delivery)
+        // Once delivered, cancelled, or cant_reach, orders should not be deleted
+        if (order.order_status !== "ordered") {
+            return NextResponse.json({
+                error: `Cannot delete ${order.order_status} orders. Only 'ordered' orders can be deleted.`
+            }, { status: 403 });
         }
 
         // Delete the order

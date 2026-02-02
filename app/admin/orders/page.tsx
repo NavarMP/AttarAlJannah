@@ -172,12 +172,14 @@ export default function OrdersPage() {
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case "pending":
-                return "bg-orange-100 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400";
-            case "confirmed":
-                return "bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400";
+            case "ordered":
+                return "bg-blue-100 text-blue-700";
             case "delivered":
-                return "bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400";
+                return "bg-green-100 text-green-700";
+            case "cant_reach":
+                return "bg-yellow-100 text-yellow-700";
+            case "cancelled":
+                return "bg-red-100 text-red-700";
             default:
                 return "bg-gray-100 text-gray-700 dark:bg-gray-950/30 dark:text-gray-400";
         }
@@ -224,9 +226,10 @@ export default function OrdersPage() {
                         className="w-full md:w-48"
                     >
                         <option value="all">All Status</option>
-                        <option value="pending">Pending</option>
-                        <option value="confirmed">Confirmed</option>
+                        <option value="ordered">Ordered</option>
                         <option value="delivered">Delivered</option>
+                        <option value="cant_reach">Can&apos;t Reach</option>
+                        <option value="cancelled">Cancelled</option>
                     </Select>
                 </div>
             </Card>
@@ -312,7 +315,7 @@ export default function OrdersPage() {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-2">
-                                                {order.order_status === 'pending' && (
+                                                {order.order_status === 'ordered' && (
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
@@ -459,9 +462,10 @@ export default function OrdersPage() {
                             defaultValue=""
                         >
                             <option value="" disabled>Change Status...</option>
-                            <option value="pending">Mark Pending</option>
-                            <option value="confirmed">Mark Confirmed</option>
+                            <option value="ordered">Mark Ordered</option>
                             <option value="delivered">Mark Delivered</option>
+                            <option value="cant_reach">Mark Can&apos;t Reach</option>
+                            <option value="cancelled">Mark Cancelled</option>
                         </select>
 
                         <Button

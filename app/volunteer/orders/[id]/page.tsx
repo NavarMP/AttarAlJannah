@@ -24,6 +24,8 @@ interface Order {
     order_status: string;
     payment_screenshot_url: string | null;
     created_at: string;
+    volunteer_id?: string;
+    is_delivery_duty?: boolean;
 }
 
 export default function VolunteerOrderDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -61,14 +63,16 @@ export default function VolunteerOrderDetailsPage({ params }: { params: Promise<
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case "pending":
-                return "bg-orange-100 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400";
-            case "confirmed":
-                return "bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400";
+            case "ordered":
+                return "bg-blue-100 text-blue-700";
             case "delivered":
-                return "bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400";
+                return "bg-green-100 text-green-700";
+            case "cant_reach":
+                return "bg-yellow-100 text-yellow-700";
+            case "cancelled":
+                return "bg-red-100 text-red-700";
             default:
-                return "bg-gray-100 text-gray-700 dark:bg-gray-950/30 dark:text-gray-400";
+                return "bg-gray-100 text-gray-700";
         }
     };
 
@@ -135,6 +139,90 @@ export default function VolunteerOrderDetailsPage({ params }: { params: Promise<
                             </div>
                         </CardContent>
                     </Card>
+
+                    {/* Delivery Actions */}
+                    {order.volunteer_id && order.is_delivery_duty && (
+                        <Card className="glass-strong rounded-3xl md:col-span-2 border-primary/20 bg-primary/5">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Package className="h-5 w-5" />
+                                    Delivery Management
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <p className="text-sm text-muted-foreground">
+                                    You are assigned to deliver this order.
+                                </p>
+                                {order.order_status === 'ordered' && (
+                                    <div className="flex flex-wrap gap-4">
+                                        <Button
+                                            onClick={async () => {
+                                                try {
+                                                    const volunteerId = localStorage.getItem("volunteerId");
+                                                    if (!volunteerId) return;
+
+                                                    const response = await fetch(`/api/volunteer/orders/${order.id}/status`, {
+                                                        method: "PATCH",
+                                                        headers: { "Content-Type": "application/json" },
+                                                        body: JSON.stringify({
+                                                            volunteerId: volunteerId, // Passing ID instead of UUID for now as API handles lookup
+                                                            newStatus: "delivered"
+                                                        }),
+                                                    });
+
+                                                    if (!response.ok) throw new Error("Failed to update");
+                                                    const data = await response.json();
+
+                                                    toast.success(`Marked as delivered! Commission earned: ₹${data.commission}`);
+                                                    fetchOrder();
+                                                } catch (error) {
+                                                    console.error(error);
+                                                    toast.error("Failed to update status");
+                                                }
+                                            }}
+                                            className="bg-green-600 hover:bg-green-700 rounded-xl flex-1"
+                                        >
+                                            Mark Delivered
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            onClick={async () => {
+                                                try {
+                                                    const volunteerId = localStorage.getItem("volunteerId");
+                                                    if (!volunteerId) return;
+
+                                                    const response = await fetch(`/api/volunteer/orders/${order.id}/status`, {
+                                                        method: "PATCH",
+                                                        headers: { "Content-Type": "application/json" },
+                                                        body: JSON.stringify({
+                                                            volunteerId: volunteerId,
+                                                            newStatus: "cant_reach"
+                                                        }),
+                                                    });
+
+                                                    if (!response.ok) throw new Error("Failed to update");
+
+                                                    toast.success("Marked as Can't Reach");
+                                                    fetchOrder();
+                                                } catch (error) {
+                                                    console.error(error);
+                                                    toast.error("Failed to update status");
+                                                }
+                                            }}
+                                            className="border-yellow-600 text-yellow-600 hover:bg-yellow-50 rounded-xl flex-1"
+                                        >
+                                            Can&apos;t Reach Customer
+                                        </Button>
+                                    </div>
+                                )}
+                                {order.order_status === 'delivered' && (
+                                    <div className="p-3 bg-green-100 text-green-800 rounded-xl text-center font-medium">
+                                        Delivered Successfully
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    )}
 
                     {/* Customer Information */}
                     <Card className="glass-strong rounded-3xl">

@@ -34,10 +34,12 @@ export async function GET() {
         const totalBottles = allOrders?.reduce((sum, order) => sum + (order.quantity || 0), 0) || 0;
         const totalOrders = allOrders?.length || 0;
 
-        const pendingOrders = allOrders?.filter(o => o.order_status === "pending") || [];
-        const pendingBottles = pendingOrders.reduce((sum, order) => sum + (order.quantity || 0), 0);
-        const pendingOrdersCount = pendingOrders.length;
+        // Active orders (ordered status)
+        const orderedOrders = allOrders?.filter(o => o.order_status === "ordered") || [];
+        const orderedBottles = orderedOrders.reduce((sum, order) => sum + (order.quantity || 0), 0);
+        const orderedOrdersCount = orderedOrders.length;
 
+        // Delivered orders
         const deliveredOrders = allOrders?.filter(o => o.order_status === "delivered") || [];
         const deliveredBottles = deliveredOrders.reduce((sum, order) => sum + (order.quantity || 0), 0);
         const deliveredOrdersCount = deliveredOrders.length;
@@ -56,8 +58,8 @@ export async function GET() {
             stats: {
                 totalBottles,
                 totalOrders,
-                pendingBottles,
-                pendingOrders: pendingOrdersCount,
+                orderedBottles,       // Renamed from pendingBottles
+                orderedOrders: orderedOrdersCount,  // Renamed from pendingOrders
                 deliveredBottles,
                 deliveredOrders: deliveredOrdersCount,
                 totalRevenue,

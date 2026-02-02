@@ -58,8 +58,6 @@ export async function GET(request: NextRequest) {
             confirmedBottles,
             confirmedOrders: confirmedOrdersCount,
             goal: progress?.goal || 20,
-            pendingBottles,
-            pendingOrders: pendingOrdersCount,
             totalRevenue: Math.round(totalRevenue),
         });
     } catch (error) {

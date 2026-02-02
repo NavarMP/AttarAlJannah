@@ -1,14 +1,14 @@
 -- =====================================================
--- Attar Al Jannah Database Refactor - Split Users
+-- Attar Al Jannah Database Schema - Updated with Razorpay & Delivery System
 -- =====================================================
 
 -- 1. DROP EXISTING TABLES (Clean Slate)
+DROP TABLE IF EXISTS delivery_requests CASCADE;
 DROP TABLE IF EXISTS challenge_progress CASCADE;
 DROP TABLE IF EXISTS orders CASCADE;
 DROP TABLE IF EXISTS student_stats CASCADE;
 DROP TABLE IF EXISTS customer_profiles CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
--- Also drop volunteers/customers if they exist from previous runs
 DROP TABLE IF EXISTS volunteers CASCADE;
 DROP TABLE IF EXISTS customers CASCADE;
 
@@ -18,14 +18,20 @@ DROP TABLE IF EXISTS customers CASCADE;
 CREATE TABLE volunteers (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     -- Link to Supabase Auth (auth.users)
-    -- We use a separate ID for business logic, but link to auth for login
     auth_id UUID REFERENCES auth.users(id), 
     volunteer_id TEXT UNIQUE NOT NULL, -- Custom ID/Username for referrals
     name TEXT NOT NULL,
-    email TEXT UNIQUE, -- Optional, but good for linking
+    email TEXT UNIQUE, -- Optional
     phone TEXT UNIQUE NOT NULL,
-    role TEXT DEFAULT 'volunteer', -- verification
+    role TEXT DEFAULT 'volunteer',
     total_sales INTEGER DEFAULT 0,
+    
+    -- Delivery & Commission tracking
+    delivery_commission_per_bottle DECIMAL(10, 2) DEFAULT 10.00, -- ₹10 per bottle delivered
+    total_deliveries INTEGER DEFAULT 0,
+    total_delivery_commission DECIMAL(10, 2) DEFAULT 0,
+    total_referral_commission DECIMAL(10, 2) DEFAULT 0, -- Separate from delivery commission
+    
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -42,7 +48,7 @@ CREATE TABLE customers (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     name TEXT NOT NULL,
     phone TEXT UNIQUE NOT NULL,
-    address TEXT, -- Customers MUST have address
+    address TEXT,
     total_orders INTEGER DEFAULT 0,
     last_order_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -59,20 +65,27 @@ CREATE TABLE orders (
     
     -- Relationships
     customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
-    volunteer_id UUID REFERENCES volunteers(id) ON DELETE SET NULL, -- Referral
+    volunteer_id UUID REFERENCES volunteers(id) ON DELETE SET NULL, -- Referral volunteer
+    delivery_volunteer_id UUID REFERENCES volunteers(id) ON DELETE SET NULL, -- Delivery assigned volunteer
     
     -- Order Details
     product_name TEXT NOT NULL,
     quantity INTEGER NOT NULL CHECK (quantity > 0),
     total_price DECIMAL(10, 2) NOT NULL,
+    delivery_fee DECIMAL(10, 2) DEFAULT 0,
     
-    -- Payment & Status
-    payment_method TEXT CHECK (payment_method IN ('cod', 'upi')) NOT NULL,
+    -- Payment & Status (Razorpay only, no payment_method field needed)
     payment_status TEXT CHECK (payment_status IN ('pending', 'paid', 'verified')) DEFAULT 'pending',
-    order_status TEXT CHECK (order_status IN ('pending', 'confirmed', 'delivered')) DEFAULT 'pending',
-    payment_screenshot_url TEXT,
+    razorpay_order_id TEXT, -- Razorpay order ID
+    razorpay_payment_id TEXT, -- Razorpay payment ID
     
-    -- Snapshot of Customer Info (in case customer rec updates)
+    -- Order Status (updated: no 'pending', renamed 'confirmed' to 'ordered')
+    order_status TEXT CHECK (order_status IN ('ordered', 'delivered', 'cant_reach', 'cancelled')) DEFAULT 'ordered',
+    
+    -- Delivery method
+    delivery_method TEXT CHECK (delivery_method IN ('volunteer', 'post', 'courier', 'pickup')),
+    
+    -- Snapshot of Customer Info (in case customer record updates)
     customer_name TEXT NOT NULL,
     customer_phone TEXT NOT NULL,
     whatsapp_number TEXT NOT NULL,
@@ -85,23 +98,44 @@ CREATE TABLE orders (
 
 CREATE INDEX idx_orders_customer_id ON orders(customer_id);
 CREATE INDEX idx_orders_volunteer_id ON orders(volunteer_id);
+CREATE INDEX idx_orders_delivery_volunteer_id ON orders(delivery_volunteer_id);
 CREATE INDEX idx_orders_status ON orders(order_status);
 
 
 -- =====================================================
--- 5. VOLUNTEER PROGRESS (Gamification)
+-- 5. DELIVERY REQUESTS (Volunteer delivery duty requests)
+-- =====================================================
+CREATE TABLE delivery_requests (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    order_id UUID REFERENCES orders(id) ON DELETE CASCADE NOT NULL,
+    volunteer_id UUID REFERENCES volunteers(id) ON DELETE CASCADE NOT NULL,
+    status TEXT CHECK (status IN ('pending', 'approved', 'rejected')) DEFAULT 'pending',
+    requested_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    responded_at TIMESTAMP WITH TIME ZONE,
+    responded_by UUID REFERENCES volunteers(id), -- Admin who approved/rejected
+    notes TEXT,
+    UNIQUE(order_id, volunteer_id) -- Prevent duplicate requests from same volunteer for same order
+);
+
+CREATE INDEX idx_delivery_requests_order_id ON delivery_requests(order_id);
+CREATE INDEX idx_delivery_requests_volunteer_id ON delivery_requests(volunteer_id);
+CREATE INDEX idx_delivery_requests_status ON delivery_requests(status);
+
+
+-- =====================================================
+-- 6. VOLUNTEER PROGRESS (Gamification)
 -- =====================================================
 CREATE TABLE challenge_progress (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     volunteer_id UUID REFERENCES volunteers(id) UNIQUE NOT NULL,
-    confirmed_orders INTEGER DEFAULT 0,
+    confirmed_orders INTEGER DEFAULT 0, -- Keep for now, will calculate dynamically from orders
     goal INTEGER DEFAULT 20,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
 
 -- =====================================================
--- 6. UTILITIES (Triggers)
+-- 7. UTILITIES (Triggers)
 -- =====================================================
 
 -- Auto-update updated_at
@@ -121,9 +155,10 @@ CREATE TRIGGER update_challenge_progress_updated_at BEFORE UPDATE ON challenge_p
 
 
 -- =====================================================
--- 7. RLS (Disable for Dev/Simplicity as per instructions)
+-- 8. RLS (Disable for Dev/Simplicity)
 -- =====================================================
 ALTER TABLE volunteers DISABLE ROW LEVEL SECURITY;
 ALTER TABLE customers DISABLE ROW LEVEL SECURITY;
 ALTER TABLE orders DISABLE ROW LEVEL SECURITY;
 ALTER TABLE challenge_progress DISABLE ROW LEVEL SECURITY;
+ALTER TABLE delivery_requests DISABLE ROW LEVEL SECURITY;

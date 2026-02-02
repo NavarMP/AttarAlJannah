@@ -64,14 +64,16 @@ export default function CustomerOrderDetailsPage({ params }: { params: Promise<{
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case "pending":
-                return "bg-orange-100 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400";
-            case "confirmed":
-                return "bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400";
+            case "ordered":
+                return "bg-blue-100 text-blue-700";
             case "delivered":
-                return "bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400";
+                return "bg-green-100 text-green-700";
+            case "cant_reach":
+                return "bg-yellow-100 text-yellow-700";
+            case "cancelled":
+                return "bg-red-100 text-red-700";
             default:
-                return "bg-gray-100 text-gray-700 dark:bg-gray-950/30 dark:text-gray-400";
+                return "bg-gray-100 text-gray-700";
         }
     };
 

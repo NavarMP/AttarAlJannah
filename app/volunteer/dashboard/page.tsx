@@ -10,6 +10,8 @@ import { Package, TrendingUp, Trophy, Plus, DollarSign, Share2 } from "lucide-re
 import { toast } from "sonner";
 import { calculateCommission } from "@/lib/utils/commission-utils";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { DeliveryDashboard } from "@/components/volunteer/delivery-dashboard";
+import { EnhancedLeaderboard } from "@/components/volunteer/enhanced-leaderboard";
 
 interface DashboardStats {
     confirmedBottles: number;
@@ -281,6 +283,18 @@ export default function VolunteerDashboardPage() {
                             </Button>
                         </CardContent>
                     </Card>
+                </div>
+
+                {/* Delivery Management Section */}
+                <div className="space-y-4">
+                    <h2 className="text-2xl font-bold">Delivery Management</h2>
+                    <DeliveryDashboard volunteerId={volunteerId} />
+                </div>
+
+                {/* Enhanced Leaderboard */}
+                <div className="space-y-4">
+                    <h2 className="text-2xl font-bold">Volunteer Rankings</h2>
+                    <EnhancedLeaderboard />
                 </div>
             </div>
         </main>
