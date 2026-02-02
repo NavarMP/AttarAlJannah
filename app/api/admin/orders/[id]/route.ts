@@ -11,7 +11,10 @@ export async function GET(
 
         const { data, error } = await supabase
             .from("orders")
-            .select("*")
+            .select(`
+                *,
+                volunteer:volunteers!volunteer_id(volunteer_id)
+            `)
             .eq("id", id)
             .single();
 
@@ -20,7 +23,13 @@ export async function GET(
             return NextResponse.json({ error: "Order not found" }, { status: 404 });
         }
 
-        return NextResponse.json(data);
+        // Flatten the volunteer data for easier access
+        const orderWithVolunteerId = {
+            ...data,
+            delivery_volunteer_id: data.volunteer?.volunteer_id || null
+        };
+
+        return NextResponse.json(orderWithVolunteerId);
     } catch (error) {
         console.error("Order API error:", error);
         return NextResponse.json(

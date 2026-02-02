@@ -32,6 +32,7 @@ interface Order {
     order_status: string;
     payment_screenshot_url: string | null;
     volunteer_id?: string;
+    delivery_volunteer_id?: string; // Human-readable volunteer ID like VOL001
     is_delivery_duty?: boolean;
     delivery_method?: string;
     delivery_fee?: number;
@@ -192,7 +193,7 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
 
             {/* Floating Action Buttons - Auto-hide on scroll */}
             <AutoHideContainer className="fixed top-20 right-6 z-40 flex flex-col gap-2 md:static md:absolute md:right-0 md:top-1 md:flex-row md:ml-auto">
-                {order.order_status === 'ordered' && (
+                {/* {order.order_status === 'ordered' && (
                     <Button
                         variant="outline"
                         className="rounded-xl"
@@ -201,7 +202,7 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                         <Pencil className="w-4 h-4 mr-2" />
                         <span className="hidden md:inline">Edit Order</span>
                     </Button>
-                )}
+                )} */}
                 <Button
                     variant="destructive"
                     className="rounded-xl"
@@ -343,7 +344,7 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
             {/* Delivery Management */}
             <DeliveryManagement
                 orderId={order.id}
-                volunteerId={order.volunteer_id}
+                volunteerId={order.delivery_volunteer_id}
                 isDeliveryDuty={order.is_delivery_duty}
                 deliveryMethod={order.delivery_method}
                 deliveryFee={order.delivery_fee}

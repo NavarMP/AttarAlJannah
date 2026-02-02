@@ -40,7 +40,7 @@ export function ThankYouPoster({
         img.crossOrigin = "anonymous";
 
         // Select asset based on language
-        const templatePath = language === "en" ? "/assets/thankYou_En.svg" : "/assets/thankYou_Ml.svg";
+        const templatePath = language === "en" ? "/assets/thankYou_En.jpg" : "/assets/thankYou_Ml.jpg";
 
         img.onload = () => {
             // Draw the template image as background

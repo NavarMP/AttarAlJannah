@@ -30,12 +30,16 @@ export async function GET(request: NextRequest) {
         let isAdmin = false;
 
         if (user) {
-            const { data: userDetails } = await supabase
+            // Check if user is admin in the users table
+            const { data: userDetails, error: userError } = await supabase
                 .from("users")
                 .select("user_role")
-                .eq("email", user.email)
+                .eq("id", user.id)
                 .single();
-            isAdmin = userDetails?.user_role === "admin";
+
+            if (!userError && userDetails?.user_role === "admin") {
+                isAdmin = true;
+            }
         }
 
         // Build query using adminSupabase
@@ -45,24 +49,16 @@ export async function GET(request: NextRequest) {
 
         // Access Control
         if (isAdmin) {
-            // Admin sees all, no filter added unless specified by search
+            // Admin sees all feedback - no filter needed
+            console.log("Admin access granted - fetching all feedback");
         } else if (user) {
-            // Authenticated customer: see own feedback OR matching email/phone if linked
-            // We can match by user_id OR email OR phone
-            // But supabase query builder 'or' with different columns is tricky mixed with other filters.
-            // Simplest is user_id match.
+            // Authenticated non-admin: see own feedback only
             query = query.eq("user_id", user.id);
         } else if (emailParam || phoneParam) {
             // Simple Auth (Unauthenticated but provided contact info)
-            // Allow viewing feedback matching provided email or phone
             if (emailParam) query = query.eq("email", emailParam);
             if (phoneParam) {
-                // Try match phone variations
                 const phoneClean = phoneParam.replace(/\D/g, '').slice(-10);
-                // Since we can't easily do "multi-field OR" efficiently without raw SQL or complex filters, 
-                // and feedback phone format varies, we might need to filter.
-                // For now, let's just match the exact phone string or variants if exact fails?
-                // Doing a simple eq for now.
                 query = query.ilike("phone", `%${phoneClean}%`);
             }
         } else {

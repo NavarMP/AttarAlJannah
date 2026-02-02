@@ -127,6 +127,7 @@ export function DeliveryManagement({
             );
             setVolunteerIdInput("");
             setValidationState({ valid: false });
+            setShowAssignForm(false); // Hide form after assignment
             onRefresh();
             fetchDeliveryRequests();
         } catch (error: any) {
@@ -149,7 +150,39 @@ export function DeliveryManagement({
         }
     };
 
-    const hasDeliveryVolunteer = volunteerId && isDeliveryDuty;
+    const [showAssignForm, setShowAssignForm] = useState(false);
+    const [removing, setRemoving] = useState(false);
+
+    const isDeliveryAssigned = (volunteerId && isDeliveryDuty) || (deliveryMethod && deliveryMethod !== "volunteer");
+
+    const handleRemoveDelivery = async () => {
+        if (!confirm("Are you sure you want to remove this delivery assignment?")) {
+            return;
+        }
+
+        setRemoving(true);
+        try {
+            const response = await fetch(`/api/admin/orders/${orderId}/assign-delivery`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    removeAssignment: true,
+                }),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || "Failed to remove assignment");
+            }
+
+            toast.success("Delivery assignment removed");
+            onRefresh();
+        } catch (error: any) {
+            toast.error(error.message || "Failed to remove delivery");
+        } finally {
+            setRemoving(false);
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -159,34 +192,53 @@ export function DeliveryManagement({
                     <CardTitle>Delivery Information</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                    {hasDeliveryVolunteer ? (
+                    {isDeliveryAssigned ? (
                         <>
                             <div>
                                 <p className="text-sm text-muted-foreground">Delivery Method</p>
                                 <p className="font-medium capitalize">{deliveryMethod || "volunteer"}</p>
                             </div>
-                            <div>
-                                <p className="text-sm text-muted-foreground">Delivery Volunteer ID</p>
-                                <p className="font-medium">{volunteerId}</p>
-                            </div>
+                            {volunteerId && (
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Delivery Volunteer ID</p>
+                                    <p className="font-medium">{volunteerId}</p>
+                                </div>
+                            )}
                             {deliveryFee && deliveryFee > 0 && (
                                 <div>
                                     <p className="text-sm text-muted-foreground">Delivery Fee</p>
                                     <p className="font-medium">₹{deliveryFee}</p>
                                 </div>
                             )}
+                            <div className="flex gap-2 pt-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setShowAssignForm(!showAssignForm)}
+                                    className="rounded-xl"
+                                >
+                                    {showAssignForm ? "Cancel" : "Change"}
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    onClick={handleRemoveDelivery}
+                                    disabled={removing}
+                                    className="rounded-xl"
+                                >
+                                    {removing ? "Removing..." : "Remove Assignment"}
+                                </Button>
+                            </div>
                         </>
                     ) : (
-                        <p className="text-muted-foreground">No delivery volunteer assigned yet</p>
+                        <p className="text-muted-foreground">No delivery assigned yet</p>
                     )}
                 </CardContent>
             </Card>
 
             {/* Manual Assignment */}
-            {!hasDeliveryVolunteer && (
+            {(!isDeliveryAssigned || showAssignForm) && (
                 <Card className="rounded-3xl border-primary/50">
                     <CardHeader>
-                        <CardTitle>Assign Delivery Volunteer</CardTitle>
+                        <CardTitle>Assign Delivery</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
