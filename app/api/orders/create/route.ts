@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
         // Return order data including ID for Razorpay payment processing
         return NextResponse.json({
             success: true,
-            orderId: orderData.id,
+            order: orderData,
             message: "Order created successfully",
             // Frontend will use this to create Razorpay order
             needsPayment: true,

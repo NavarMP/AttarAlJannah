@@ -68,11 +68,73 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
         },
     });
 
+    // Helper function to correctly parse phone number with country code
+    const parsePhoneWithCountryCode = (fullPhone: string): { code: string; number: string } => {
+        if (!fullPhone.startsWith("+")) {
+            return { code: "+91", number: fullPhone.replace(/^\+91/, '') };
+        }
+
+        // Sort country codes by length (longest first) to match correctly
+        const sortedCodes = [...COUNTRY_CODES].sort((a, b) => b.code.length - a.code.length);
+        const matched = sortedCodes.find(c => fullPhone.startsWith(c.code));
+
+        if (matched) {
+            return {
+                code: matched.code,
+                number: fullPhone.slice(matched.code.length)
+            };
+        }
+
+        // Fallback: assume +91
+        return { code: "+91", number: fullPhone.replace(/^\+/, '').replace(/^91/, '') };
+    };
+
     // Auto-fill from customer profile or prefill data
+    // Priority: 1. localStorage (unsaved data) > 2. prefillData > 3. customerProfile
     useEffect(() => {
+        // HIGHEST PRIORITY: Check localStorage first
+        const savedForm = localStorage.getItem('orderFormData');
+        let hasRestoredFromLocalStorage = false;
+
+        if (savedForm && !prefillData?.orderId) {
+            // Only restore if not editing an existing order
+            try {
+                const data = JSON.parse(savedForm);
+                if (data && typeof data === 'object') {
+                    // Check if saved data has meaningful content (not just empty fields)
+                    const hasContent = Object.values(data).some(val => val && val !== '');
+
+                    if (hasContent) {
+                        Object.keys(data).forEach(key => {
+                            // Skip file inputs
+                            if (key !== 'paymentScreenshot' && data[key]) {
+                                setValue(key as keyof OrderFormData, data[key]);
+                            }
+                        });
+
+                        // Set country codes if they exist in saved data
+                        if (data.customerPhoneCountry) setPhoneCountryCode(data.customerPhoneCountry);
+                        if (data.whatsappNumberCountry) setWhatsappCountryCode(data.whatsappNumberCountry);
+
+                        hasRestoredFromLocalStorage = true;
+                        toast.info("Restored your unsaved form data");
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to restore form data", e);
+                localStorage.removeItem('orderFormData');
+            }
+        }
+
+        // If we restored from localStorage, skip other prefills
+        if (hasRestoredFromLocalStorage) {
+            return;
+        }
+
+        // MEDIUM PRIORITY: prefillData (reorder/edit scenario)
         if (prefillData) {
-            // Reorder or Edit scenario
             setValue("customerName", prefillData.customerName);
+
             // Parse customer phone
             if (prefillData.customerPhone) {
                 let phone = prefillData.customerPhone;
@@ -85,13 +147,9 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                         phone = phone.slice(code.length);
                     }
                 } else if (phone.startsWith("+")) {
-                    // Auto-detect code
-                    const sortedCodes = [...COUNTRY_CODES].sort((a, b) => b.code.length - a.code.length);
-                    const matched = sortedCodes.find(c => phone.startsWith(c.code));
-                    if (matched) {
-                        code = matched.code;
-                        phone = phone.slice(matched.code.length);
-                    }
+                    const parsed = parsePhoneWithCountryCode(phone);
+                    code = parsed.code;
+                    phone = parsed.number;
                 }
                 setPhoneCountryCode(code);
                 setValue("customerPhoneCountry", code);
@@ -109,13 +167,9 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                         wa = wa.slice(waCode.length);
                     }
                 } else if (wa.startsWith("+")) {
-                    // Auto-detect code
-                    const sortedCodes = [...COUNTRY_CODES].sort((a, b) => b.code.length - a.code.length);
-                    const matched = sortedCodes.find(c => wa.startsWith(c.code));
-                    if (matched) {
-                        waCode = matched.code;
-                        wa = wa.slice(matched.code.length);
-                    }
+                    const parsed = parsePhoneWithCountryCode(wa);
+                    waCode = parsed.code;
+                    wa = parsed.number;
                 }
                 setWhatsappCountryCode(waCode);
                 setValue("whatsappNumberCountry", waCode);
@@ -139,63 +193,28 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
             } else if (prefillData.customerAddress) {
                 toast.info("Form prefilled with your previous order details!");
             } else if (prefillData.customerPhone) {
-                // Customer auto-fill from dashboard
                 toast.success("Your phone number has been prefilled!");
             }
         } else if (customerProfile) {
-            // Logged in customer scenario
+            // LOWEST PRIORITY: Logged in customer scenario
             if (customerProfile.name) setValue("customerName", customerProfile.name);
 
-            // Parse phone number with country code
+            // Parse phone number with country code using helper
             if (customerProfile.phone) {
-                // Extract country code from phone (e.g., "+919876543210" -> "+91" and "9876543210")
-                const phoneMatch = customerProfile.phone.match(/^(\+\d{1,4})(\d+)$/);
-                if (phoneMatch) {
-                    const [, countryCode, phoneNumber] = phoneMatch;
-                    setPhoneCountryCode(countryCode);
-                    setValue("customerPhoneCountry", countryCode);
-                    setValue("customerPhone", phoneNumber);
+                const parsed = parsePhoneWithCountryCode(customerProfile.phone);
+                setPhoneCountryCode(parsed.code);
+                setValue("customerPhoneCountry", parsed.code);
+                setValue("customerPhone", parsed.number);
 
-                    // Also set WhatsApp to same by default
-                    setWhatsappCountryCode(countryCode);
-                    setValue("whatsappNumberCountry", countryCode);
-                    setValue("whatsappNumber", phoneNumber);
-                } else {
-                    // Fallback: assume +91 and use the whole number
-                    setValue("customerPhone", customerProfile.phone.replace(/^\+91/, ''));
-                    setValue("whatsappNumber", customerProfile.phone.replace(/^\+91/, ''));
-                }
+                // Also set WhatsApp to same by default
+                setWhatsappCountryCode(parsed.code);
+                setValue("whatsappNumberCountry", parsed.code);
+                setValue("whatsappNumber", parsed.number);
             }
 
             if (customerProfile.email) setValue("customerEmail", customerProfile.email);
 
             toast.success("Welcome back! Your details are prefilled.");
-        } else {
-            // Restore from localStorage if no prefill data and no customer profile
-            const savedForm = localStorage.getItem('orderFormData');
-            // Only restore if we don't have ANY prefill data (to avoid overwriting valid prefill)
-            if (savedForm && (!prefillData || (!prefillData.orderId && !prefillData.customerAddress))) {
-                try {
-                    const data = JSON.parse(savedForm);
-                    // rigorous check to ensure we don't restore stale or invalid data
-                    if (data && typeof data === 'object') {
-                        Object.keys(data).forEach(key => {
-                            // Skip file inputs and sensitive fields if needed
-                            if (key !== 'paymentScreenshot') {
-                                setValue(key as keyof OrderFormData, data[key]);
-                            }
-                        });
-                        // Set country codes if they exist in saved data
-                        if (data.customerPhoneCountry) setPhoneCountryCode(data.customerPhoneCountry);
-                        if (data.whatsappNumberCountry) setWhatsappCountryCode(data.whatsappNumberCountry);
-
-                        toast.info("Restored your unsaved form data");
-                    }
-                } catch (e) {
-                    console.error("Failed to restore form data", e);
-                    localStorage.removeItem('orderFormData');
-                }
-            }
         }
     }, [prefillData, customerProfile, setValue]);
 

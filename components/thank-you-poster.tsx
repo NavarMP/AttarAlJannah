@@ -52,8 +52,8 @@ export function ThankYouPoster({
 
             // User Requirement: X=600, Y=60 (approx), Size=40pt
             // 40pt is approx 53.33px. Let's use 54px.
-            const x = 600;
-            const y = 60;
+            const x = 540;
+            const y = 360;
             const fontSize = 40;
 
             // Font settings
