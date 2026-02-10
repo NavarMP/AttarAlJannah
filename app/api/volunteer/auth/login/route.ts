@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
         // Find volunteer by volunteer_id (case-insensitive) in new volunteers table
         const { data: volunteer, error: fetchError } = await supabase
             .from("volunteers") // New Table
-            .select("id, volunteer_id, name, email")
+            .select("id, volunteer_id, name, email, status")
             .ilike("volunteer_id", volunteerId)
             // .eq("role", "volunteer") // Implied
             .single();
@@ -26,6 +26,28 @@ export async function POST(request: NextRequest) {
             return NextResponse.json(
                 { error: "Invalid volunteer ID or password" },
                 { status: 401 }
+            );
+        }
+
+        // Check if volunteer account is active
+        if (volunteer.status === "pending") {
+            return NextResponse.json(
+                { error: "Your account is pending admin approval. Please wait for approval before logging in." },
+                { status: 403 }
+            );
+        }
+
+        if (volunteer.status === "suspended") {
+            return NextResponse.json(
+                { error: "Your account has been suspended. Please contact an administrator." },
+                { status: 403 }
+            );
+        }
+
+        if (volunteer.status !== "active") {
+            return NextResponse.json(
+                { error: "Your account is not active. Please contact an administrator." },
+                { status: 403 }
             );
         }
 

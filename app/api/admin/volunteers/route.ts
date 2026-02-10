@@ -261,7 +261,8 @@ export async function POST(request: NextRequest) {
                 email: authEmail,
                 phone: phone,
                 role: "volunteer",
-                total_sales: 0
+                total_sales: 0,
+                status: "active" // Admin-created volunteers are auto-approved
             })
             .select()
             .single();

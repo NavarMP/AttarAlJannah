@@ -24,7 +24,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Plus, Search, Edit, Trash2, TrendingUp, Award, Loader2, Trash, Link2 } from "lucide-react";
+import { Users, Plus, Search, Edit, Trash2, TrendingUp, Award, Loader2, Trash, Link2, CheckCircle, XCircle, Clock, Badge } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { calculateCommission } from "@/lib/utils/commission-utils";
@@ -40,6 +40,7 @@ interface Volunteer {
     confirmed_bottles: number;
     goal: number;
     progress_percentage: number;
+    status: "pending" | "active" | "suspended";
     created_at: string;
 }
 
@@ -49,6 +50,7 @@ export default function VolunteersPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [sort, setSort] = useState("created_at");
+    const [statusFilter, setStatusFilter] = useState<"all" | "active" | "pending" | "suspended">("all");
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
@@ -58,6 +60,10 @@ export default function VolunteersPage() {
         active: 0,
         topPerformer: null as Volunteer | null,
     });
+
+    // Approval state
+    const [approvingId, setApprovingId] = useState<string | null>(null);
+    const [rejectingId, setRejectingId] = useState<string | null>(null);
 
     // Bulk delete state
     const [selectedVolunteers, setSelectedVolunteers] = useState<Set<string>>(new Set());
@@ -187,6 +193,54 @@ export default function VolunteersPage() {
         toast.success("Referral link copied to clipboard");
     };
 
+    const handleApprove = async (volunteerId: string) => {
+        try {
+            setApprovingId(volunteerId);
+            const response = await fetch(`/api/admin/volunteers/approve/${volunteerId}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "approve" }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) throw new Error(result.error || "Failed to approve volunteer");
+
+            toast.success(result.message || "Volunteer approved successfully");
+            fetchVolunteers();
+
+        } catch (error: any) {
+            console.error("Error approving volunteer:", error);
+            toast.error(error.message || "Failed to approve volunteer");
+        } finally {
+            setApprovingId(null);
+        }
+    };
+
+    const handleReject = async (volunteerId: string) => {
+        try {
+            setRejectingId(volunteerId);
+            const response = await fetch(`/api/admin/volunteers/approve/${volunteerId}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "reject" }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) throw new Error(result.error || "Failed to reject volunteer");
+
+            toast.success(result.message || "Volunteer rejected and removed");
+            fetchVolunteers();
+
+        } catch (error: any) {
+            console.error("Error rejecting volunteer:", error);
+            toast.error(error.message || "Failed to reject volunteer");
+        } finally {
+            setRejectingId(null);
+        }
+    };
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -256,6 +310,49 @@ export default function VolunteersPage() {
                 </Card>
             </div>
 
+            {/* Status Filter Tabs */}
+            <Card className="glass">
+                <CardContent className="pt-6">
+                    <div className="flex flex-wrap gap-2">
+                        <Button
+                            variant={statusFilter === "all" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setStatusFilter("all")}
+                            className="rounded-xl"
+                        >
+                            All Volunteers
+                        </Button>
+                        <Button
+                            variant={statusFilter === "pending" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setStatusFilter("pending")}
+                            className="rounded-xl"
+                        >
+                            <Clock className="mr-2 h-4 w-4" />
+                            Pending Approval {volunteers.filter(v => v.status === "pending").length > 0 && `(${volunteers.filter(v => v.status === "pending").length})`}
+                        </Button>
+                        <Button
+                            variant={statusFilter === "active" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setStatusFilter("active")}
+                            className="rounded-xl"
+                        >
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            Active
+                        </Button>
+                        <Button
+                            variant={statusFilter === "suspended" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setStatusFilter("suspended")}
+                            className="rounded-xl"
+                        >
+                            <XCircle className="mr-2 h-4 w-4" />
+                            Suspended
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
             {/* Search and Sort */}
             <Card className="glass-strong">
                 <CardContent className="pt-6">
@@ -315,6 +412,7 @@ export default function VolunteersPage() {
                                         </TableHead>
                                         <TableHead>Volunteer ID</TableHead>
                                         <TableHead>Name</TableHead>
+                                        <TableHead>Status</TableHead>
                                         <TableHead>Email</TableHead>
                                         <TableHead>Phone</TableHead>
                                         <TableHead>Bottles</TableHead>
@@ -326,83 +424,142 @@ export default function VolunteersPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {volunteers.map((volunteer) => (
-                                        <TableRow
-                                            key={volunteer.id}
-                                            className={selectedVolunteers.has(volunteer.id) ? 'bg-blue-50 dark:bg-blue-950/20' : ''}
-                                        >
-                                            <TableCell onClick={(e) => e.stopPropagation()}>
-                                                <Checkbox
-                                                    checked={selectedVolunteers.has(volunteer.id)}
-                                                    onCheckedChange={() => toggleVolunteerSelection(volunteer.id)}
-                                                    aria-label={`Select ${volunteer.name}`}
-                                                />
-                                            </TableCell>
-                                            <TableCell className="font-mono font-semibold">
-                                                {volunteer.volunteer_id}
-                                            </TableCell>
-                                            <TableCell className="font-medium">{volunteer.name}</TableCell>
-                                            <TableCell className="text-muted-foreground text-sm">
-                                                {volunteer.email}
-                                            </TableCell>
-                                            <TableCell className="text-muted-foreground text-sm">
-                                                {volunteer.phone}
-                                            </TableCell>
-                                            <TableCell>
-                                                <span className="font-semibold">{volunteer.confirmed_bottles}</span>
-                                            </TableCell>
-                                            <TableCell>{volunteer.goal}</TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-16 h-2 bg-secondary rounded-full overflow-hidden">
-                                                        <div
-                                                            className="h-full bg-gradient-to-r from-primary to-gold-500"
-                                                            style={{ width: `${Math.min(volunteer.progress_percentage, 100)}%` }}
-                                                        />
+                                    {volunteers
+                                        .filter(v => statusFilter === "all" || v.status === statusFilter)
+                                        .map((volunteer) => (
+                                            <TableRow
+                                                key={volunteer.id}
+                                                className={selectedVolunteers.has(volunteer.id) ? 'bg-blue-50 dark:bg-blue-950/20' : ''}
+                                            >
+                                                <TableCell onClick={(e) => e.stopPropagation()}>
+                                                    <Checkbox
+                                                        checked={selectedVolunteers.has(volunteer.id)}
+                                                        onCheckedChange={() => toggleVolunteerSelection(volunteer.id)}
+                                                        aria-label={`Select ${volunteer.name}`}
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="font-mono font-semibold">
+                                                    {volunteer.volunteer_id}
+                                                </TableCell>
+                                                <TableCell className="font-medium">{volunteer.name}</TableCell>
+                                                <TableCell>
+                                                    {volunteer.status === "pending" && (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400">
+                                                            <Clock className="h-3 w-3" />
+                                                            Pending
+                                                        </span>
+                                                    )}
+                                                    {volunteer.status === "active" && (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
+                                                            <CheckCircle className="h-3 w-3" />
+                                                            Active
+                                                        </span>
+                                                    )}
+                                                    {volunteer.status === "suspended" && (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">
+                                                            <XCircle className="h-3 w-3" />
+                                                            Suspended
+                                                        </span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-muted-foreground text-sm">
+                                                    {volunteer.email}
+                                                </TableCell>
+                                                <TableCell className="text-muted-foreground text-sm">
+                                                    {volunteer.phone}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <span className="font-semibold">{volunteer.confirmed_bottles}</span>
+                                                </TableCell>
+                                                <TableCell>{volunteer.goal}</TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-16 h-2 bg-secondary rounded-full overflow-hidden">
+                                                            <div
+                                                                className="h-full bg-gradient-to-r from-primary to-gold-500"
+                                                                style={{ width: `${Math.min(volunteer.progress_percentage, 100)}%` }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-sm text-muted-foreground">
+                                                            {volunteer.progress_percentage}%
+                                                        </span>
                                                     </div>
-                                                    <span className="text-sm text-muted-foreground">
-                                                        {volunteer.progress_percentage}%
+                                                </TableCell>
+                                                <TableCell>
+                                                    <span className="font-semibold text-gold-600 dark:text-gold-400">
+                                                        ₹{calculateCommission(volunteer.confirmed_bottles, volunteer.goal)}
                                                     </span>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <span className="font-semibold text-gold-600 dark:text-gold-400">
-                                                    ₹{calculateCommission(volunteer.confirmed_bottles, volunteer.goal)}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-muted-foreground hover:text-primary"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleCopyReferralLink(volunteer.volunteer_id);
-                                                    }}
-                                                    title="Copy Referral Link"
-                                                >
-                                                    <Link2 className="h-4 w-4" />
-                                                </Button>
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <Link href={`/admin/volunteers/${volunteer.id}/edit`}>
-                                                        <Button variant="ghost" size="sm" className="h-8">
-                                                            <Edit className="h-4 w-4" />
-                                                        </Button>
-                                                    </Link>
+                                                </TableCell>
+                                                <TableCell>
                                                     <Button
                                                         variant="ghost"
-                                                        size="sm"
-                                                        className="h-8 text-destructive hover:text-destructive"
-                                                        onClick={() => setDeleteId(volunteer.id)}
+                                                        size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleCopyReferralLink(volunteer.volunteer_id);
+                                                        }}
+                                                        title="Copy Referral Link"
                                                     >
-                                                        <Trash2 className="h-4 w-4" />
+                                                        <Link2 className="h-4 w-4" />
                                                     </Button>
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        {/* Approval buttons for pending volunteers */}
+                                                        {volunteer.status === "pending" && (
+                                                            <>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
+                                                                    onClick={() => handleApprove(volunteer.id)}
+                                                                    disabled={approvingId === volunteer.id || rejectingId === volunteer.id}
+                                                                >
+                                                                    {approvingId === volunteer.id ? (
+                                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                                    ) : (
+                                                                        <>
+                                                                            <CheckCircle className="h-4 w-4 mr-1" />
+                                                                            Approve
+                                                                        </>
+                                                                    )}
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                                                    onClick={() => handleReject(volunteer.id)}
+                                                                    disabled={approvingId === volunteer.id || rejectingId === volunteer.id}
+                                                                >
+                                                                    {rejectingId === volunteer.id ? (
+                                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                                    ) : (
+                                                                        <>
+                                                                            <XCircle className="h-4 w-4 mr-1" />
+                                                                            Reject
+                                                                        </>
+                                                                    )}
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                        <Link href={`/admin/volunteers/${volunteer.id}/edit`}>
+                                                            <Button variant="ghost" size="sm" className="h-8">
+                                                                <Edit className="h-4 w-4" />
+                                                            </Button>
+                                                        </Link>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 text-destructive hover:text-destructive"
+                                                            onClick={() => setDeleteId(volunteer.id)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
                                 </TableBody>
                             </Table>
                         </div>

@@ -121,10 +121,10 @@ export default function VolunteerLoginPage() {
 
                         <div className="text-center space-y-2">
                             <p className="text-sm text-muted-foreground">
-                                Don&apos;t have access?
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                                Contact your admin to get registered as a volunteer
+                                Don&apos;t have an account?{" "}
+                                <Link href="/volunteer/signup" className="text-primary hover:underline font-medium">
+                                    Sign up here
+                                </Link>
                             </p>
                             <Link href="/login">
                                 <Button variant="ghost" size="sm" className="rounded-xl mt-2">

@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Menu, X, LayoutDashboard, Package, Trophy, Award, LogOut, Truck, Map, Bell,  } from "lucide-react";
+import { Menu, X, LayoutDashboard, Package, Trophy, Award, LogOut, Truck, Map, Bell, } from "lucide-react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/custom/theme-toggle";
 import Image from "next/image";
@@ -20,8 +20,8 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     useEffect(() => {
-        // Skip auth check on login page
-        if (pathname === "/volunteer/login") return;
+        // Skip auth check on login and signup pages
+        if (pathname === "/volunteer/login" || pathname === "/volunteer/signup") return;
 
         const id = localStorage.getItem("volunteerId");
         const name = localStorage.getItem("volunteerName");
@@ -41,8 +41,8 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
         router.push("/volunteer/login");
     };
 
-    // If on login page, render children directly without layout/checks
-    if (pathname === "/volunteer/login") {
+    // If on login or signup page, render children directly without layout/checks
+    if (pathname === "/volunteer/login" || pathname === "/volunteer/signup") {
         return <>{children}</>;
     }
 
@@ -64,7 +64,7 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
                             height={40}
                             className="h-8 w-auto"
                         />
-                        
+
                     </div>
                     <nav className="flex-1 p-4 space-y-2">
                         <Link href="/volunteer/dashboard">
