@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Loader2, UserPlus, AlertCircle, CheckCircle } from "lucide-react";
 import { CountryCodeSelect } from "@/components/ui/country-code-select";
+import { VolunteerAddressSection } from "@/components/forms/volunteer-address-section";
 import { toast } from "sonner";
 import Link from "next/link";
 import Image from "next/image";
@@ -135,6 +136,15 @@ export default function VolunteerSignupPage() {
                     phone: `${phoneCountryCode}${data.phone}`,
                     volunteer_id: data.volunteer_id,
                     password: data.password,
+                    // Optional address fields
+                    houseBuilding: data.houseBuilding || null,
+                    town: data.town || null,
+                    pincode: data.pincode || null,
+                    post: data.post || null,
+                    city: data.city || null,
+                    district: data.district || null,
+                    state: data.state || null,
+                    locationLink: data.locationLink || null,
                 }),
             });
 
@@ -170,7 +180,7 @@ export default function VolunteerSignupPage() {
                         <div className="space-y-2">
                             <h2 className="text-2xl font-bold">Signup Successful!</h2>
                             <p className="text-muted-foreground">
-                                Your account is pending admin approval. You'll be able to log in once approved.
+                                Your account is pending admin approval. You&apos;ll be able to log in once approved.
                             </p>
                         </div>
                         <p className="text-sm text-muted-foreground">
@@ -348,11 +358,21 @@ export default function VolunteerSignupPage() {
                                 </div>
                             </div>
 
+                            {/* Delivery Address Section */}
+                            <VolunteerAddressSection
+                                form={{
+                                    register,
+                                    setValue,
+                                    watch,
+                                    formState: { errors }
+                                } as any}
+                            />
+
                             {/* Info Banner */}
                             <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
                                 <p className="text-sm text-center text-muted-foreground">
                                     Your account will be reviewed by an admin before you can log in.
-                                    You'll be notified once approved.
+                                    You&apos;ll be notified once approved.
                                 </p>
                             </div>
 

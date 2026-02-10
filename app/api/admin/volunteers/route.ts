@@ -150,7 +150,11 @@ export async function POST(request: NextRequest) {
         });
 
         const body = await request.json();
-        const { name, email, phone, password, address, volunteer_id, goal = 20 } = body;
+        const {
+            name, email, phone, password, volunteer_id, goal = 20, role,
+            // Optional address fields
+            houseBuilding, town, pincode, post, city, district, state, locationLink
+        } = body;
 
         // Validation
         if (!password || !volunteer_id || !phone || !name) {
@@ -256,13 +260,22 @@ export async function POST(request: NextRequest) {
             .from("volunteers") // New Table
             .insert({
                 auth_id: authUser.user.id,
-                volunteer_id: finalVolunteerId,
+                volunteer_id: volunteer_id,
                 name: name,
                 email: authEmail,
                 phone: phone,
-                role: "volunteer",
+                role: role || "volunteer",
                 total_sales: 0,
-                status: "active" // Admin-created volunteers are auto-approved
+                status: "active", // Admin-created volunteers are auto-approved
+                // Optional address fields
+                house_building: houseBuilding || null,
+                town: town || null,
+                pincode: pincode || null,
+                post: post || null,
+                city: city || null,
+                district: district || null,
+                state: state || null,
+                location_link: locationLink || null,
             })
             .select()
             .single();

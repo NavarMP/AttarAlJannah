@@ -23,7 +23,11 @@ export async function POST(request: NextRequest) {
         });
 
         const body = await request.json();
-        const { name, email, phone, password, volunteer_id } = body;
+        const {
+            name, email, phone, password, volunteer_id,
+            // Optional address fields
+            houseBuilding, town, pincode, post, city, district, state, locationLink
+        } = body;
 
         // Validation
         if (!password || !volunteer_id || !phone || !name) {
@@ -122,7 +126,16 @@ export async function POST(request: NextRequest) {
                 phone: phone,
                 role: "volunteer",
                 total_sales: 0,
-                status: "pending" // NEW: Set as pending for admin approval
+                status: "pending", // NEW: Set as pending for admin approval
+                // Optional address fields
+                house_building: houseBuilding || null,
+                town: town || null,
+                pincode: pincode || null,
+                post: post || null,
+                city: city || null,
+                district: district || null,
+                state: state || null,
+                location_link: locationLink || null,
             })
             .select()
             .single();

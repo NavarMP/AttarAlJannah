@@ -14,8 +14,9 @@ import { CountryCodeSelect, COUNTRY_CODES } from "@/components/ui/country-code-s
 import { toast } from "sonner";
 import Link from "next/link";
 import { calculateCommission } from "@/lib/utils/commission-utils";
+import { VolunteerAddressSection } from "@/components/forms/volunteer-address-section";
 
-// Edit schema - password is optional
+// Edit schema - password and address fields are optional
 const volunteerEditSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
     email: z.string().email("Invalid email").optional().or(z.literal("")),
@@ -27,6 +28,15 @@ const volunteerEditSchema = z.object({
     volunteer_id: z.string().min(1, "Volunteer ID is required"),
     password: z.string().min(8, "Password must be at least 8 characters if provided").optional().or(z.literal("")),
     goal: z.number().min(1, "Goal must be at least 1").default(20),
+    // Optional address fields
+    houseBuilding: z.string().optional().or(z.literal("")),
+    town: z.string().optional().or(z.literal("")),
+    pincode: z.string().optional().or(z.literal("")),
+    post: z.string().optional().or(z.literal("")),
+    city: z.string().optional().or(z.literal("")),
+    district: z.string().optional().or(z.literal("")),
+    state: z.string().optional().or(z.literal("")),
+    locationLink: z.string().optional().or(z.literal("")),
 });
 
 type VolunteerEditFormData = z.infer<typeof volunteerEditSchema>;
@@ -112,6 +122,16 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
             setValue("volunteer_id", volunteer.volunteer_id);
             setValue("password", "");
             setValue("goal", volunteer.goal || 20);
+
+            // Populate address fields if they exist
+            setValue("houseBuilding", volunteer.house_building || "");
+            setValue("town", volunteer.town || "");
+            setValue("pincode", volunteer.pincode || "");
+            setValue("post", volunteer.post || "");
+            setValue("city", volunteer.city || "");
+            setValue("district", volunteer.district || "");
+            setValue("state", volunteer.state || "");
+            setValue("locationLink", volunteer.location_link || "");
 
             setStats({
                 confirmed_bottles: volunteer.confirmed_bottles || 0,
@@ -224,6 +244,15 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
                 phone: `${phoneCountryCode}${data.phone}`,
                 volunteer_id: data.volunteer_id,
                 goal: data.goal,
+                // Address fields
+                houseBuilding: data.houseBuilding || null,
+                town: data.town || null,
+                pincode: data.pincode || null,
+                post: data.post || null,
+                city: data.city || null,
+                district: data.district || null,
+                state: data.state || null,
+                locationLink: data.locationLink || null,
             };
 
             // Only include password if it's being changed
@@ -447,6 +476,16 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
                                 <p className="text-sm text-destructive">{errors.goal.message}</p>
                             )}
                         </div>
+
+                        {/* Delivery Address Section */}
+                        <VolunteerAddressSection
+                            form={{
+                                register,
+                                setValue,
+                                watch,
+                                formState: { errors }
+                            } as any}
+                        />
 
                         {/* Buttons */}
                         <div className="flex gap-4">

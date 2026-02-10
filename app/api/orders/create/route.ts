@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { autoAssignDeliveryVolunteer } from "@/lib/services/volunteer-assignment";
 
 export async function POST(request: NextRequest) {
     try {
@@ -95,6 +96,14 @@ export async function POST(request: NextRequest) {
                 // Razorpay fields will be updated after payment
                 razorpay_order_id: null,
                 razorpay_payment_id: null,
+                // Address fields for delivery assignment
+                house_name: houseBuilding,
+                town: town,
+                post_office: post,
+                city: city,
+                district: district,
+                state: state,
+                pincode: pincode,
             })
             .select()
             .single();
@@ -138,6 +147,30 @@ export async function POST(request: NextRequest) {
         } catch (notifError) {
             console.error("⚠️ Notification error (non-blocking):", notifError);
             // Don't fail the order creation if notification fails
+        }
+
+        // Auto-assign delivery volunteer based on address (if address provided)
+        let assignmentResult = null;
+        if (houseBuilding && town && post) {
+            try {
+                console.log("🔍 Attempting auto-assignment for order:", orderData.id);
+                assignmentResult = await autoAssignDeliveryVolunteer(orderData.id, {
+                    houseBuilding,
+                    town,
+                    post,
+                });
+
+                if (assignmentResult.assigned) {
+                    console.log(`✅ Auto-assigned to volunteer: ${assignmentResult.volunteerName}`);
+                } else if (assignmentResult.matchCount > 1) {
+                    console.log(`⚠️ Multiple volunteers (${assignmentResult.matchCount}) matched - admin review needed`);
+                } else {
+                    console.log("ℹ️ No matching volunteers found for auto-assignment");
+                }
+            } catch (assignmentError) {
+                console.error("⚠️ Auto-assignment error (non-blocking):", assignmentError);
+                // Don't fail order creation if auto-assignment fails
+            }
         }
 
         // Return order data including ID for Razorpay payment processing

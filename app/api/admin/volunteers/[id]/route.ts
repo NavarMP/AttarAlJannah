@@ -88,7 +88,11 @@ export async function PUT(
         const { id } = await params;
         const volunteerId = id;
         const body = await request.json();
-        const { name, email, phone, address, volunteer_id, goal, password } = body;
+        const {
+            name, email, phone, volunteer_id, goal, password,
+            // Address fields
+            houseBuilding, town, pincode, post, city, district, state, locationLink
+        } = body;
 
         // Check if volunteer exists in volunteers table
         const { data: existingVolunteer, error: fetchError } = await supabase
@@ -125,11 +129,17 @@ export async function PUT(
         if (name) updates.name = name;
         if (email) updates.email = email;
         if (phone) updates.phone = phone;
-        // if (address !== undefined) updates.address = address; // Volunteers table doesn't have address in my schema?
-        // Wait, step 40 schema check: "address TEXT,"? No. Volunteers table: name, email, phone, role, total_sales. Customers has address.
-        // Volunteers DO NOT have address in my new schema.
-
         if (volunteer_id) updates.volunteer_id = volunteer_id;
+
+        // Address fields (update even if empty to allow clearing)
+        updates.house_building = houseBuilding || null;
+        updates.town = town || null;
+        updates.pincode = pincode || null;
+        updates.post = post || null;
+        updates.city = city || null;
+        updates.district = district || null;
+        updates.state = state || null;
+        updates.location_link = locationLink || null;
 
         // Update volunteer record
         const { data: updatedVolunteer, error: updateError } = await supabase

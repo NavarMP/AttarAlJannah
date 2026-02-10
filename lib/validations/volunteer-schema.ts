@@ -12,6 +12,16 @@ export const volunteerSchema = z.object({
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string().min(1, "Please confirm the password"),
     goal: z.number().min(1, "Goal must be at least 1").default(20),
+
+    // Optional address fields for delivery assignment
+    houseBuilding: z.string().optional().or(z.literal("")),
+    town: z.string().optional().or(z.literal("")),
+    pincode: z.string().optional().or(z.literal("")),
+    post: z.string().optional().or(z.literal("")),
+    city: z.string().optional().or(z.literal("")),
+    district: z.string().optional().or(z.literal("")),
+    state: z.string().optional().or(z.literal("")),
+    locationLink: z.string().optional().or(z.literal("")),
 }).refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
     path: ["confirmPassword"],

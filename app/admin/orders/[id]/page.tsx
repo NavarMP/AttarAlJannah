@@ -16,6 +16,7 @@ import { OrderBill } from "@/components/order-bill";
 import { ThankYouPoster } from "@/components/thank-you-poster";
 import { AutoHideContainer } from "@/components/custom/auto-hide-container";
 import { DeliveryManagement } from "@/components/admin/delivery-management";
+import { VolunteerAssignment } from "@/components/admin/volunteer-assignment";
 
 interface Order {
     id: string;
@@ -340,6 +341,13 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                     <ThankYouPoster customerName={order.customer_name} />
                 </CardContent>
             </Card>
+
+            {/* Volunteer Assignment */}
+            <VolunteerAssignment
+                orderId={order.id}
+                currentVolunteerId={order.delivery_volunteer_id}
+                onAssignmentChange={fetchOrder}
+            />
 
             {/* Delivery Management */}
             <DeliveryManagement

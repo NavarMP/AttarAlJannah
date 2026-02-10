@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Loader2, UserPlus, AlertCircle } from "lucide-react";
 import { CountryCodeSelect } from "@/components/ui/country-code-select";
+import { VolunteerAddressSection } from "@/components/forms/volunteer-address-section";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -132,6 +133,15 @@ export default function NewVolunteerPage() {
                 body: JSON.stringify({
                     ...data,
                     phone: `${phoneCountryCode}${data.phone}`,
+                    // Address fields already in data, but ensure they're null if empty
+                    houseBuilding: data.houseBuilding || null,
+                    town: data.town || null,
+                    pincode: data.pincode || null,
+                    post: data.post || null,
+                    city: data.city || null,
+                    district: data.district || null,
+                    state: data.state || null,
+                    locationLink: data.locationLink || null,
                 }),
             });
 
@@ -326,6 +336,16 @@ export default function NewVolunteerPage() {
                                 <p className="text-sm text-destructive">{errors.goal.message}</p>
                             )}
                         </div>
+
+                        {/* Delivery Address Section */}
+                        <VolunteerAddressSection
+                            form={{
+                                register,
+                                setValue,
+                                watch,
+                                formState: { errors }
+                            } as any}
+                        />
 
                         {/* Buttons */}
                         <div className="flex gap-4">

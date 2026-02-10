@@ -382,7 +382,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
             setPostOffices([]);
             setPincodeError("");
         }
-    }, [pincode]);
+    }, [pincode, fetchPincodeDetails]);
 
     // Watch post office selection and update city
     const selectedPost = watch("post");
