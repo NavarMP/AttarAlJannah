@@ -126,12 +126,6 @@ export default function AdminLayout({
                             Volunteers
                         </Button>
                     </Link>
-                    <Link href="/admin/leaderboard">
-                        <Button variant="ghost" className="w-full justify-start rounded-xl">
-                            <Trophy className="mr-2 h-5 w-5" />
-                            Leaderboard
-                        </Button>
-                    </Link>
                     <Link href="/admin/orders">
                         <Button variant="ghost" className="w-full justify-start rounded-xl">
                             <Package className="mr-2 h-5 w-5" />

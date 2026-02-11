@@ -5,7 +5,7 @@ import { Sparkles, Heart, Gift, Droplet, Shield, MapPin } from "lucide-react";
 
 export function ProductDetails() {
     return (
-        <section className="relative py-20 px-4 bg-gradient-to-b from-background to-primary/5 dark:to-primary/10">
+        <section className="relative py-20 px-4">
             <div className="max-w-6xl mx-auto space-y-12">
                 {/* Title */}
                 <div className="text-center space-y-4">

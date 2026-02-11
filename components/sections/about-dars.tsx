@@ -34,7 +34,7 @@ const contactInfo = {
 
 export function AboutDars() {
     return (
-        <section className="relative py-20 px-4 bg-gradient-to-b from-primary/5 to-background dark:from-primary/10">
+        <section className="relative py-20 px-4">
             <div className="max-w-6xl mx-auto space-y-12">
                 {/* Title with Dars Logo */}
                 <div className="text-center space-y-6">

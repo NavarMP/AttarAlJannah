@@ -137,7 +137,7 @@ export function HeroSection() {
                     </div>
 
                     {/* Order Button */}
-                    <div ref={buttonRef} className="flex flex-col items-center gap-3">
+                    <div ref={buttonRef} className="flex flex-col items-center justify-center gap-3">
                         <Link href="/order">
                             <Button
                                 size="lg"
@@ -150,16 +150,23 @@ export function HeroSection() {
                 </div>
                 <div className="flex flex-col md:flex-row items-center gap-2 text-sm text-muted-foreground mt-2">
                     <div className="flex gap-1">
-                        <span>Already ordered?</span>
+                        {/* <span>Already ordered?</span> */}
                         <Link href="/customer/dashboard" className="text-primary hover:underline font-medium">
                             Track your order
                         </Link>
                     </div>
                     <span className="hidden md:inline text-muted-foreground/50">|</span>
                     <div className="flex gap-1">
-                        <span>Received your order?</span>
+                        {/* <span>Received your order?</span> */}
                         <Link href="/customer/feedback" className="text-primary hover:underline font-medium">
                             Give feedback
+                        </Link>
+                    </div>
+                    <span className="hidden md:inline text-muted-foreground/50">|</span>
+                    <div className="flex gap-1">
+                        {/* <span>Do you want to become a volunteer?</span> */}
+                        <Link href="/volunteer/signup" className="text-primary hover:underline font-medium">
+                            Volunteer Signup
                         </Link>
                     </div>
                 </div>

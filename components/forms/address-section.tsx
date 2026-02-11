@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { LocationLink } from "@/components/forms/location-link";
-import { Loader2, ChevronDown, ChevronUp, MapPin, CheckCircle2, XCircle } from "lucide-react";
+import { AutocompleteInput } from "@/components/ui/autocomplete-input";
+import { useAddressAutocomplete } from "@/hooks/use-address-autocomplete";
+import { Loader2, ChevronDown, ChevronUp, MapPin, CheckCircle2, XCircle, Search } from "lucide-react";
 import { toast } from "sonner";
 import { INDIAN_STATES, DISTRICTS_BY_STATE } from "@/lib/data/indian-locations";
 
@@ -35,6 +37,10 @@ export function AddressSection({
     const [isLoadingPincode, setIsLoadingPincode] = useState(false);
     const [pincodeError, setPincodeError] = useState<string>("");
     const [isPincodeValid, setIsPincodeValid] = useState<boolean | null>(null);
+
+    // Post office search state
+    const [postOfficeSearchResults, setPostOfficeSearchResults] = useState<any[]>([]);
+    const [isSearchingPostOffice, setIsSearchingPostOffice] = useState(false);
 
     // Track last fetched pincode to prevent duplicate API calls
     const lastFetchedPincode = useRef<string>("");
@@ -149,6 +155,67 @@ export function AddressSection({
         }
     }, [selectedPost, postOfficeData, setValue]);
 
+    // Watch form fields for autocomplete
+    const houseBuilding = watch("houseBuilding") || "";
+    const town = watch("town") || "";
+
+    // Geoapify autocomplete hooks
+    const houseBuildingAutocomplete = useAddressAutocomplete({
+        query: houseBuilding,
+        enabled: houseBuilding.length >= 3,
+        minLength: 3,
+        debounceMs: 500,
+    });
+
+    const townAutocomplete = useAddressAutocomplete({
+        query: town,
+        enabled: town.length >= 3,
+        minLength: 3,
+        debounceMs: 500,
+    });
+
+    // Search post offices by name
+    const searchPostOffices = useCallback(async (searchQuery: string) => {
+        if (searchQuery.length < 3) {
+            setPostOfficeSearchResults([]);
+            return;
+        }
+
+        setIsSearchingPostOffice(true);
+        try {
+            const response = await fetch(
+                `https://api.postalpincode.in/postoffice/${encodeURIComponent(searchQuery)}`
+            );
+            const data = await response.json();
+
+            if (data[0]?.Status === "Success" && data[0]?.PostOffice?.length > 0) {
+                setPostOfficeSearchResults(data[0].PostOffice);
+            } else {
+                setPostOfficeSearchResults([]);
+            }
+        } catch (error) {
+            console.error("Post office search error:", error);
+            toast.error("Failed to search post offices");
+            setPostOfficeSearchResults([]);
+        } finally {
+            setIsSearchingPostOffice(false);
+        }
+    }, []);
+
+    // Handle post office selection from search
+    const handlePostOfficeSelect = useCallback((office: any) => {
+        setValue("post", office.Name);
+        setValue("pincode", office.Pincode);
+        setValue("city", office.Name);
+        setValue("district", office.District);
+        setValue("state", office.State);
+        setPincodeError("");
+        setIsPincodeValid(true);
+        setPostOfficeSearchResults([]);
+        toast.success("Address auto-filled!");
+    }, [setValue]);
+
+
     // Render validation icon for pincode
     const renderPincodeValidation = () => {
         if (isLoadingPincode) {
@@ -179,35 +246,79 @@ export function AddressSection({
                 </div>
             )}
 
-            {/* House/Building */}
+            {/* House/Building with Autocomplete */}
             <div className="space-y-2">
                 <Label htmlFor="houseBuilding">House/Building {variant === 'order' && '*'}</Label>
-                <Input
+                <AutocompleteInput
                     id="houseBuilding"
+                    value={houseBuilding}
+                    onChange={(value) => setValue("houseBuilding", value)}
+                    suggestions={houseBuildingAutocomplete.suggestions}
+                    loading={houseBuildingAutocomplete.loading}
                     placeholder="House name or number"
-                    {...register("houseBuilding")}
                 />
                 {errors.houseBuilding && (
                     <p className="text-sm text-destructive">{errors.houseBuilding.message as string}</p>
                 )}
             </div>
 
-            {/* Town/Village */}
+            {/* Town/Village with Autocomplete */}
             <div className="space-y-2">
                 <Label htmlFor="town">Town/Village {variant === 'order' && '*'}</Label>
-                <Input
+                <AutocompleteInput
                     id="town"
+                    value={town}
+                    onChange={(value) => setValue("town", value)}
+                    suggestions={townAutocomplete.suggestions}
+                    loading={townAutocomplete.loading}
                     placeholder="Enter town or village name"
-                    {...register("town")}
                 />
                 {errors.town && (
                     <p className="text-sm text-destructive">{errors.town.message as string}</p>
                 )}
             </div>
 
+            {/* Post Office - Smart searchable dropdown */}
+            <div className="space-y-2">
+                <Label htmlFor="post">
+                    Post Office {variant === 'order' && '*'}
+                    <span className="text-xs text-muted-foreground ml-2">
+                        (Type to search by name to auto-fill all address fields)
+                    </span>
+                </Label>
+                <SearchableSelect
+                    options={[...postOffices, ...postOfficeSearchResults.map(o => o.Name)]}
+                    value={watch("post") || ""}
+                    onChange={(value) => {
+                        setValue("post", value);
+                        // Check if this is from search results
+                        const searchResult = postOfficeSearchResults.find(o => o.Name === value);
+                        if (searchResult) {
+                            handlePostOfficeSelect(searchResult);
+                        }
+                    }}
+                    placeholder="Select or search post office"
+                    searchPlaceholder="Type post office name or select from list..."
+                    emptyMessage={postOffices.length === 0 && postOfficeSearchResults.length === 0
+                        ? "Enter pincode or type post office name to search"
+                        : "No post offices found"}
+                    onCustomSearch={(query) => searchPostOffices(query)}
+                    isSearching={isSearchingPostOffice}
+                />
+                {errors.post && (
+                    <p className="text-sm text-destructive">{errors.post.message as string}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                    💡 Tip: Input a pincode first to filter post offices by area.
+                </p>
+            </div>
+
             {/* Pincode - Primary lookup method */}
             <div className="space-y-2">
                 <Label htmlFor="pincode">Pincode {variant === 'order' && '*'}</Label>
+                <span className="text-xs text-muted-foreground ml-2">
+                        (Input a pincode to auto-fill district and state)
+                    </span>
                 <div className="relative">
                     <Input
                         id="pincode"
@@ -229,22 +340,6 @@ export function AddressSection({
                     <p className="text-sm text-emerald-600 dark:text-emerald-400">✓ Valid pincode</p>
                 )}
             </div>
-
-            {/* Post Office - Searchable dropdown */}
-            <div className="space-y-2">
-                <Label htmlFor="post">Post Office {variant === 'order' && '*'}</Label>
-                <SearchableSelect
-                    options={postOffices}
-                    value={watch("post") || ""}
-                    onChange={(value) => setValue("post", value)}
-                    placeholder="Select post office"
-                    emptyMessage={postOffices.length === 0 ? "Enter pincode to load post offices" : "No post offices found"}
-                />
-                {errors.post && (
-                    <p className="text-sm text-destructive">{errors.post.message as string}</p>
-                )}
-            </div>
-
 
             {/* City - Auto-populated from post office */}
             <div className="space-y-2">
