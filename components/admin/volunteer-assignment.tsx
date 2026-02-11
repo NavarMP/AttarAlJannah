@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
@@ -28,11 +28,7 @@ export function VolunteerAssignment({ orderId, currentVolunteerId, onAssignmentC
     const [assigning, setAssigning] = useState(false);
     const [selectedVolunteerId, setSelectedVolunteerId] = useState<string>(currentVolunteerId || "");
 
-    useEffect(() => {
-        fetchVolunteers();
-    }, [orderId]);
-
-    const fetchVolunteers = async () => {
+    const fetchVolunteers = useCallback(async () => {
         setLoading(true);
         try {
             // Fetch matching volunteers
@@ -54,7 +50,11 @@ export function VolunteerAssignment({ orderId, currentVolunteerId, onAssignmentC
         } finally {
             setLoading(false);
         }
-    };
+    }, [orderId]);
+
+    useEffect(() => {
+        fetchVolunteers();
+    }, [fetchVolunteers]);
 
     const handleAssignVolunteer = async () => {
         if (!selectedVolunteerId) {
@@ -137,8 +137,8 @@ export function VolunteerAssignment({ orderId, currentVolunteerId, onAssignmentC
                 {/* Auto-Assignment Status */}
                 {matchingVolunteers.length > 0 && (
                     <div className={`p-4 rounded-xl border-2 ${matchingVolunteers.length === 1
-                            ? "bg-emerald-500/10 border-emerald-500/30"
-                            : "bg-amber-500/10 border-amber-500/30"
+                        ? "bg-emerald-500/10 border-emerald-500/30"
+                        : "bg-amber-500/10 border-amber-500/30"
                         }`}>
                         <div className="flex items-start gap-3">
                             {matchingVolunteers.length === 1 ? (

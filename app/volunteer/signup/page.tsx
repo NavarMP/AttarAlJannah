@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Loader2, UserPlus, AlertCircle, CheckCircle } from "lucide-react";
 import { CountryCodeSelect } from "@/components/ui/country-code-select";
-import { VolunteerAddressSection } from "@/components/forms/volunteer-address-section";
+import { AddressSection } from "@/components/forms/address-section";
 import { toast } from "sonner";
 import Link from "next/link";
 import Image from "next/image";
@@ -359,13 +359,11 @@ export default function VolunteerSignupPage() {
                             </div>
 
                             {/* Delivery Address Section */}
-                            <VolunteerAddressSection
-                                form={{
-                                    register,
-                                    setValue,
-                                    watch,
-                                    formState: { errors }
-                                } as any}
+                            <AddressSection
+                                form={{ register, setValue, watch, formState: { errors } }}
+                                variant="volunteer"
+                                showLocationLink={true}
+                                defaultCollapsed={false}
                             />
 
                             {/* Info Banner */}

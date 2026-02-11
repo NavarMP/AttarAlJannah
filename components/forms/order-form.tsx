@@ -11,13 +11,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, CheckCircle2, Copy } from "lucide-react";
-import { LocationLink } from "@/components/ui/location-link";
+import { LocationLink } from "@/components/forms/location-link";
+import { AddressSection } from "@/components/forms/address-section";
 import { toast } from "sonner";
 import { loadRazorpayScript, createRazorpayOptions, openRazorpayCheckout, type RazorpayResponse } from "@/lib/config/razorpay-config";
 
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { CountryCodeSelect, COUNTRY_CODES } from "@/components/ui/country-code-select";
-import { INDIAN_STATES, DISTRICTS_BY_STATE } from "@/lib/data/indian-locations";
 
 interface CustomerProfile {
     id: string;
@@ -50,12 +50,6 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
     // Country code state
     const [phoneCountryCode, setPhoneCountryCode] = useState("+91");
     const [whatsappCountryCode, setWhatsappCountryCode] = useState("+91");
-
-    // Pincode lookup state
-    const [postOffices, setPostOffices] = useState<string[]>([]);
-    const [postOfficeData, setPostOfficeData] = useState<any[]>([]);
-    const [isLoadingPincode, setIsLoadingPincode] = useState(false);
-    const [pincodeError, setPincodeError] = useState<string>("");
 
     const {
         register,
@@ -250,55 +244,6 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
         }
     };
 
-    // Fetch pincode details from India Post API
-    const fetchPincodeDetails = async (pincode: string) => {
-        if (pincode.length !== 6) {
-            setPostOffices([]);
-            setPostOfficeData([]);
-            setPincodeError("");
-            return;
-        }
-
-        setIsLoadingPincode(true);
-        setPincodeError("");
-
-        try {
-            const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
-            const data = await response.json();
-
-            if (data[0]?.Status === "Success" && data[0]?.PostOffice?.length > 0) {
-                const offices = data[0].PostOffice;
-                const officeNames = offices.map((o: any) => o.Name);
-
-                setPostOffices(officeNames);
-                setPostOfficeData(offices); // Store full data for later use
-
-                // Auto-populate only district and state (NOT city - it comes from post office selection)
-                setValue("district", offices[0].District);
-                setValue("state", offices[0].State);
-
-                // Auto-select post office if only one available
-                if (officeNames.length === 1) {
-                    setValue("post", officeNames[0]);
-                    // City will be auto-populated by useEffect watching post selection
-                }
-
-                toast.success("Address details loaded!");
-            } else {
-                setPostOffices([]);
-                setPostOfficeData([]);
-                setPincodeError("Invalid pincode or no data found");
-                toast.error("Invalid pincode");
-            }
-        } catch (error) {
-            setPostOffices([]);
-            setPostOfficeData([]);
-            setPincodeError("Failed to fetch pincode details");
-            toast.error("Failed to fetch pincode details");
-        } finally {
-            setIsLoadingPincode(false);
-        }
-    };
 
     // Validate volunteer ID with debouncing
     const validateVolunteerId = async (id: string) => {
@@ -359,44 +304,6 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
             }
         }
     }, [volunteerReferralId, volunteerId]);
-
-    // Clear district when state changes
-    useEffect(() => {
-        if (selectedState) {
-            const currentDistrict = watch("district");
-            const districtsForState = DISTRICTS_BY_STATE[selectedState] || [];
-
-            // If current district is not in the new state's list, clear it
-            if (currentDistrict && !districtsForState.includes(currentDistrict)) {
-                setValue("district", "");
-            }
-        }
-    }, [selectedState, setValue, watch]);
-
-    // Watch pincode and trigger lookup
-    const pincode = watch("pincode");
-    useEffect(() => {
-        if (pincode && pincode.length === 6) {
-            fetchPincodeDetails(pincode);
-        } else if (pincode && pincode.length < 6) {
-            setPostOffices([]);
-            setPincodeError("");
-        }
-    }, [pincode, fetchPincodeDetails]);
-
-    // Watch post office selection and update city
-    const selectedPost = watch("post");
-    useEffect(() => {
-        if (selectedPost && postOfficeData.length > 0) {
-            // Find the selected post office in the data
-            const selectedOffice = postOfficeData.find((o: any) => o.Name === selectedPost);
-            if (selectedOffice) {
-                // Set city to the post office name
-                setValue("city", selectedOffice.Name);
-            }
-        }
-    }, [selectedPost, postOfficeData, setValue]);
-
 
 
     const onSubmit = async (data: OrderFormData) => {
@@ -719,147 +626,16 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                 <CardContent className="space-y-6">
 
                     {/* Address Section */}
-                    <div className="space-y-4">
-                        {/* <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold">Delivery Address</h3>
-                        </div> */}
+                    <AddressSection
+                        form={{ register, setValue, watch, formState: { errors } }}
+                        variant="order"
+                    />
 
-                        {/* Location Link */}
-                        <LocationLink
-                            value={watch("locationLink") || ""}
-                            onChange={(link) => setValue("locationLink", link)}
-                        />
-
-                        {/* House/Building */}
-                        <div className="space-y-2">
-                            <Label htmlFor="houseBuilding">House/Building Name *</Label>
-                            <Input
-                                id="houseBuilding"
-                                placeholder="House/Flat No., Building Name"
-                                {...register("houseBuilding")}
-                            />
-                            {errors.houseBuilding && (
-                                <p className="text-sm text-destructive">{errors.houseBuilding.message}</p>
-                            )}
-                        </div>
-
-                        {/* Town */}
-                        <div className="space-y-2">
-                            <Label htmlFor="town">Town *</Label>
-                            <Input
-                                id="town"
-                                placeholder="Town/Locality"
-                                {...register("town")}
-                            />
-                            {errors.town && (
-                                <p className="text-sm text-destructive">{errors.town.message}</p>
-                            )}
-                        </div>
-
-                        {/* Pincode - MOVED UP to trigger auto-population */}
-                        <div className="space-y-2">
-                            <Label htmlFor="pincode">Pincode *</Label>
-                            <div className="relative">
-                                <Input
-                                    id="pincode"
-                                    type="number"
-                                    placeholder="6-digit pincode"
-                                    maxLength={6}
-                                    onInput={(e: React.FormEvent<HTMLInputElement>) => {
-                                        e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '').slice(0, 6);
-                                    }}
-                                    {...register("pincode")}
-                                />
-                                {isLoadingPincode && (
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                                    </div>
-                                )}
-                            </div>
-                            {errors.pincode && (
-                                <p className="text-sm text-destructive">{errors.pincode.message}</p>
-                            )}
-                            {pincodeError && (
-                                <p className="text-sm text-destructive">{pincodeError}</p>
-                            )}
-                            {postOffices.length > 0 && (
-                                <p className="text-sm text-emerald-600 dark:text-emerald-400">
-                                    ✓ {postOffices.length} post office{postOffices.length > 1 ? 's' : ''} found
-                                </p>
-                            )}
-                        </div>
-
-                        {/* Post Office - NOW AS DROPDOWN */}
-                        <div className="space-y-2">
-                            <Label htmlFor="post">Post Office *</Label>
-                            <SearchableSelect
-                                options={postOffices}
-                                value={watch("post")}
-                                onChange={(val) => setValue("post", val, { shouldValidate: true })}
-                                placeholder="Select Post Office"
-                                searchPlaceholder="Search Post Office..."
-                                disabled={postOffices.length === 0}
-                                emptyMessage="Please enter a valid pincode first"
-                            />
-                            <input type="hidden" {...register("post")} />
-                            {errors.post && (
-                                <p className="text-sm text-destructive">{errors.post.message}</p>
-                            )}
-                        </div>
-
-                        {/* City (Auto-populated from pincode) */}
-                        <div className="space-y-2">
-                            <Label htmlFor="city">City *</Label>
-                            <Input
-                                id="city"
-                                placeholder="City"
-                                {...register("city")}
-                            />
-                            {errors.city && (
-                                <p className="text-sm text-destructive">{errors.city.message}</p>
-                            )}
-                        </div>
-
-                        {/* District (Auto-populated from pincode) */}
-                        <div className="space-y-2">
-                            <Label htmlFor="district">District *</Label>
-                            <SearchableSelect
-                                options={
-                                    selectedState
-                                        ? (DISTRICTS_BY_STATE[selectedState] || [])
-                                        : []
-                                }
-                                value={watch("district")}
-                                onChange={(val) => setValue("district", val, { shouldValidate: true })}
-                                placeholder="Select District"
-                                searchPlaceholder="Search District..."
-                                disabled={!selectedState}
-                                emptyMessage={!selectedState ? "Please select a state first" : "No district found"}
-                            />
-                            <input type="hidden" {...register("district")} />
-                            {errors.district && (
-                                <p className="text-sm text-destructive">{errors.district.message}</p>
-                            )}
-                        </div>
-
-                        {/* State (Auto-populated from pincode) */}
-                        <div className="space-y-2">
-                            <Label htmlFor="state">State *</Label>
-                            <SearchableSelect
-                                options={INDIAN_STATES}
-                                value={watch("state")}
-                                onChange={(val) => {
-                                    setValue("state", val, { shouldValidate: true });
-                                }}
-                                placeholder="Select State"
-                                searchPlaceholder="Search State..."
-                            />
-                            <input type="hidden" {...register("state")} />
-                            {errors.state && (
-                                <p className="text-sm text-destructive">{errors.state.message}</p>
-                            )}
-                        </div>
-                    </div>
+                    {/* Location Link */}
+                    <LocationLink
+                        value={watch("locationLink") || ""}
+                        onChange={(link) => setValue("locationLink", link)}
+                    />
 
                     {/* Quantity */}
                     <div className="space-y-2">
@@ -906,6 +682,6 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                     </p>
                 </CardContent>
             </Card>
-        </form>
+        </form >
     );
 }

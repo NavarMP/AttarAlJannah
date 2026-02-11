@@ -14,7 +14,7 @@ import { CountryCodeSelect, COUNTRY_CODES } from "@/components/ui/country-code-s
 import { toast } from "sonner";
 import Link from "next/link";
 import { calculateCommission } from "@/lib/utils/commission-utils";
-import { VolunteerAddressSection } from "@/components/forms/volunteer-address-section";
+import { AddressSection } from "@/components/forms/address-section";
 
 // Edit schema - password and address fields are optional
 const volunteerEditSchema = z.object({
@@ -478,13 +478,11 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
                         </div>
 
                         {/* Delivery Address Section */}
-                        <VolunteerAddressSection
-                            form={{
-                                register,
-                                setValue,
-                                watch,
-                                formState: { errors }
-                            } as any}
+                        <AddressSection
+                            form={{ register, setValue, watch, formState: { errors } }}
+                            variant="volunteer"
+                            showLocationLink={true}
+                            defaultCollapsed={false}
                         />
 
                         {/* Buttons */}
