@@ -1,78 +1,72 @@
+
 "use client";
 
-import { useState, useEffect, useCallback, use } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { volunteerBaseSchema, type VolunteerFormData } from "@/lib/validations/volunteer-schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Loader2, Save, AlertCircle, DollarSign } from "lucide-react";
-import { CountryCodeSelect, COUNTRY_CODES } from "@/components/ui/country-code-select";
+import { ArrowLeft, Loader2, Save, AlertCircle } from "lucide-react";
+import { CountryCodeSelect } from "@/components/ui/country-code-select";
+import { AddressSection } from "@/components/forms/address-section";
+import { ProfilePhotoUpload } from "@/components/custom/profile-photo-upload";
 import { toast } from "sonner";
 import Link from "next/link";
-import { calculateCommission } from "@/lib/utils/commission-utils";
-import { AddressSection } from "@/components/forms/address-section";
+import { z } from "zod";
 
-// Edit schema - password and address fields are optional
-const volunteerEditSchema = z.object({
-    name: z.string().min(2, "Name must be at least 2 characters"),
-    email: z.string().email("Invalid email").optional().or(z.literal("")),
-    phoneCountry: z.string().default("+91"),
-    phone: z
-        .string()
-        .min(10, "Phone number must be at least 10 digits")
-        .max(15, "Phone number is too long"),
-    volunteer_id: z.string().min(1, "Volunteer ID is required"),
-    password: z.string().min(8, "Password must be at least 8 characters if provided").optional().or(z.literal("")),
-    goal: z.number().min(1, "Goal must be at least 1").default(20),
-    // Optional address fields
-    houseBuilding: z.string().optional().or(z.literal("")),
-    town: z.string().optional().or(z.literal("")),
-    pincode: z.string().optional().or(z.literal("")),
-    post: z.string().optional().or(z.literal("")),
-    city: z.string().optional().or(z.literal("")),
-    district: z.string().optional().or(z.literal("")),
-    state: z.string().optional().or(z.literal("")),
-    locationLink: z.string().optional().or(z.literal("")),
+// Create a schema that makes password optional for editing
+const editVolunteerSchema = volunteerBaseSchema.extend({
+    password: z.string().min(8, "Password must be at least 8 characters").optional().or(z.literal("")),
+    confirmPassword: z.string().optional().or(z.literal("")),
+}).refine((data) => {
+    if (data.password && data.password !== data.confirmPassword) {
+        return false;
+    }
+    return true;
+}, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
 });
 
-type VolunteerEditFormData = z.infer<typeof volunteerEditSchema>;
+type EditVolunteerFormData = z.infer<typeof editVolunteerSchema>;
 
-export default function EditVolunteerPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = use(params);
+export default function EditVolunteerPage() {
     const router = useRouter();
+    const params = useParams();
+    const id = params?.id as string;
+
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [phoneCountryCode, setPhoneCountryCode] = useState("+91");
+    const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
+    const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
+    const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null>(null);
 
-    // Duplicate checking state
+    // Duplicate checking state (only if changed)
     const [isCheckingName, setIsCheckingName] = useState(false);
     const [isCheckingVolunteerId, setIsCheckingVolunteerId] = useState(false);
     const [nameExists, setNameExists] = useState(false);
     const [volunteerIdExists, setVolunteerIdExists] = useState(false);
-    const [stats, setStats] = useState({
-        confirmed_bottles: 0,
-        goal: 20,
-        stats: {
-            totalBottles: 0,
-            confirmedBottles: 0,
-            pendingBottles: 0,
-        },
-    });
+
+    // Original values to check against changes
+    const [originalName, setOriginalName] = useState("");
+    const [originalVolunteerId, setOriginalVolunteerId] = useState("");
 
     const {
         register,
         handleSubmit,
         watch,
         setValue,
+        reset,
         formState: { errors },
         setError,
         clearErrors,
-    } = useForm<VolunteerEditFormData>({
-        resolver: zodResolver(volunteerEditSchema),
+    } = useForm<EditVolunteerFormData>({
+        resolver: zodResolver(editVolunteerSchema),
         mode: "onChange",
         defaultValues: {
             phoneCountry: "+91",
@@ -80,88 +74,93 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
         },
     });
 
-    const fetchVolunteer = useCallback(async () => {
-        try {
-            setIsLoading(true);
-            const response = await fetch(`/api/admin/volunteers/${id}`);
-            if (!response.ok) throw new Error("Failed to fetch volunteer");
-
-            const data = await response.json();
-            const volunteer = data.volunteer;
-
-            // Parse phone number to separate country code
-            let cleanPhone = volunteer.phone;
-            let extractedCountryCode = "+91";
-
-            // Try to extract country code by matching against known codes
-            if (cleanPhone.startsWith("+")) {
-                // Sort codes by length (descending) to match longest possible code first
-                // e.g. match +971 before +97
-                const sortedCodes = [...COUNTRY_CODES].sort((a, b) => b.code.length - a.code.length);
-
-                const matchedCountry = sortedCodes.find(c => cleanPhone.startsWith(c.code));
-
-                if (matchedCountry) {
-                    extractedCountryCode = matchedCountry.code;
-                    cleanPhone = cleanPhone.slice(matchedCountry.code.length);
-                } else {
-                    // Fallback to basic regex if no known code matches
-                    const match = cleanPhone.match(/^(\+\d{1,4})(.*)$/);
-                    if (match) {
-                        extractedCountryCode = match[1];
-                        cleanPhone = match[2];
-                    }
-                }
-            }
-
-            setPhoneCountryCode(extractedCountryCode);
-            setValue("phoneCountry", extractedCountryCode);
-            setValue("name", volunteer.name);
-            setValue("email", volunteer.email || "");
-            setValue("phone", cleanPhone);
-            setValue("volunteer_id", volunteer.volunteer_id);
-            setValue("password", "");
-            setValue("goal", volunteer.goal || 20);
-
-            // Populate address fields if they exist
-            setValue("houseBuilding", volunteer.house_building || "");
-            setValue("town", volunteer.town || "");
-            setValue("pincode", volunteer.pincode || "");
-            setValue("post", volunteer.post || "");
-            setValue("city", volunteer.city || "");
-            setValue("district", volunteer.district || "");
-            setValue("state", volunteer.state || "");
-            setValue("locationLink", volunteer.location_link || "");
-
-            setStats({
-                confirmed_bottles: volunteer.confirmed_bottles || 0,
-                goal: volunteer.goal || 20,
-                stats: {
-                    totalBottles: volunteer.stats?.totalBottles || 0,
-                    confirmedBottles: volunteer.stats?.confirmedBottles || 0,
-                    pendingBottles: volunteer.stats?.pendingBottles || 0,
-                },
-            });
-
-        } catch (error) {
-            toast.error("Failed to load volunteer");
-            router.push("/admin/volunteers");
-        } finally {
-            setIsLoading(false);
-        }
-    }, [id, router, setValue]);
-
-    useEffect(() => {
-        fetchVolunteer();
-    }, [fetchVolunteer]);
-
-
     const name = watch("name");
     const volunteer_id = watch("volunteer_id");
 
-    // Check for duplicate name (debounced) - exclude current volunteer
+    // Fetch volunteer data
     useEffect(() => {
-        if (!name || name.length < 2 || !id) {
+        const fetchVolunteer = async () => {
+            try {
+                const response = await fetch(`/api/admin/volunteers/${id}`);
+                if (!response.ok) throw new Error("Failed to fetch volunteer");
+
+                const data = await response.json();
+
+                // Extract phone country code
+                const phone = data.phone || "";
+                const countryCode = phone.match(/^\+\d{1,4}/)?.[0] || "+91";
+                const phoneNumber = phone.replace(countryCode, "");
+
+                setPhoneCountryCode(countryCode);
+
+                // Set original values
+                setOriginalName(data.name);
+                setOriginalVolunteerId(data.volunteer_id);
+                setExistingPhotoUrl(data.profile_photo);
+                setProfilePhotoPreview(data.profile_photo);
+
+                // Determine goal from challenge_progress or default
+                // Fetch progress as well? Or just set from data if available 
+                // GET /api/admin/volunteers/[id] currently returns just fields in volunteers table.
+                // We need goal. 
+                // The GET endpoint I wrote: returns `select("*")`. 'goal' is NOT in 'volunteers' table, it's in 'challenge_progress'.
+                // I should update GET /api/admin/volunteers/[id] to include goal.
+
+                // For now, let's fetch goal separately or assume default/lazy load.
+                // Or I can update the GET endpoint quickly in next step.
+
+                reset({
+                    name: data.name,
+                    email: data.email || "",
+                    phoneCountry: countryCode,
+                    phone: phoneNumber,
+                    volunteer_id: data.volunteer_id,
+                    goal: data.goal || 20, // This might be missing if not fetched
+                    houseBuilding: data.house_building || "",
+                    town: data.town || "",
+                    pincode: data.pincode || "",
+                    post: data.post || "",
+                    city: data.city || "",
+                    district: data.district || "",
+                    state: data.state || "",
+                    locationLink: data.location_link || "",
+                });
+            } catch (error) {
+                console.error("Error loading volunteer:", error);
+                toast.error("Failed to load volunteer data");
+                router.push("/admin/volunteers");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        if (id) {
+            fetchVolunteer();
+        }
+    }, [id, reset, router]);
+
+    // Fetch goal separately since it's not in the main table
+    useEffect(() => {
+        const fetchGoal = async () => {
+            if (!id) return;
+            try {
+                const response = await fetch(`/api/admin/volunteers/${id}/analytics`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.performance?.goal?.target) {
+                        setValue("goal", data.performance.goal.target);
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to fetch goal", e);
+            }
+        };
+        fetchGoal();
+    }, [id, setValue]);
+
+    // Check for duplicate name (debounced)
+    useEffect(() => {
+        if (!name || name.length < 2 || name === originalName) {
             setNameExists(false);
             return;
         }
@@ -170,7 +169,7 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
             setIsCheckingName(true);
             try {
                 const response = await fetch(
-                    `/api/admin/volunteers/check-duplicate?name=${encodeURIComponent(name)}&excludeId=${id}`
+                    `/api/admin/volunteers/check-duplicate?name=${encodeURIComponent(name)}`
                 );
                 const data = await response.json();
 
@@ -192,11 +191,11 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
         }, 800);
 
         return () => clearTimeout(timer);
-    }, [name, id, setError, clearErrors]);
+    }, [name, setError, clearErrors, originalName]);
 
-    // Check for duplicate volunteer_id (debounced) - exclude current volunteer
+    // Check for duplicate volunteer_id (debounced)
     useEffect(() => {
-        if (!volunteer_id || volunteer_id.trim() === "" || !id) {
+        if (!volunteer_id || volunteer_id.trim() === "" || volunteer_id === originalVolunteerId) {
             setVolunteerIdExists(false);
             return;
         }
@@ -205,7 +204,7 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
             setIsCheckingVolunteerId(true);
             try {
                 const response = await fetch(
-                    `/api/admin/volunteers/check-duplicate?volunteerId=${encodeURIComponent(volunteer_id)}&excludeId=${id}`
+                    `/api/admin/volunteers/check-duplicate?volunteerId=${encodeURIComponent(volunteer_id)}`
                 );
                 const data = await response.json();
 
@@ -227,9 +226,9 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
         }, 800);
 
         return () => clearTimeout(timer);
-    }, [volunteer_id, id, setError, clearErrors]);
-    const onSubmit = async (data: VolunteerEditFormData) => {
-        // Final check before submission
+    }, [volunteer_id, setError, clearErrors, originalVolunteerId]);
+
+    const onSubmit = async (data: EditVolunteerFormData) => {
         if (nameExists || volunteerIdExists) {
             toast.error("Please fix duplicate errors before submitting");
             return;
@@ -238,32 +237,46 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
         try {
             setIsSubmitting(true);
 
-            const updateData: any = {
-                name: data.name,
-                email: data.email,
-                phone: `${phoneCountryCode}${data.phone}`,
-                volunteer_id: data.volunteer_id,
-                goal: data.goal,
-                // Address fields
-                houseBuilding: data.houseBuilding || null,
-                town: data.town || null,
-                pincode: data.pincode || null,
-                post: data.post || null,
-                city: data.city || null,
-                district: data.district || null,
-                state: data.state || null,
-                locationLink: data.locationLink || null,
-            };
+            // Upload profile photo if changed
+            let profilePhotoUrl = existingPhotoUrl;
+            if (profilePhotoFile) {
+                const photoFormData = new FormData();
+                photoFormData.append("file", profilePhotoFile);
+                photoFormData.append("volunteerId", data.volunteer_id);
 
-            // Only include password if it's being changed
-            if (data.password) {
-                updateData.password = data.password;
+                const photoResponse = await fetch("/api/upload/profile-photo", {
+                    method: "POST",
+                    body: photoFormData,
+                });
+
+                if (photoResponse.ok) {
+                    const photoResult = await photoResponse.json();
+                    profilePhotoUrl = photoResult.photoUrl;
+                } else {
+                    console.error("Photo upload failed");
+                    toast.warning("Profile photo upload failed, keeping existing photo");
+                }
+            } else if (profilePhotoPreview === null) {
+                // Photo was removed
+                profilePhotoUrl = null;
             }
 
             const response = await fetch(`/api/admin/volunteers/${id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(updateData),
+                body: JSON.stringify({
+                    ...data,
+                    phone: `${phoneCountryCode}${data.phone}`,
+                    profile_photo: profilePhotoUrl,
+                    house_building: data.houseBuilding || null,
+                    town: data.town || null,
+                    pincode: data.pincode || null,
+                    post: data.post || null,
+                    city: data.city || null,
+                    district: data.district || null,
+                    state: data.state || null,
+                    location_link: data.locationLink || null,
+                }),
             });
 
             const result = await response.json();
@@ -273,7 +286,7 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
             }
 
             toast.success("Volunteer updated successfully!");
-            router.push("/admin/volunteers");
+            router.push(`/admin/volunteers/${id}`);
 
         } catch (error: any) {
             toast.error(error.message || "Failed to update volunteer");
@@ -284,8 +297,8 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="flex items-center justify-center min-h-[50vh]">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
         );
     }
@@ -294,7 +307,7 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
         <div className="max-w-3xl mx-auto space-y-6">
             {/* Header */}
             <div className="flex items-center gap-4">
-                <Link href="/admin/volunteers">
+                <Link href={`/admin/volunteers/${id}`}>
                     <Button variant="ghost" size="icon">
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
@@ -302,52 +315,20 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
                 <div>
                     <h1 className="text-3xl font-bold">Edit Volunteer</h1>
                     <p className="text-muted-foreground mt-1">
-                        Update volunteer information and progress
+                        Update volunteer details and settings
                     </p>
                 </div>
-            </div>
-
-            {/* Stats */}
-            <div className="grid md:grid-cols-4 gap-4">
-                <Card className="glass">
-                    <CardContent className="pt-6">
-                        <div className="text-sm text-muted-foreground">Confirmed Bottles</div>
-                        <div className="text-2xl font-bold text-emerald-500 mt-1">
-                            {stats.confirmed_bottles}
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card className="glass">
-                    <CardContent className="pt-6">
-                        <div className="text-sm text-muted-foreground">Total Bottles</div>
-                        <div className="text-2xl font-bold mt-1">{stats.stats.totalBottles}</div>
-                    </CardContent>
-                </Card>
-                <Card className="glass">
-                    <CardContent className="pt-6">
-                        <div className="text-sm text-muted-foreground">Pending Bottles</div>
-                        <div className="text-2xl font-bold mt-1">{stats.stats.pendingBottles}</div>
-                    </CardContent>
-                </Card>
-                <Card className="glass border-gold-300 dark:border-gold-700">
-                    <CardContent className="pt-6">
-                        <div className="text-sm text-muted-foreground flex items-center gap-1">
-                            <DollarSign className="w-4 h-4 text-gold-500" />
-                            Commission
-                        </div>
-                        <div className="text-2xl font-bold text-gold-500 mt-1">
-                            ₹{calculateCommission(stats.confirmed_bottles)}
-                        </div>
-                    </CardContent>
-                </Card>
             </div>
 
             {/* Form */}
             <Card className="glass-strong">
                 <CardHeader>
-                    <CardTitle>Volunteer Information</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                        <Save className="h-5 w-5" />
+                        Volunteer Information
+                    </CardTitle>
                     <CardDescription>
-                        Update volunteer details. Leave password empty to keep current password.
+                        Modify the volunteer details. Leave password blank to keep current password.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -358,6 +339,7 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
                             <div className="relative">
                                 <Input
                                     id="name"
+                                    placeholder="Enter volunteer's full name"
                                     className={nameExists ? "border-destructive" : ""}
                                     {...register("name")}
                                 />
@@ -378,13 +360,28 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
                             )}
                         </div>
 
+                        {/* Profile Photo */}
+                        <div className="space-y-2">
+                            <Label>Profile Photo</Label>
+                            <ProfilePhotoUpload
+                                currentPhotoUrl={profilePhotoPreview}
+                                volunteerName={name || "Volunteer"}
+                                onPhotoChange={(file, preview) => {
+                                    setProfilePhotoFile(file);
+                                    setProfilePhotoPreview(preview);
+                                }}
+                                size="md"
+                            />
+                        </div>
+
                         {/* Email and Phone */}
                         <div className="grid md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="email">Email (Optional)</Label>
+                                <Label htmlFor="email">Email</Label>
                                 <Input
                                     id="email"
                                     type="email"
+                                    placeholder="volunteer@example.com"
                                     {...register("email")}
                                 />
                                 {errors.email && (
@@ -422,6 +419,7 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
                                 <div className="relative">
                                     <Input
                                         id="volunteer_id"
+                                        placeholder="E.g., Muhammed"
                                         className={volunteerIdExists ? "border-destructive" : ""}
                                         {...register("volunteer_id")}
                                     />
@@ -429,15 +427,12 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
                                         <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
                                     )}
                                 </div>
-                                <p className="text-xs text-muted-foreground">
-                                    Be careful when changing this
-                                </p>
                                 {isCheckingVolunteerId && (
                                     <p className="text-sm text-muted-foreground flex items-center gap-1">
                                         Checking availability...
                                     </p>
                                 )}
-                                {!isCheckingVolunteerId && volunteer_id && volunteer_id.trim() !== "" && !volunteerIdExists && !errors.volunteer_id && (
+                                {!isCheckingVolunteerId && volunteer_id && volunteer_id.trim() !== "" && !volunteerIdExists && volunteer_id !== originalVolunteerId && (
                                     <p className="text-sm text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                                         ✓ Available
                                     </p>
@@ -449,17 +444,31 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
                                     </p>
                                 )}
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="password">New Password (Optional)</Label>
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    placeholder="Leave empty to keep current"
-                                    {...register("password")}
-                                />
-                                {errors.password && (
-                                    <p className="text-sm text-destructive">{errors.password.message}</p>
-                                )}
+                            <div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="password">Password</Label>
+                                    <Input
+                                        id="password"
+                                        type="password"
+                                        placeholder="Leave blank to keep current"
+                                        {...register("password")}
+                                    />
+                                    {errors.password && (
+                                        <p className="text-sm text-destructive">{errors.password.message}</p>
+                                    )}
+                                </div>
+                                <div className="space-y-2 mt-2">
+                                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                                    <Input
+                                        id="confirmPassword"
+                                        type="password"
+                                        placeholder="Re-enter password"
+                                        {...register("confirmPassword")}
+                                    />
+                                    {errors.confirmPassword && (
+                                        <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -470,6 +479,7 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
                                 id="goal"
                                 type="number"
                                 min="1"
+                                placeholder="20"
                                 {...register("goal", { valueAsNumber: true })}
                             />
                             {errors.goal && (
@@ -500,11 +510,11 @@ export default function EditVolunteerPage({ params }: { params: Promise<{ id: st
                                 ) : (
                                     <>
                                         <Save className="mr-2 h-4 w-4" />
-                                        Save Changes
+                                        Update Volunteer
                                     </>
                                 )}
                             </Button>
-                            <Link href="/admin/volunteers" className="flex-1">
+                            <Link href={`/admin/volunteers/${id}`} className="flex-1">
                                 <Button
                                     type="button"
                                     variant="outline"

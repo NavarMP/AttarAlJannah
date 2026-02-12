@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Loader2, UserPlus, AlertCircle, CheckCircle } from "lucide-react";
 import { CountryCodeSelect } from "@/components/ui/country-code-select";
 import { AddressSection } from "@/components/forms/address-section";
+import { ProfilePhotoUpload } from "@/components/custom/profile-photo-upload";
 import { toast } from "sonner";
 import Link from "next/link";
 import Image from "next/image";
@@ -21,6 +22,8 @@ export default function VolunteerSignupPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [phoneCountryCode, setPhoneCountryCode] = useState("+91");
     const [signupSuccess, setSignupSuccess] = useState(false);
+    const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
+    const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
 
     // Duplicate checking state
     const [isCheckingName, setIsCheckingName] = useState(false);
@@ -127,6 +130,28 @@ export default function VolunteerSignupPage() {
         try {
             setIsSubmitting(true);
 
+            // Upload profile photo first if provided
+            let profilePhotoUrl: string | null = null;
+            if (profilePhotoFile) {
+                const photoFormData = new FormData();
+                photoFormData.append("file", profilePhotoFile);
+                photoFormData.append("volunteerId", data.volunteer_id);
+
+                const photoResponse = await fetch("/api/upload/profile-photo", {
+                    method: "POST",
+                    body: photoFormData,
+                });
+
+                if (photoResponse.ok) {
+                    const photoResult = await photoResponse.json();
+                    profilePhotoUrl = photoResult.photoUrl;
+                } else {
+                    // Photo upload failed, but continue with signup
+                    console.error("Photo upload failed, continuing without photo");
+                    toast.warning("Profile photo upload failed, but continuing with signup");
+                }
+            }
+
             const response = await fetch("/api/volunteer/auth/signup", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -136,6 +161,7 @@ export default function VolunteerSignupPage() {
                     phone: `${phoneCountryCode}${data.phone}`,
                     volunteer_id: data.volunteer_id,
                     password: data.password,
+                    profile_photo: profilePhotoUrl, // Add profile photo URL
                     // Optional address fields
                     houseBuilding: data.houseBuilding || null,
                     town: data.town || null,
@@ -254,6 +280,19 @@ export default function VolunteerSignupPage() {
                                         {errors.name.message}
                                     </p>
                                 )}
+                            </div>
+
+                            {/* Profile Photo */}
+                            <div className="space-y-2">
+                                <Label>Profile Photo (Optional)</Label>
+                                <ProfilePhotoUpload
+                                    volunteerName={name || "Volunteer"}
+                                    onPhotoChange={(file, preview) => {
+                                        setProfilePhotoFile(file);
+                                        setProfilePhotoPreview(preview);
+                                    }}
+                                    size="md"
+                                />
                             </div>
 
                             {/* Email and Phone */}

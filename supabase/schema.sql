@@ -1,5 +1,5 @@
 -- =====================================================
--- Attar Al Jannah Database Schema - Updated with Razorpay & Delivery System
+-- Attar Al Jannah Database Schema
 -- =====================================================
 
 -- 1. DROP EXISTING TABLES (Clean Slate)
@@ -24,6 +24,7 @@ CREATE TABLE volunteers (
     email TEXT UNIQUE, -- Optional
     phone TEXT UNIQUE NOT NULL,
     role TEXT DEFAULT 'volunteer',
+    profile_photo TEXT, -- URL to profile photo in Supabase Storage
     total_sales INTEGER DEFAULT 0,
     
     -- Delivery & Commission tracking

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useState, useEffect } from "react";
 
-export function ShareButtons() {
+export function Share() {
     const [reminderSet, setReminderSet] = useState(false);
     const [reminderLabel, setReminderLabel] = useState("");
 

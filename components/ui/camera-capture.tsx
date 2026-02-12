@@ -30,10 +30,12 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
                 setError(null);
 
                 // Request camera access with back camera preference for mobile
+                // Use square aspect ratio for profile photos
                 mediaStream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         facingMode: "environment", // Use back camera on mobile
-                        width: { ideal: 1920 },
+                        aspectRatio: 1, // Force 1:1 aspect ratio
+                        width: { ideal: 1080 },
                         height: { ideal: 1080 },
                     },
                 });
@@ -78,14 +80,22 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
         const video = videoRef.current;
         const canvas = canvasRef.current;
 
-        // Set canvas dimensions to match video
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        // Use the smaller dimension for square crop
+        const size = Math.min(video.videoWidth, video.videoHeight);
+
+        // Calculate crop position to center the square
+        const startX = (video.videoWidth - size) / 2;
+        const startY = (video.videoHeight - size) / 2;
+
+        // Set canvas to square
+        canvas.width = size;
+        canvas.height = size;
 
         // Draw video frame to canvas
         const context = canvas.getContext("2d");
         if (context) {
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            // Draw only the center square portion
+            context.drawImage(video, startX, startY, size, size, 0, 0, size, size);
 
             // Convert canvas to blob and then to file
             canvas.toBlob(
@@ -108,7 +118,7 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
         canvasRef.current.toBlob(
             (blob) => {
                 if (blob) {
-                    const file = new File([blob], `payment-screenshot-${Date.now()}.jpg`, {
+                    const file = new File([blob], `profile-photo-${Date.now()}.jpg`, {
                         type: "image/jpeg",
                     });
                     // Pass both file and data URL
@@ -130,7 +140,8 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
             const mediaStream = await navigator.mediaDevices.getUserMedia({
                 video: {
                     facingMode: "environment",
-                    width: { ideal: 1920 },
+                    aspectRatio: 1, // Force 1:1 aspect ratio
+                    width: { ideal: 1080 },
                     height: { ideal: 1080 },
                 },
             });
@@ -156,12 +167,12 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
 
     return (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-            <Card className="w-full max-w-4xl glass-strong rounded-3xl">
+            <Card className="w-full max-w-md glass-strong rounded-3xl">
                 <CardHeader>
                     <div className="flex items-center justify-between">
                         <CardTitle className="flex items-center gap-2">
                             <Camera className="w-6 h-6" />
-                            Capture Payment Screenshot
+                            Take Profile Photo
                         </CardTitle>
                         <Button
                             variant="ghost"
@@ -183,8 +194,8 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
                         </div>
                     ) : (
                         <>
-                            {/* Camera Preview or Captured Image */}
-                            <div className="relative aspect-video bg-black rounded-2xl overflow-hidden">
+                            {/* Camera Preview or Captured Image - Square Aspect Ratio */}
+                            <div className="relative aspect-square bg-black rounded-2xl overflow-hidden mx-auto max-w-sm">
                                 {isLoading && (
                                     <div className="absolute inset-0 flex items-center justify-center">
                                         <div className="text-white text-center">
@@ -206,9 +217,9 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
                                     <div className="relative w-full h-full">
                                         <Image
                                             src={capturedImage}
-                                            alt="Captured screenshot"
+                                            alt="Captured profile photo"
                                             fill
-                                            className="object-contain"
+                                            className="object-cover"
                                             unoptimized
                                         />
                                     </div>

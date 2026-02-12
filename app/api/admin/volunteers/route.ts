@@ -152,6 +152,7 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const {
             name, email, phone, password, volunteer_id, goal = 20, role,
+            profile_photo, // Profile photo URL
             // Optional address fields
             houseBuilding, town, pincode, post, city, district, state, locationLink
         } = body;
@@ -265,6 +266,7 @@ export async function POST(request: NextRequest) {
                 email: authEmail,
                 phone: phone,
                 role: role || "volunteer",
+                profile_photo: profile_photo || null, // Profile photo URL
                 total_sales: 0,
                 status: "active", // Admin-created volunteers are auto-approved
                 // Optional address fields

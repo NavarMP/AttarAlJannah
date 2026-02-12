@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const volunteerSchema = z.object({
+export const volunteerBaseSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
     email: z.string().email("Invalid email").optional().or(z.literal("")),
     phoneCountry: z.string().default("+91"),
@@ -22,7 +22,9 @@ export const volunteerSchema = z.object({
     district: z.string().optional().or(z.literal("")),
     state: z.string().optional().or(z.literal("")),
     locationLink: z.string().optional().or(z.literal("")),
-}).refine((data) => data.password === data.confirmPassword, {
+});
+
+export const volunteerSchema = volunteerBaseSchema.refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
     path: ["confirmPassword"],
 });

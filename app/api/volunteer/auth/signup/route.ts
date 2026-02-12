@@ -24,8 +24,9 @@ export async function POST(request: NextRequest) {
 
         const body = await request.json();
         const {
-            name, email, phone, password, volunteer_id,
-            // Optional address fields
+            name, email, phone, volunteer_id, password,
+            profile_photo, // Profile photo URL
+            // Address fields
             houseBuilding, town, pincode, post, city, district, state, locationLink
         } = body;
 
@@ -125,6 +126,7 @@ export async function POST(request: NextRequest) {
                 email: authEmail,
                 phone: phone,
                 role: "volunteer",
+                profile_photo: profile_photo || null, // Profile photo URL
                 total_sales: 0,
                 status: "pending", // NEW: Set as pending for admin approval
                 // Optional address fields

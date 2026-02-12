@@ -75,12 +75,12 @@ export async function GET(request: NextRequest) {
         // Customer satisfaction from feedback
         const { data: feedback } = await supabase
             .from("feedback")
-            .select("rating")
+            .select("rating_overall")
             .gte("created_at", startDate.toISOString())
             .lte("created_at", endDate.toISOString());
 
         const avgRating = feedback && feedback.length > 0
-            ? feedback.reduce((sum, f) => sum + (f.rating || 0), 0) / feedback.length
+            ? feedback.reduce((sum, f) => sum + (f.rating_overall || 0), 0) / feedback.length
             : 4.5; // Default
 
         // Delivery success rate

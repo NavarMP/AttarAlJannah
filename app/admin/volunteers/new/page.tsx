@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Loader2, UserPlus, AlertCircle } from "lucide-react";
 import { CountryCodeSelect } from "@/components/ui/country-code-select";
 import { AddressSection } from "@/components/forms/address-section";
+import { ProfilePhotoUpload } from "@/components/custom/profile-photo-upload";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -20,6 +21,8 @@ export default function NewVolunteerPage() {
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [phoneCountryCode, setPhoneCountryCode] = useState("+91");
+    const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
+    const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
 
     // Duplicate checking state
     const [isCheckingName, setIsCheckingName] = useState(false);
@@ -127,12 +130,35 @@ export default function NewVolunteerPage() {
         try {
             setIsSubmitting(true);
 
+            // Upload profile photo first if provided
+            let profilePhotoUrl: string | null = null;
+            if (profilePhotoFile) {
+                const photoFormData = new FormData();
+                photoFormData.append("file", profilePhotoFile);
+                photoFormData.append("volunteerId", data.volunteer_id);
+
+                const photoResponse = await fetch("/api/upload/profile-photo", {
+                    method: "POST",
+                    body: photoFormData,
+                });
+
+                if (photoResponse.ok) {
+                    const photoResult = await photoResponse.json();
+                    profilePhotoUrl = photoResult.photoUrl;
+                } else {
+                    // Photo upload failed, but continue with volunteer creation
+                    console.error("Photo upload failed, continuing without photo");
+                    toast.warning("Profile photo upload failed, but continuing with signup");
+                }
+            }
+
             const response = await fetch("/api/admin/volunteers", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     ...data,
                     phone: `${phoneCountryCode}${data.phone}`,
+                    profile_photo: profilePhotoUrl, // Add profile photo URL
                     // Address fields already in data, but ensure they're null if empty
                     houseBuilding: data.houseBuilding || null,
                     town: data.town || null,
@@ -218,10 +244,23 @@ export default function NewVolunteerPage() {
                             )}
                         </div>
 
+                        {/* Profile Photo */}
+                        <div className="space-y-2">
+                            <Label>Profile Photo</Label>
+                            <ProfilePhotoUpload
+                                volunteerName={name || "Volunteer"}
+                                onPhotoChange={(file, preview) => {
+                                    setProfilePhotoFile(file);
+                                    setProfilePhotoPreview(preview);
+                                }}
+                                size="md"
+                            />
+                        </div>
+
                         {/* Email and Phone */}
                         <div className="grid md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="email">Email (Optional)</Label>
+                                <Label htmlFor="email">Email</Label>
                                 <Input
                                     id="email"
                                     type="email"

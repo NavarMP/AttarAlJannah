@@ -21,8 +21,8 @@ export async function GET() {
         // Get average rating from feedback
         const { data: feedbackData, error: feedbackError } = await supabase
             .from("feedback")
-            .select("rating")
-            .not("rating", "is", null);
+            .select("rating_overall")
+            .not("rating_overall", "is", null);
 
         if (feedbackError) {
             console.error("Error fetching feedback:", feedbackError);
@@ -30,7 +30,7 @@ export async function GET() {
 
         // Calculate average rating
         const avgRating = feedbackData && feedbackData.length > 0
-            ? feedbackData.reduce((sum, f) => sum + (f.rating || 0), 0) / feedbackData.length
+            ? feedbackData.reduce((sum, f) => sum + (f.rating_overall || 0), 0) / feedbackData.length
             : 0;
 
         return NextResponse.json({

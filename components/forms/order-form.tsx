@@ -554,7 +554,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
 
                     {/* Email (Optional) */}
                     <div className="space-y-2">
-                        <Label htmlFor="customerEmail">Email (Optional)</Label>
+                        <Label htmlFor="customerEmail">Email</Label>
                         <Input
                             id="customerEmail"
                             type="email"
@@ -571,7 +571,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
             {/* Volunteer Referral Section */}
             <Card className="glass-strong border-gold-300 dark:border-gold-700">
                 <CardHeader>
-                    <CardTitle className="text-lg">Volunteer Referral (Optional)</CardTitle>
+                    <CardTitle className="text-lg">Volunteer Referral</CardTitle>
                     <CardDescription>
                         If you were referred by a volunteer, enter their ID to credit them for this order
                     </CardDescription>

@@ -237,7 +237,7 @@ export function AddressSection({
                     <div className="flex items-start gap-3">
                         <MapPin className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
                         <div>
-                            <p className="font-semibold text-sm">Optional Delivery Address</p>
+                            <p className="font-semibold text-sm">Delivery Address</p>
                             <p className="text-sm text-muted-foreground mt-1">
                                 Provide your address to enable automatic order assignment in your area.
                             </p>
@@ -406,7 +406,7 @@ export function AddressSection({
                 >
                     <span className="flex items-center gap-2">
                         <MapPin className="h-4 w-4" />
-                        Delivery Address (Optional)
+                        Delivery Address
                     </span>
                     {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </Button>

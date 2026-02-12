@@ -429,7 +429,8 @@ export default function VolunteersPage() {
                                         .map((volunteer) => (
                                             <TableRow
                                                 key={volunteer.id}
-                                                className={selectedVolunteers.has(volunteer.id) ? 'bg-blue-50 dark:bg-blue-950/20' : ''}
+                                                className={`cursor-pointer hover:bg-muted/50 transition-colors ${selectedVolunteers.has(volunteer.id) ? 'bg-blue-50 dark:bg-blue-950/20' : ''}`}
+                                                onClick={() => router.push(`/admin/volunteers/${volunteer.id}`)}
                                             >
                                                 <TableCell onClick={(e) => e.stopPropagation()}>
                                                     <Checkbox
@@ -505,7 +506,7 @@ export default function VolunteersPage() {
                                                     </Button>
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    <div className="flex items-center justify-end gap-2">
+                                                    <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                                                         {/* Approval buttons for pending volunteers */}
                                                         {volunteer.status === "pending" && (
                                                             <>
@@ -543,16 +544,25 @@ export default function VolunteersPage() {
                                                                 </Button>
                                                             </>
                                                         )}
-                                                        <Link href={`/admin/volunteers/${volunteer.id}/edit`}>
-                                                            <Button variant="ghost" size="sm" className="h-8">
-                                                                <Edit className="h-4 w-4" />
-                                                            </Button>
-                                                        </Link>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                router.push(`/admin/volunteers/${volunteer.id}/edit`);
+                                                            }}
+                                                        >
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button>
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
                                                             className="h-8 text-destructive hover:text-destructive"
-                                                            onClick={() => setDeleteId(volunteer.id)}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setDeleteId(volunteer.id);
+                                                            }}
                                                         >
                                                             <Trash2 className="h-4 w-4" />
                                                         </Button>

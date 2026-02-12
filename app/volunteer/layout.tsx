@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Menu, X, LayoutDashboard, Package, Trophy, Award, LogOut, Truck, Map, Bell, } from "lucide-react";
+import { Menu, X, LayoutDashboard, Package, Trophy, Award, LogOut, Truck, Map, User } from "lucide-react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/custom/theme-toggle";
 import Image from "next/image";
@@ -76,13 +76,22 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
                                 Dashboard
                             </Button>
                         </Link>
+                        <Link href="/volunteer/profile">
+                            <Button
+                                variant="ghost"
+                                className={`w-full justify-start rounded-xl ${pathname === "/volunteer/profile" ? "bg-primary text-primary-foreground" : ""}`}
+                            >
+                                <User className="mr-2 h-5 w-5" />
+                                Profile
+                            </Button>
+                        </Link>
                         <Link href="/volunteer/orders">
                             <Button
                                 variant="ghost"
                                 className={`w-full justify-start rounded-xl ${pathname === "/volunteer/orders" ? "bg-primary text-primary-foreground" : ""}`}
                             >
                                 <Package className="mr-2 h-5 w-5" />
-                                My Orders
+                                Orders
                             </Button>
                         </Link>
                         <Link href="/volunteer/leaderboard">
@@ -95,7 +104,10 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
                             </Button>
                         </Link>
                         <Link href="/volunteer/delivery" onClick={() => setIsSidebarOpen(false)}>
-                            <Button variant="ghost" className="w-full justify-start rounded-xl">
+                            <Button
+                                variant="ghost"
+                                className={`w-full justify-start rounded-xl ${pathname === "/volunteer/delivery" ? "bg-primary text-primary-foreground" : ""}`}>
+                                
                                 <Truck className="mr-2 h-5 w-5" />
                                 Delivery
                             </Button>
@@ -164,10 +176,19 @@ export default function VolunteerLayout({ children }: { children: React.ReactNod
                                     Dashboard
                                 </Button>
                             </Link>
+                            <Link href="/volunteer/profile">
+                                <Button
+                                    variant="ghost"
+                                    className={`w-full justify-start rounded-xl ${pathname === "/volunteer/profile" ? "bg-primary text-primary-foreground" : ""}`}
+                                >
+                                    <User className="mr-2 h-5 w-5" />
+                                    Profile
+                                </Button>
+                            </Link>
                             <Link href="/volunteer/orders" onClick={() => setIsSidebarOpen(false)}>
                                 <Button variant="ghost" className="w-full justify-start rounded-xl">
                                     <Package className="mr-2 h-5 w-5" />
-                                    My Orders
+                                    Orders
                                 </Button>
                             </Link>
                             <Link href="/volunteer/leaderboard" onClick={() => setIsSidebarOpen(false)}>

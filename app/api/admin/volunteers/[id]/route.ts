@@ -1,285 +1,104 @@
-import { NextRequest, NextResponse } from "next/server";
+
 import { createClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
 
 export async function GET(
-    request: NextRequest,
+    request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const supabase = await createClient();
-
         const { id } = await params;
         const volunteerId = id;
+        const supabase = await createClient();
 
-        // Get volunteer by ID
-        const { data: volunteer, error: volunteerError } = await supabase
-            .from("volunteers") // New Table
-            .select("*")
-            .eq("id", volunteerId)
-            // .eq("role", "volunteer")
-            .single();
+        const {
+            data: { session },
+        } = await supabase.auth.getSession();
 
-        if (volunteerError || !volunteer) {
-            return NextResponse.json(
-                { error: "Volunteer not found" },
-                { status: 404 }
-            );
+        if (!session) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // Get challenge progress using UUID
-        const { data: progress } = await supabase
-            .from("challenge_progress")
+        const { data: volunteer, error } = await supabase
+            .from("volunteers")
             .select("*")
-            .eq("volunteer_id", volunteer.id)
-            .limit(1)
-            .maybeSingle();
+            .eq("id", volunteerId)
+            .single();
 
-        // Get order statistics using UUID
-        const { data: orders } = await supabase
-            .from("orders")
-            .select("*")
-            .eq("volunteer_id", volunteer.id); // volunteer.id is UUID
+        if (error) {
+            return NextResponse.json({ error: error.message }, { status: 400 });
+        }
 
-        // Calculate stats with new status values
-        const totalBottles = orders?.reduce((sum, o) => sum + (o.quantity || 0), 0) || 0;
-
-        const confirmedBottles = orders
-            ?.filter(o => o.order_status === "ordered" || o.order_status === "delivered")
-            .reduce((sum, o) => sum + (o.quantity || 0), 0) || 0;
-
-        const deliveredBottles = orders
-            ?.filter(o => o.order_status === "delivered")
-            .reduce((sum, o) => sum + (o.quantity || 0), 0) || 0;
-
-        const pendingBottles = orders
-            ?.filter(o => o.order_status === "pending")
-            .reduce((sum, o) => sum + (o.quantity || 0), 0) || 0;
-
-        return NextResponse.json({
-            volunteer: {
-                ...volunteer,
-                confirmed_bottles: confirmedBottles, // Using confirmedOrders for confirmed_bottles
-                goal: progress?.goal || 20,
-                progress_percentage: progress ? Math.round((confirmedBottles / progress.goal) * 100) : 0,
-                stats: {
-                    totalBottles,
-                    confirmedBottles,
-                    deliveredBottles
-                }
-            }
-        });
-
+        return NextResponse.json(volunteer);
     } catch (error) {
-        console.error("Error fetching volunteer:", error);
-        return NextResponse.json(
-            { error: "Failed to fetch volunteer" },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: "Internal Error" }, { status: 500 });
     }
 }
 
 export async function PUT(
-    request: NextRequest,
+    request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const supabase = await createClient();
-
         const { id } = await params;
         const volunteerId = id;
         const body = await request.json();
+        const supabase = await createClient();
+
         const {
-            name, email, phone, volunteer_id, goal, password,
-            // Address fields
-            houseBuilding, town, pincode, post, city, district, state, locationLink
-        } = body;
+            data: { session },
+        } = await supabase.auth.getSession();
 
-        // Check if volunteer exists in volunteers table
-        const { data: existingVolunteer, error: fetchError } = await supabase
-            .from("volunteers")
-            .select("volunteer_id, auth_id")
-            .eq("id", volunteerId)
-            .single();
-
-        if (fetchError || !existingVolunteer) {
-            return NextResponse.json(
-                { error: "Volunteer not found" },
-                { status: 404 }
-            );
+        if (!session) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // If volunteer_id is being changed, check uniqueness (case-insensitive)
-        if (volunteer_id && volunteer_id !== existingVolunteer.volunteer_id) {
-            const { data: duplicateCheck } = await supabase
-                .from("volunteers")
-                .select("id")
-                .ilike("volunteer_id", volunteer_id)
-                .neq("id", volunteerId);
-
-            if (duplicateCheck && duplicateCheck.length > 0) {
-                return NextResponse.json(
-                    { error: "Volunteer ID already exists" },
-                    { status: 400 }
-                );
-            }
-        }
-
-        // Build update object
-        const updates: any = {};
-        if (name) updates.name = name;
-        if (email) updates.email = email;
-        if (phone) updates.phone = phone;
-        if (volunteer_id) updates.volunteer_id = volunteer_id;
-
-        // Address fields (update even if empty to allow clearing)
-        updates.house_building = houseBuilding || null;
-        updates.town = town || null;
-        updates.pincode = pincode || null;
-        updates.post = post || null;
-        updates.city = city || null;
-        updates.district = district || null;
-        updates.state = state || null;
-        updates.location_link = locationLink || null;
-
-        // Update volunteer record
-        const { data: updatedVolunteer, error: updateError } = await supabase
+        // Just basic update for now - extend as needed
+        const { data, error } = await supabase
             .from("volunteers")
-            .update(updates)
+            .update(body)
             .eq("id", volunteerId)
             .select()
             .single();
 
-        if (updateError) {
-            throw updateError;
+        if (error) {
+            return NextResponse.json({ error: error.message }, { status: 400 });
         }
 
-        // Update password if provided - Require Admin Service Role!
-        if (password && existingVolunteer.auth_id) {
-            const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-            if (serviceRoleKey && supabaseUrl) {
-                const { createClient: createSupabaseClient } = require("@supabase/supabase-js");
-                const adminSupabase = createSupabaseClient(supabaseUrl, serviceRoleKey);
-
-                const { error: authError } = await adminSupabase.auth.admin.updateUserById(
-                    existingVolunteer.auth_id,
-                    { password: password }
-                );
-
-                if (authError) console.error("Failed to update auth password:", authError);
-            }
-        }
-
-        // Update goal in challenge_progress if provided
-        if (goal !== undefined) {
-            const volunteerUuid = updatedVolunteer.id;
-            console.log("Updating goal for volunteer UUID:", volunteerUuid, "to:", goal);
-
-            const { error: progressError } = await supabase
-                .from("challenge_progress")
-                .upsert(
-                    {
-                        volunteer_id: volunteerUuid, // Use UUID
-                        goal: parseInt(goal),
-                        confirmed_orders: 0
-                    },
-                    {
-                        onConflict: 'volunteer_id',
-                        ignoreDuplicates: false
-                    }
-                );
-
-            if (progressError) {
-                console.error("Error updating goal:", progressError);
-                return NextResponse.json(
-                    { error: "Volunteer updated but goal update failed: " + progressError.message },
-                    { status: 500 }
-                );
-            }
-        }
-
-        return NextResponse.json({
-            success: true,
-            volunteer: updatedVolunteer,
-        });
-
+        return NextResponse.json(data);
     } catch (error) {
-        console.error("Error updating volunteer:", error);
-        return NextResponse.json(
-            { error: "Failed to update volunteer" },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: "Internal Error" }, { status: 500 });
     }
 }
 
 export async function DELETE(
-    request: NextRequest,
+    request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        // Need Service Role for deleting Auth User
-        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-        // Use regular client for verification first? Or just go straight to Admin Op?
-        // Let's use standard client to verify it exists and get auth_id
-        const supabase = await createClient(); // Authenticated Admin session
-
         const { id } = await params;
         const volunteerId = id;
+        const supabase = await createClient();
 
-        // Check if volunteer exists
-        const { data: volunteer, error: fetchError } = await supabase
-            .from("volunteers")
-            .select("auth_id")
-            .eq("id", volunteerId)
-            .single();
+        const {
+            data: { session },
+        } = await supabase.auth.getSession();
 
-        if (fetchError || !volunteer) {
-            return NextResponse.json(
-                { error: "Volunteer not found" },
-                { status: 404 }
-            );
+        if (!session) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // Initialize Admin Client
-        let adminSupabase = supabase;
-        if (serviceRoleKey && supabaseUrl) {
-            const { createClient: createSupabaseClient } = require("@supabase/supabase-js");
-            adminSupabase = createSupabaseClient(supabaseUrl, serviceRoleKey);
-        }
-
-        // Delete challenge_progress
-        await adminSupabase
-            .from("challenge_progress")
-            .delete()
-            .eq("volunteer_id", volunteerId);
-
-        // Delete user record from 'volunteers'
-        const { error: deleteError } = await adminSupabase
+        const { error } = await supabase
             .from("volunteers")
             .delete()
             .eq("id", volunteerId);
 
-        if (deleteError) throw deleteError;
-
-        // Delete Auth User
-        if (volunteer.auth_id) {
-            const { error: authError } = await adminSupabase.auth.admin.deleteUser(volunteer.auth_id);
-            if (authError) console.error("Error deleting auth user:", authError);
+        if (error) {
+            return NextResponse.json({ error: error.message }, { status: 400 });
         }
 
-        return NextResponse.json({
-            success: true,
-            message: "Volunteer deleted successfully"
-        });
-
+        return NextResponse.json({ success: true });
     } catch (error) {
-        console.error("Error deleting volunteer:", error);
-        return NextResponse.json(
-            { error: "Failed to delete volunteer" },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: "Internal Error" }, { status: 500 });
     }
 }
