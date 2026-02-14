@@ -430,7 +430,7 @@ export default function VolunteersPage() {
                                             <TableRow
                                                 key={volunteer.id}
                                                 className={`cursor-pointer hover:bg-muted/50 transition-colors ${selectedVolunteers.has(volunteer.id) ? 'bg-blue-50 dark:bg-blue-950/20' : ''}`}
-                                                onClick={() => router.push(`/admin/volunteers/${volunteer.id}`)}
+                                                onClick={() => router.push(`/admin/volunteers/${volunteer.volunteer_id}`)}
                                             >
                                                 <TableCell onClick={(e) => e.stopPropagation()}>
                                                     <Checkbox

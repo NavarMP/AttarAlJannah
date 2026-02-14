@@ -255,6 +255,19 @@ export default function VolunteerSignupPage() {
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                            {/* Profile Photo */}
+                            <div className="space-y-2">
+                                <Label className="text-center">Profile Photo</Label>
+                                <ProfilePhotoUpload
+                                    volunteerName={name || "Volunteer"}
+                                    onPhotoChange={(file, preview) => {
+                                        setProfilePhotoFile(file);
+                                        setProfilePhotoPreview(preview);
+                                    }}
+                                    size="md"
+                                />
+                            </div>
+                            
                             {/* Name */}
                             <div className="space-y-2">
                                 <Label htmlFor="name">Full Name *</Label>
@@ -280,19 +293,6 @@ export default function VolunteerSignupPage() {
                                         {errors.name.message}
                                     </p>
                                 )}
-                            </div>
-
-                            {/* Profile Photo */}
-                            <div className="space-y-2">
-                                <Label>Profile Photo (Optional)</Label>
-                                <ProfilePhotoUpload
-                                    volunteerName={name || "Volunteer"}
-                                    onPhotoChange={(file, preview) => {
-                                        setProfilePhotoFile(file);
-                                        setProfilePhotoPreview(preview);
-                                    }}
-                                    size="md"
-                                />
                             </div>
 
                             {/* Email and Phone */}
@@ -342,7 +342,12 @@ export default function VolunteerSignupPage() {
                                             id="volunteer_id"
                                             placeholder="E.g., Muhammed"
                                             className={volunteerIdExists ? "border-destructive" : ""}
-                                            {...register("volunteer_id")}
+                                            {...register("volunteer_id", {
+                                                onChange: (e) => {
+                                                    const value = e.target.value.replace(/\s/g, "");
+                                                    setValue("volunteer_id", value);
+                                                },
+                                            })}
                                         />
                                         {isCheckingVolunteerId && (
                                             <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />

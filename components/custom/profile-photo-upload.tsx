@@ -206,7 +206,7 @@ export function ProfilePhotoUpload({
                 <p className="text-xs text-muted-foreground text-center max-w-md">
                     Upload JPG, PNG, WEBP, or HEIC images.
                     <br />
-                    Images are automatically compressed and cropped.
+                    Images are automatically compressed and can be cropped.
                 </p>
             </div>
 

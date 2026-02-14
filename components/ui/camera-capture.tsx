@@ -1,10 +1,8 @@
-"use client";
-
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Camera, X, RotateCcw, Check } from "lucide-react";
+import { Camera, X, RotateCcw, Check, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 interface CameraCaptureProps {
@@ -19,21 +17,30 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
     const [capturedImage, setCapturedImage] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [facingMode, setFacingMode] = useState<"user" | "environment">("environment");
 
-    // Start camera on mount
+    // Start camera on mount or when facingMode or capturedImage changes
     useEffect(() => {
         let mediaStream: MediaStream | null = null;
 
         const startCamera = async () => {
             try {
+                // If we already have a captured image, don't restart the camera
+                if (capturedImage) return;
+
                 setIsLoading(true);
                 setError(null);
 
-                // Request camera access with back camera preference for mobile
+                // Stop any existing stream before starting a new one
+                if (stream) {
+                    stream.getTracks().forEach((track) => track.stop());
+                }
+
+                // Request camera access
                 // Use square aspect ratio for profile photos
                 mediaStream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        facingMode: "environment", // Use back camera on mobile
+                        facingMode: facingMode, // Use state for facing mode
                         aspectRatio: 1, // Force 1:1 aspect ratio
                         width: { ideal: 1080 },
                         height: { ideal: 1080 },
@@ -59,19 +66,23 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
 
         startCamera();
 
-        // Cleanup function - stop camera when component unmounts
+        // Cleanup function - stop camera when component unmounts or dependency changes
         return () => {
             if (mediaStream) {
                 mediaStream.getTracks().forEach((track) => track.stop());
             }
         };
-    }, []); // Empty dependency array - only run once
+    }, [facingMode, capturedImage]); // Re-run when facingMode or capturedImage changes
 
     const stopCamera = () => {
         if (stream) {
             stream.getTracks().forEach((track) => track.stop());
             setStream(null);
         }
+    };
+
+    const toggleCamera = () => {
+        setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
     };
 
     const capturePhoto = () => {
@@ -95,6 +106,12 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
         const context = canvas.getContext("2d");
         if (context) {
             // Draw only the center square portion
+            // If using front camera ("user"), mirror the image horizontally
+            if (facingMode === "user") {
+                context.translate(size, 0);
+                context.scale(-1, 1);
+            }
+
             context.drawImage(video, startX, startY, size, size, 0, 0, size, size);
 
             // Convert canvas to blob and then to file
@@ -134,30 +151,7 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
 
     const retakePhoto = async () => {
         setCapturedImage(null);
-        setIsLoading(true);
-
-        try {
-            const mediaStream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: "environment",
-                    aspectRatio: 1, // Force 1:1 aspect ratio
-                    width: { ideal: 1080 },
-                    height: { ideal: 1080 },
-                },
-            });
-
-            setStream(mediaStream);
-
-            if (videoRef.current) {
-                videoRef.current.srcObject = mediaStream;
-            }
-
-            setIsLoading(false);
-        } catch (err) {
-            console.error("Error restarting camera:", err);
-            toast.error("Failed to restart camera");
-            setIsLoading(false);
-        }
+        // The useEffect will re-run because capturedImage changed to null
     };
 
     const handleClose = () => {
@@ -195,9 +189,9 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
                     ) : (
                         <>
                             {/* Camera Preview or Captured Image - Square Aspect Ratio */}
-                            <div className="relative aspect-square bg-black rounded-2xl overflow-hidden mx-auto max-w-sm">
+                            <div className="relative aspect-square bg-black rounded-2xl overflow-hidden mx-auto max-w-sm group">
                                 {isLoading && (
-                                    <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="absolute inset-0 flex items-center justify-center z-20">
                                         <div className="text-white text-center">
                                             <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
                                             <p>Accessing camera...</p>
@@ -206,13 +200,29 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
                                 )}
 
                                 {!capturedImage ? (
-                                    <video
-                                        ref={videoRef}
-                                        autoPlay
-                                        playsInline
-                                        muted
-                                        className="w-full h-full object-cover"
-                                    />
+                                    <>
+                                        <video
+                                            ref={videoRef}
+                                            autoPlay
+                                            playsInline
+                                            muted
+                                            className={`w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
+                                        />
+
+                                        {/* Camera Switch Button - Overlay on video */}
+                                        <div className="absolute top-4 right-4 z-10">
+                                            <Button
+                                                variant="secondary"
+                                                size="icon"
+                                                className="rounded-full bg-black/50 hover:bg-black/70 text-white border border-white/20 backdrop-blur-sm"
+                                                onClick={toggleCamera}
+                                                disabled={isLoading}
+                                                title="Switch Camera"
+                                            >
+                                                <RefreshCw className="w-5 h-5" />
+                                            </Button>
+                                        </div>
+                                    </>
                                 ) : (
                                     <div className="relative w-full h-full">
                                         <Image
@@ -231,8 +241,7 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
                             {/* Instructions */}
                             {!capturedImage && !isLoading && (
                                 <p className="text-sm text-muted-foreground text-center">
-                                    Position your payment confirmation screen in the frame and click
-                                    capture
+                                    Position your face in the frame and click capture
                                 </p>
                             )}
 

@@ -304,7 +304,12 @@ export default function NewVolunteerPage() {
                                         id="volunteer_id"
                                         placeholder="E.g., Muhammed"
                                         className={volunteerIdExists ? "border-destructive" : ""}
-                                        {...register("volunteer_id")}
+                                        {...register("volunteer_id", {
+                                            onChange: (e) => {
+                                                const value = e.target.value.replace(/\s/g, "");
+                                                setValue("volunteer_id", value);
+                                            },
+                                        })}
                                     />
                                     {isCheckingVolunteerId && (
                                         <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />

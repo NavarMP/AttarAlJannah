@@ -8,7 +8,10 @@ export const volunteerBaseSchema = z.object({
         .string()
         .min(10, "Phone number must be at least 10 digits")
         .max(15, "Phone number is too long"),
-    volunteer_id: z.string().min(3, "Volunteer ID is required"),
+    volunteer_id: z
+        .string()
+        .min(3, "Volunteer ID is required")
+        .regex(/^\S*$/, "Volunteer ID cannot contain spaces"),
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string().min(1, "Please confirm the password"),
     goal: z.number().min(1, "Goal must be at least 1").default(20),

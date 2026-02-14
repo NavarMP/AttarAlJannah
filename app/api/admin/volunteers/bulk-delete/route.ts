@@ -33,10 +33,18 @@ export async function POST(request: NextRequest) {
             process.env.SUPABASE_SERVICE_ROLE_KEY!
         );
 
-        // Delete volunteers from database
-        // Note: Due to ON DELETE CASCADE on challenge_progress, 
-        // their challenge progress will be automatically deleted
-        // Orders will have referred_by set to NULL (ON DELETE SET NULL)
+        // Explicitly delete challenge_progress first (in case ON DELETE CASCADE is missing)
+        const { error: progressError } = await adminSupabase
+            .from("challenge_progress")
+            .delete()
+            .in("volunteer_id", volunteerIds);
+
+        if (progressError) {
+            console.error("Error deleting challenge progress:", progressError);
+            // Proceed anyway? Or fail? Usually better to fail or warn.
+            // But if the constraint exists, this step is necessary.
+        }
+
         const { data, error } = await adminSupabase
             .from("volunteers") // New Table
             .delete()
