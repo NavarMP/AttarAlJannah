@@ -12,17 +12,14 @@ export async function GET(
 
         // Verify user is admin
         const { data: { user }, error: authError } = await supabase.auth.getUser();
+
         if (authError || !user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: volunteer, error: volError } = await supabase
-            .from("volunteers")
-            .select("role")
-            .eq("auth_id", user.id)
-            .single();
-
-        if (volError || volunteer?.role !== "admin") {
+        // Use shared admin validation
+        const { isAdminEmail } = await import("@/lib/config/admin");
+        if (!isAdminEmail(user.email)) {
             return NextResponse.json({ error: "Admin access required" }, { status: 403 });
         }
 

@@ -30,15 +30,21 @@ export async function GET(request: NextRequest) {
         let isAdmin = false;
 
         if (user) {
-            // Check if user is admin in the users table
-            const { data: userDetails, error: userError } = await supabase
-                .from("users")
-                .select("user_role")
-                .eq("id", user.id)
-                .single();
-
-            if (!userError && userDetails?.user_role === "admin") {
+            // Check if user is admin via email (hardcoded config)
+            const { isAdminEmail } = await import("@/lib/config/admin");
+            if (isAdminEmail(user.email)) {
                 isAdmin = true;
+            } else {
+                // Fallback: Check if user is admin in the users table
+                const { data: userDetails, error: userError } = await supabase
+                    .from("users")
+                    .select("user_role")
+                    .eq("id", user.id)
+                    .single();
+
+                if (!userError && userDetails?.user_role === "admin") {
+                    isAdmin = true;
+                }
             }
         }
 
@@ -53,16 +59,27 @@ export async function GET(request: NextRequest) {
             console.log("Admin access granted - fetching all feedback");
         } else if (user) {
             // Authenticated non-admin: see own feedback only
-            query = query.eq("user_id", user.id);
+            console.log("User authenticated (Supabase) - fetching by user_id:", user.id);
+            // If phone param provided, ALSO allow matching by phone for hybrid cases
+            if (phoneParam) {
+                const phoneClean = phoneParam.replace(/\D/g, '').slice(-10);
+                console.log(`Checking phone param: ${phoneClean}`);
+                query = query.or(`user_id.eq.${user.id},phone.ilike.%${phoneClean}%`);
+            } else {
+                query = query.eq("user_id", user.id);
+            }
         } else if (emailParam || phoneParam) {
             // Simple Auth (Unauthenticated but provided contact info)
+            console.log("Simple Auth - fetching by params:", { emailParam, phoneParam });
             if (emailParam) query = query.eq("email", emailParam);
             if (phoneParam) {
                 const phoneClean = phoneParam.replace(/\D/g, '').slice(-10);
+                console.log(`Checking phone param (simple): ${phoneClean}`);
                 query = query.ilike("phone", `%${phoneClean}%`);
             }
         } else {
             // No auth, no params -> Unauthorized
+            console.log("Unauthorized feedback access attempt");
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 

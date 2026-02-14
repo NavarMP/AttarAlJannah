@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, GraduationCap } from "lucide-react";
+import { Loader2, Award } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -66,7 +66,7 @@ export default function VolunteerLoginPage() {
             <Card className="max-w-md w-full glass-strong rounded-3xl">
                 <CardHeader className="text-center space-y-4">
                     <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
-                        <GraduationCap className="w-8 h-8 text-white" />
+                        <Award className="w-8 h-8 text-white" />
                     </div>
                     <div>
                         <CardTitle className="text-3xl">Volunteer Login</CardTitle>

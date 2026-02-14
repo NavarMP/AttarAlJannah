@@ -116,6 +116,11 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                         if (data.customerPhoneCountry) setPhoneCountryCode(data.customerPhoneCountry);
                         if (data.whatsappNumberCountry) setWhatsappCountryCode(data.whatsappNumberCountry);
 
+                        // Restore volunteer referral if available and not overridden by props
+                        if (data.volunteerReferralId && !volunteerId) {
+                            setVolunteerReferralId(data.volunteerReferralId);
+                        }
+
                         hasRestoredFromLocalStorage = true;
                         toast.info("Restored your unsaved form data");
                     }
@@ -216,18 +221,24 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
 
             toast.success("Welcome back! Your details are prefilled.");
         }
-    }, [prefillData, customerProfile, setValue]);
+    }, [prefillData, customerProfile, setValue, volunteerId]);
 
     // Save form data to localStorage on change
     useEffect(() => {
         const subscription = watch((value) => {
             const timer = setTimeout(() => {
-                localStorage.setItem('orderFormData', JSON.stringify(value));
+                const dataToSave = {
+                    ...value,
+                    customerPhoneCountry: phoneCountryCode,
+                    whatsappNumberCountry: whatsappCountryCode,
+                    volunteerReferralId: volunteerReferralId // Save volunteer ID
+                };
+                localStorage.setItem('orderFormData', JSON.stringify(dataToSave));
             }, 1000);
             return () => clearTimeout(timer);
         });
         return () => subscription.unsubscribe();
-    }, [watch]);
+    }, [watch, phoneCountryCode, whatsappCountryCode, volunteerReferralId]);
 
     const quantity = watch("quantity") || 1;
     const phoneNumber = watch("customerPhone");

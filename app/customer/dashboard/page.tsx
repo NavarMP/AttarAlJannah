@@ -32,6 +32,11 @@ export default function CustomerDashboard() {
     const [loading, setLoading] = useState(true);
     const [feedback, setFeedback] = useState<any[]>([]);
     const [loadingFeedback, setLoadingFeedback] = useState(true);
+
+    // Collapsible state
+    const [visibleOrdersCount, setVisibleOrdersCount] = useState(3);
+    const [visibleFeedbackCount, setVisibleFeedbackCount] = useState(3);
+
     const router = useRouter();
 
     const fetchOrders = useCallback(async () => {
@@ -323,7 +328,7 @@ export default function CustomerDashboard() {
                             </div>
                         ) : (
                             <div className="space-y-4">
-                                {orders.map((order) => (
+                                {orders.slice(0, visibleOrdersCount).map((order) => (
                                     <div
                                         key={order.id}
                                         onClick={() => router.push(`/customer/orders/${order.id}`)}
@@ -374,6 +379,19 @@ export default function CustomerDashboard() {
                                         </div>
                                     </div>
                                 ))}
+
+                                {orders.length > 3 && (
+                                    <div className="flex justify-center pt-2">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setVisibleOrdersCount(prev => prev === 3 ? orders.length : 3)}
+                                            className="text-muted-foreground hover:text-primary"
+                                        >
+                                            {visibleOrdersCount === 3 ? "Show More" : "Show Less"}
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </CardContent>
@@ -404,41 +422,56 @@ export default function CustomerDashboard() {
                             </div>
                         ) : (
                             <div className="space-y-3">
-                                {feedback.map((item) => (
-                                    <div key={item.id} className="p-4 rounded-2xl bg-secondary/10 border border-border">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-semibold text-lg">
-                                                        {renderStars(item.rating_overall)}
-                                                    </span>
-                                                    <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-                                                        {item.category?.replace("_", " ")}
-                                                    </span>
+                                {feedback.slice(0, visibleFeedbackCount).map((item) => (
+                                    <Link key={item.id} href={`/customer/feedback/${item.id}`} className="block">
+                                        <div className="p-4 rounded-2xl bg-secondary/10 border border-border hover:bg-secondary/20 transition-colors cursor-pointer">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-semibold text-lg">
+                                                            {renderStars(item.rating_overall)}
+                                                        </span>
+                                                        <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+                                                            {item.category?.replace("_", " ")}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground mt-1">
+                                                        {new Date(item.created_at).toLocaleDateString()}
+                                                    </p>
                                                 </div>
-                                                <p className="text-xs text-muted-foreground mt-1">
-                                                    {new Date(item.created_at).toLocaleDateString()}
+                                                <span className={`text-xs px-2 py-1 rounded-lg capitalize ${item.status === 'resolved' ? 'bg-green-100 text-green-700' :
+                                                    item.status === 'new' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                                                    }`}>
+                                                    {item.status.replace("_", " ")}
+                                                </span>
+                                            </div>
+                                            {item.message && (
+                                                <p className="text-sm text-foreground/80 line-clamp-2">
+                                                    {item.message}
                                                 </p>
-                                            </div>
-                                            <span className={`text-xs px-2 py-1 rounded-lg capitalize ${item.status === 'resolved' ? 'bg-green-100 text-green-700' :
-                                                item.status === 'new' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
-                                                }`}>
-                                                {item.status.replace("_", " ")}
-                                            </span>
+                                            )}
+                                            {item.admin_reply && (
+                                                <div className="mt-3 pl-3 border-l-2 border-primary/30">
+                                                    <p className="text-xs font-semibold text-primary">Reply from Admin:</p>
+                                                    <p className="text-sm text-muted-foreground">{item.admin_reply}</p>
+                                                </div>
+                                            )}
                                         </div>
-                                        {item.message && (
-                                            <p className="text-sm text-foreground/80 line-clamp-2">
-                                                {item.message}
-                                            </p>
-                                        )}
-                                        {item.admin_reply && (
-                                            <div className="mt-3 pl-3 border-l-2 border-primary/30">
-                                                <p className="text-xs font-semibold text-primary">Reply from Admin:</p>
-                                                <p className="text-sm text-muted-foreground">{item.admin_reply}</p>
-                                            </div>
-                                        )}
-                                    </div>
+                                    </Link>
                                 ))}
+
+                                {feedback.length > 3 && (
+                                    <div className="flex justify-center pt-2">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setVisibleFeedbackCount(prev => prev === 3 ? feedback.length : 3)}
+                                            className="text-muted-foreground hover:text-primary"
+                                        >
+                                            {visibleFeedbackCount === 3 ? "Show More" : "Show Less"}
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         )}
 

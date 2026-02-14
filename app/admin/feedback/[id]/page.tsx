@@ -141,22 +141,22 @@ export default function FeedbackDetailPage({ params }: { params: Promise<{ id: s
                     <Card className="glass-strong rounded-2xl">
                         <CardHeader>
                             <div className="flex items-start justify-between">
-                                <CardTitle>{feedback.subject}</CardTitle>
-                                <Badge className="capitalize">
+                                <CardTitle>{feedback.name}</CardTitle>
+                                {/* <Badge className="capitalize">
                                     {feedback.category.replace("_", " ")}
-                                </Badge>
+                                </Badge> */}
                             </div>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="flex items-center gap-4 text-sm text-muted-foreground">
                                 <div className="flex items-center gap-1">
                                     <Mail className="h-4 w-4" />
-                                    {feedback.email}
+                                    {feedback.name === "Anonymous" ? <span className="italic text-xs">Hidden</span> : feedback.email}
                                 </div>
                                 {feedback.phone && (
                                     <div className="flex items-center gap-1">
                                         <Phone className="h-4 w-4" />
-                                        {feedback.phone}
+                                        {feedback.name === "Anonymous" ? <span className="italic text-xs">Hidden</span> : feedback.phone}
                                     </div>
                                 )}
                                 <div className="flex items-center gap-1">

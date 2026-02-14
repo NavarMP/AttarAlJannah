@@ -13,7 +13,7 @@ export async function GET(
             .from("orders")
             .select(`
                 *,
-                volunteer:volunteers!volunteer_id(volunteer_id)
+                volunteers:volunteers!volunteer_id(name, volunteer_id)
             `)
             .eq("id", id)
             .single();
@@ -26,7 +26,7 @@ export async function GET(
         // Flatten the volunteer data for easier access
         const orderWithVolunteerId = {
             ...data,
-            delivery_volunteer_id: data.volunteer?.volunteer_id || null
+            delivery_volunteer_id: data.volunteers?.volunteer_id || null
         };
 
         return NextResponse.json(orderWithVolunteerId);

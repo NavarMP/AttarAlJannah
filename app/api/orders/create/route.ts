@@ -94,16 +94,16 @@ export async function POST(request: NextRequest) {
                 order_status: "payment_pending", // Will change to 'ordered' after payment verification
                 volunteer_id: referredByUuid, // Referral volunteer UUID
                 // Razorpay fields will be updated after payment
-                razorpay_order_id: null,
-                razorpay_payment_id: null,
-                // Address fields for delivery assignment
-                house_name: houseBuilding,
-                town: town,
-                post_office: post,
-                city: city,
-                district: district,
-                state: state,
-                pincode: pincode,
+                // razorpay_order_id: null,
+                // razorpay_payment_id: null,
+                // Address fields for delivery assignment - Commented out as they don't exist in DB
+                // house_name: houseBuilding,
+                // town: town,
+                // post_office: post,
+                // city: city,
+                // district: district,
+                // state: state,
+                // pincode: pincode,
             })
             .select()
             .single();

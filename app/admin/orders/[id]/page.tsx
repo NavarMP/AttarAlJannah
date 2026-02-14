@@ -38,6 +38,7 @@ interface Order {
     delivery_method?: string;
     delivery_fee?: number;
     created_at: string;
+    volunteers?: { name: string } | null;
 }
 
 export default function OrderDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -304,6 +305,12 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                                 {new Date(order.created_at).toLocaleString()}
                             </p>
                         </div>
+                        {order.volunteers && (
+                            <div className="pt-2 border-t border-border/50">
+                                <p className="text-sm text-muted-foreground">Referred by Volunteer</p>
+                                <p className="font-medium text-primary">{order.volunteers.name}</p>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>
@@ -342,14 +349,7 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                 </CardContent>
             </Card>
 
-            {/* Volunteer Assignment */}
-            <VolunteerAssignment
-                orderId={order.id}
-                currentVolunteerId={order.delivery_volunteer_id}
-                onAssignmentChange={fetchOrder}
-            />
-
-            {/* Delivery Management */}
+            {/* Delivery Management - Moved above detailed volunteer assignment */}
             <DeliveryManagement
                 orderId={order.id}
                 volunteerId={order.delivery_volunteer_id}

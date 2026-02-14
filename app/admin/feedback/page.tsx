@@ -271,7 +271,7 @@ export default function AdminFeedbackPage() {
                                             </td>
                                             <td className="p-3">
                                                 <div className="font-medium group-hover:text-primary transition-colors">{item.name}</div>
-                                                <div className="text-xs text-muted-foreground">{item.email || "No email"}</div>
+                                                <div className="text-xs text-muted-foreground">{item.name === "Anonymous" ? <span className="italic">Hidden</span> : (item.email || "No email")}</div>
                                             </td>
                                             <td className="p-3 text-center">
                                                 <div className="flex justify-center">{renderStars(item.rating_overall)}</div>
