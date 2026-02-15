@@ -32,9 +32,7 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
                 setError(null);
 
                 // Stop any existing stream before starting a new one
-                if (stream) {
-                    stream.getTracks().forEach((track) => track.stop());
-                }
+                // Cleanup is handled by the useEffect return function
 
                 // Request camera access
                 // Use square aspect ratio for profile photos

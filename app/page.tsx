@@ -7,7 +7,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useRouter } from "next/navigation";
 import Link from 'next/link';
 import { AuthStatus } from "@/components/custom/auth-status";
-import { PromoVideoSection } from "@/components/sections/promo-video-section";
+import { PromoSection } from "@/components/sections/promo-section";
 import { ProductDetails } from "@/components/sections/product-details";
 import { AboutDars } from "@/components/sections/about-dars";
 import { Button } from "@/components/ui/button";
@@ -219,7 +219,7 @@ export default function Home() {
             <Share />
 
             {/* Promo Video */}
-            {/* <PromoVideoSection /> */}
+            <PromoSection />
 
             {/* About and Features */}
             <ProductDetails />

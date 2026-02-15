@@ -84,3 +84,15 @@ export interface ChallengeProgress {
     goal: number;
     updated_at: string;
 }
+
+export interface PromoContent {
+    id: string;
+    title: string;
+    type: 'video' | 'image' | 'youtube' | 'instagram';
+    url: string;
+    thumbnail_url?: string;
+    aspect_ratio: '16:9' | '9:16' | '1:1' | '4:5';
+    is_active: boolean;
+    display_order: number;
+    created_at: string;
+}
