@@ -108,7 +108,7 @@ export function ProductDetails() {
                 </div>
 
                 {/* Manufacturer & Legal Information */}
-                <Card className="glass-strong border-primary/30 rounded-3xl">
+                {/* <Card className="glass-strong border-primary/30 rounded-3xl">
                     <CardHeader>
                         <CardTitle className="text-2xl">Manufacturer Information</CardTitle>
                     </CardHeader>
@@ -150,7 +150,7 @@ export function ProductDetails() {
                             </p>
                         </div>
                     </CardContent>
-                </Card>
+                </Card> */}
             </div>
         </section>
     );
