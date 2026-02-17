@@ -35,7 +35,7 @@ export const orderSchema = z.object({
     // Optional location link
     locationLink: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
 
-    quantity: z.number().min(1, "Quantity must be at least 1").max(50, "Maximum 50 bottles per order"),
+    quantity: z.number().min(1, "Quantity must be at least 1"),
 
     // Payment method removed - all orders use Razorpay
     // paymentScreenshot removed - not needed for Razorpay

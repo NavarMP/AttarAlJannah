@@ -7,28 +7,26 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Plus, Search, Edit, Trash2, TrendingUp, Award, Loader2, Trash, Link2, CheckCircle, XCircle, Clock, Badge } from "lucide-react";
+import {
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+    DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+    Users, Plus, Search, Edit, Trash2, TrendingUp, Award, Loader2,
+    Link2, CheckCircle, XCircle, Clock, MoreVertical, Eye, Download,
+    UserCheck, UserX, Copy
+} from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { calculateCommission } from "@/lib/utils/commission-utils";
 import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionBar, BulkAction } from "@/components/admin/bulk-action-bar";
 
 interface Volunteer {
     id: string;
@@ -65,17 +63,16 @@ export default function VolunteersPage() {
     const [approvingId, setApprovingId] = useState<string | null>(null);
     const [rejectingId, setRejectingId] = useState<string | null>(null);
 
-    // Bulk delete state
+    // Bulk state
     const [selectedVolunteers, setSelectedVolunteers] = useState<Set<string>>(new Set());
-    const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
-    const [bulkDeleting, setBulkDeleting] = useState(false);
+    const [bulkProcessing, setBulkProcessing] = useState(false);
 
     const fetchVolunteers = useCallback(async () => {
         try {
             setIsLoading(true);
             const params = new URLSearchParams();
             params.append("page", currentPage.toString());
-            params.append("limit", "50"); // Show 50 per page
+            params.append("limit", "50");
             if (searchQuery) params.append("search", searchQuery);
             params.append("sort", sort);
 
@@ -86,16 +83,13 @@ export default function VolunteersPage() {
             setVolunteers(data.volunteers || []);
             setTotalPages(data.pagination.totalPages || 1);
 
-            // Calculate stats
             const total = data.pagination.total;
             const active = data.volunteers.filter((s: Volunteer) => s.confirmed_bottles > 0).length;
             const topPerformer = data.volunteers.reduce((top: Volunteer | null, current: Volunteer) =>
                 (!top || current.confirmed_bottles > top.confirmed_bottles) ? current : top,
                 null
             );
-
             setStats({ total, active, topPerformer });
-
         } catch (error) {
             console.error("Error fetching volunteers:", error);
             toast.error("Failed to load volunteers");
@@ -105,92 +99,33 @@ export default function VolunteersPage() {
     }, [currentPage, searchQuery, sort]);
 
     useEffect(() => {
-        setCurrentPage(1); // Reset to page 1 when search or sort changes
+        setCurrentPage(1);
         fetchVolunteers();
-        // Clear selection when search changes
         setSelectedVolunteers(new Set());
     }, [searchQuery, sort, fetchVolunteers]);
 
     useEffect(() => {
         fetchVolunteers();
-        // Clear selection when page changes
         setSelectedVolunteers(new Set());
     }, [currentPage, fetchVolunteers]);
 
+    // ==== Individual actions ====
+
     const handleDelete = async () => {
         if (!deleteId) return;
-
         try {
             setIsDeleting(true);
-            const response = await fetch(`/api/admin/volunteers/${deleteId}`, {
-                method: "DELETE",
-            });
-
+            const response = await fetch(`/api/admin/volunteers/${deleteId}`, { method: "DELETE" });
             if (!response.ok) throw new Error("Failed to delete volunteer");
-
             toast.success("Volunteer deleted successfully");
             setDeleteId(null);
             fetchVolunteers();
-
         } catch (error) {
             console.error("Error deleting volunteer:", error);
             toast.error("Failed to delete volunteer");
         } finally {
             setIsDeleting(false);
         }
-    };
-
-    const handleBulkDelete = async () => {
-        if (selectedVolunteers.size === 0) return;
-
-        setBulkDeleting(true);
-        try {
-            const response = await fetch("/api/admin/volunteers/bulk-delete", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ volunteerIds: Array.from(selectedVolunteers) }),
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                toast.success(data.message || `Deleted ${data.deletedCount} volunteer(s) from database`);
-                setSelectedVolunteers(new Set());
-                fetchVolunteers();
-            } else {
-                toast.error(data.error || "Failed to bulk delete volunteers");
-            }
-        } catch (error) {
-            console.error("Bulk delete error:", error);
-            toast.error("An error occurred while deleting volunteers");
-        } finally {
-            setBulkDeleting(false);
-            setBulkDeleteDialogOpen(false);
-        }
-    };
-
-    const toggleVolunteerSelection = (volunteerId: string) => {
-        const newSelection = new Set(selectedVolunteers);
-        if (newSelection.has(volunteerId)) {
-            newSelection.delete(volunteerId);
-        } else {
-            newSelection.add(volunteerId);
-        }
-        setSelectedVolunteers(newSelection);
-    };
-
-    const toggleSelectAll = () => {
-        if (selectedVolunteers.size === volunteers.length) {
-            setSelectedVolunteers(new Set());
-        } else {
-            setSelectedVolunteers(new Set(volunteers.map(v => v.id)));
-        }
-    };
-
-    const handleCopyReferralLink = (volunteerId: string) => {
-        const link = `${window.location.origin}/order?ref=${volunteerId}`;
-        navigator.clipboard.writeText(link);
-        toast.success("Referral link copied to clipboard");
     };
 
     const handleApprove = async (volunteerId: string) => {
@@ -201,16 +136,11 @@ export default function VolunteersPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action: "approve" }),
             });
-
             const result = await response.json();
-
             if (!response.ok) throw new Error(result.error || "Failed to approve volunteer");
-
             toast.success(result.message || "Volunteer approved successfully");
             fetchVolunteers();
-
         } catch (error: any) {
-            console.error("Error approving volunteer:", error);
             toast.error(error.message || "Failed to approve volunteer");
         } finally {
             setApprovingId(null);
@@ -225,21 +155,159 @@ export default function VolunteersPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action: "reject" }),
             });
-
             const result = await response.json();
-
             if (!response.ok) throw new Error(result.error || "Failed to reject volunteer");
-
             toast.success(result.message || "Volunteer rejected and removed");
             fetchVolunteers();
-
         } catch (error: any) {
-            console.error("Error rejecting volunteer:", error);
             toast.error(error.message || "Failed to reject volunteer");
         } finally {
             setRejectingId(null);
         }
     };
+
+    const handleStatusChange = async (volunteerId: string, status: string) => {
+        try {
+            const response = await fetch("/api/admin/volunteers/bulk-update", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ volunteerIds: [volunteerId], status }),
+            });
+            if (response.ok) {
+                toast.success(`Volunteer ${status === "active" ? "activated" : "suspended"}`);
+                fetchVolunteers();
+            } else {
+                toast.error("Failed to update status");
+            }
+        } catch {
+            toast.error("Failed to update status");
+        }
+    };
+
+    const handleCopyReferralLink = (volunteerId: string) => {
+        const link = `${window.location.origin}/order?ref=${volunteerId}`;
+        navigator.clipboard.writeText(link);
+        toast.success("Referral link copied to clipboard");
+    };
+
+    const handleExportCSV = async (selectedIds?: string[]) => {
+        try {
+            const params = new URLSearchParams({ type: "volunteers" });
+            if (selectedIds && selectedIds.length > 0) {
+                params.set("ids", selectedIds.join(","));
+            }
+            const response = await fetch(`/api/admin/export?${params}`);
+            if (!response.ok) { toast.error("Failed to export"); return; }
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `volunteers_export_${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            toast.success("Volunteers exported successfully");
+        } catch {
+            toast.error("Failed to export");
+        }
+    };
+
+    // ==== Selection helpers ====
+
+    const toggleVolunteerSelection = (volunteerId: string) => {
+        const newSelection = new Set(selectedVolunteers);
+        if (newSelection.has(volunteerId)) {
+            newSelection.delete(volunteerId);
+        } else {
+            newSelection.add(volunteerId);
+        }
+        setSelectedVolunteers(newSelection);
+    };
+
+    const toggleSelectAll = () => {
+        const filtered = volunteers.filter(v => statusFilter === "all" || v.status === statusFilter);
+        if (selectedVolunteers.size === filtered.length) {
+            setSelectedVolunteers(new Set());
+        } else {
+            setSelectedVolunteers(new Set(filtered.map(v => v.id)));
+        }
+    };
+
+    // ==== Bulk actions config ====
+
+    const bulkActions: BulkAction[] = [
+        {
+            label: "Change Status",
+            icon: <UserCheck className="h-4 w-4" />,
+            options: [
+                { label: "Activate", value: "active" },
+                { label: "Suspend", value: "suspended" },
+            ],
+            onExecute: async (_ids, value) => {
+                setBulkProcessing(true);
+                try {
+                    const response = await fetch("/api/admin/volunteers/bulk-update", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ volunteerIds: Array.from(selectedVolunteers), status: value }),
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        toast.success(data.message || `Updated ${selectedVolunteers.size} volunteer(s)`);
+                        setSelectedVolunteers(new Set());
+                        fetchVolunteers();
+                    } else {
+                        toast.error(data.error || "Failed to update");
+                    }
+                } catch {
+                    toast.error("An error occurred");
+                } finally {
+                    setBulkProcessing(false);
+                }
+            },
+        },
+        {
+            label: "Export CSV",
+            icon: <Download className="h-4 w-4" />,
+            variant: "outline",
+            onExecute: async () => {
+                await handleExportCSV(Array.from(selectedVolunteers));
+            },
+        },
+        {
+            label: "Delete",
+            icon: <Trash2 className="h-4 w-4" />,
+            variant: "destructive",
+            requireConfirm: true,
+            confirmTitle: "Bulk Delete Volunteers",
+            confirmDescription: `This will permanently delete ${selectedVolunteers.size} volunteer(s), their challenge progress, and set referred_by to NULL on their orders. This cannot be undone.`,
+            onExecute: async () => {
+                setBulkProcessing(true);
+                try {
+                    const response = await fetch("/api/admin/volunteers/bulk-delete", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ volunteerIds: Array.from(selectedVolunteers) }),
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        toast.success(data.message || `Deleted ${selectedVolunteers.size} volunteer(s)`);
+                        setSelectedVolunteers(new Set());
+                        fetchVolunteers();
+                    } else {
+                        toast.error(data.error || "Failed to delete");
+                    }
+                } catch {
+                    toast.error("An error occurred");
+                } finally {
+                    setBulkProcessing(false);
+                }
+            },
+        },
+    ];
+
+    const filteredVolunteers = volunteers.filter(v => statusFilter === "all" || v.status === statusFilter);
 
     return (
         <div className="space-y-6">
@@ -251,48 +319,44 @@ export default function VolunteersPage() {
                         Manage volunteer accounts and track their progress
                     </p>
                 </div>
-                <Link href="/admin/volunteers/new">
-                    <Button className="bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add New Volunteer
+                <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="rounded-xl gap-2" onClick={() => handleExportCSV()}>
+                        <Download className="h-4 w-4" />
+                        Export All
                     </Button>
-                </Link>
+                    <Link href="/admin/volunteers/new">
+                        <Button className="bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600">
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add New Volunteer
+                        </Button>
+                    </Link>
+                </div>
             </div>
 
             {/* Stats Cards */}
             <div className="grid md:grid-cols-3 gap-6">
                 <Card className="glass">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">
-                            Total Volunteers
-                        </CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Total Volunteers</CardTitle>
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{stats.total}</div>
                     </CardContent>
                 </Card>
-
                 <Card className="glass">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">
-                            Active Volunteers
-                        </CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Active Volunteers</CardTitle>
                         <TrendingUp className="h-4 w-4 text-emerald-500" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold text-emerald-500">{stats.active}</div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            With confirmed bottles
-                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">With confirmed bottles</p>
                     </CardContent>
                 </Card>
-
                 <Card className="glass border-gold-300 dark:border-gold-700">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">
-                            Top Performer
-                        </CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Top Performer</CardTitle>
                         <Award className="h-4 w-4 text-gold-500" />
                     </CardHeader>
                     <CardContent>
@@ -314,40 +378,16 @@ export default function VolunteersPage() {
             <Card className="glass">
                 <CardContent className="pt-6">
                     <div className="flex flex-wrap gap-2">
-                        <Button
-                            variant={statusFilter === "all" ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setStatusFilter("all")}
-                            className="rounded-xl"
-                        >
-                            All Volunteers
-                        </Button>
-                        <Button
-                            variant={statusFilter === "pending" ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setStatusFilter("pending")}
-                            className="rounded-xl"
-                        >
+                        <Button variant={statusFilter === "all" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("all")} className="rounded-xl">All Volunteers</Button>
+                        <Button variant={statusFilter === "pending" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("pending")} className="rounded-xl">
                             <Clock className="mr-2 h-4 w-4" />
                             Pending Approval {volunteers.filter(v => v.status === "pending").length > 0 && `(${volunteers.filter(v => v.status === "pending").length})`}
                         </Button>
-                        <Button
-                            variant={statusFilter === "active" ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setStatusFilter("active")}
-                            className="rounded-xl"
-                        >
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                            Active
+                        <Button variant={statusFilter === "active" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("active")} className="rounded-xl">
+                            <CheckCircle className="mr-2 h-4 w-4" />Active
                         </Button>
-                        <Button
-                            variant={statusFilter === "suspended" ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setStatusFilter("suspended")}
-                            className="rounded-xl"
-                        >
-                            <XCircle className="mr-2 h-4 w-4" />
-                            Suspended
+                        <Button variant={statusFilter === "suspended" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("suspended")} className="rounded-xl">
+                            <XCircle className="mr-2 h-4 w-4" />Suspended
                         </Button>
                     </div>
                 </CardContent>
@@ -390,7 +430,7 @@ export default function VolunteersPage() {
                         <div className="flex items-center justify-center py-12">
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
                         </div>
-                    ) : !volunteers || volunteers.length === 0 ? (
+                    ) : !filteredVolunteers || filteredVolunteers.length === 0 ? (
                         <div className="text-center py-12">
                             <Users className="mx-auto h-12 w-12 text-muted-foreground opacity-50" />
                             <p className="mt-4 text-lg font-medium">No volunteers found</p>
@@ -405,7 +445,7 @@ export default function VolunteersPage() {
                                     <TableRow>
                                         <TableHead>
                                             <Checkbox
-                                                checked={volunteers.length > 0 && selectedVolunteers.size === volunteers.length}
+                                                checked={filteredVolunteers.length > 0 && selectedVolunteers.size === filteredVolunteers.length}
                                                 onCheckedChange={toggleSelectAll}
                                                 aria-label="Select all volunteers"
                                             />
@@ -413,163 +453,139 @@ export default function VolunteersPage() {
                                         <TableHead>Volunteer ID</TableHead>
                                         <TableHead>Name</TableHead>
                                         <TableHead>Status</TableHead>
-                                        <TableHead>Email</TableHead>
                                         <TableHead>Phone</TableHead>
                                         <TableHead>Bottles</TableHead>
                                         <TableHead>Goal</TableHead>
                                         <TableHead>Progress</TableHead>
                                         <TableHead>Commission</TableHead>
-                                        <TableHead>Ref Link</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
+                                        <TableHead className="text-center">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {volunteers
-                                        .filter(v => statusFilter === "all" || v.status === statusFilter)
-                                        .map((volunteer) => (
-                                            <TableRow
-                                                key={volunteer.id}
-                                                className={`cursor-pointer hover:bg-muted/50 transition-colors ${selectedVolunteers.has(volunteer.id) ? 'bg-blue-50 dark:bg-blue-950/20' : ''}`}
-                                                onClick={() => router.push(`/admin/volunteers/${volunteer.volunteer_id}`)}
-                                            >
-                                                <TableCell onClick={(e) => e.stopPropagation()}>
-                                                    <Checkbox
-                                                        checked={selectedVolunteers.has(volunteer.id)}
-                                                        onCheckedChange={() => toggleVolunteerSelection(volunteer.id)}
-                                                        aria-label={`Select ${volunteer.name}`}
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="font-mono font-semibold">
-                                                    {volunteer.volunteer_id}
-                                                </TableCell>
-                                                <TableCell className="font-medium">{volunteer.name}</TableCell>
-                                                <TableCell>
-                                                    {volunteer.status === "pending" && (
-                                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400">
-                                                            <Clock className="h-3 w-3" />
-                                                            Pending
-                                                        </span>
-                                                    )}
-                                                    {volunteer.status === "active" && (
-                                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
-                                                            <CheckCircle className="h-3 w-3" />
-                                                            Active
-                                                        </span>
-                                                    )}
-                                                    {volunteer.status === "suspended" && (
-                                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">
-                                                            <XCircle className="h-3 w-3" />
-                                                            Suspended
-                                                        </span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-muted-foreground text-sm">
-                                                    {volunteer.email}
-                                                </TableCell>
-                                                <TableCell className="text-muted-foreground text-sm">
-                                                    {volunteer.phone}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <span className="font-semibold">{volunteer.confirmed_bottles}</span>
-                                                </TableCell>
-                                                <TableCell>{volunteer.goal}</TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-16 h-2 bg-secondary rounded-full overflow-hidden">
-                                                            <div
-                                                                className="h-full bg-gradient-to-r from-primary to-gold-500"
-                                                                style={{ width: `${Math.min(volunteer.progress_percentage, 100)}%` }}
-                                                            />
-                                                        </div>
-                                                        <span className="text-sm text-muted-foreground">
-                                                            {volunteer.progress_percentage}%
-                                                        </span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <span className="font-semibold text-gold-600 dark:text-gold-400">
-                                                        ₹{calculateCommission(volunteer.confirmed_bottles, volunteer.goal)}
+                                    {filteredVolunteers.map((volunteer) => (
+                                        <TableRow
+                                            key={volunteer.id}
+                                            className={`cursor-pointer hover:bg-muted/50 transition-colors ${selectedVolunteers.has(volunteer.id) ? 'bg-primary/5' : ''}`}
+                                            onClick={() => router.push(`/admin/volunteers/${volunteer.volunteer_id}`)}
+                                        >
+                                            <TableCell onClick={(e) => e.stopPropagation()}>
+                                                <Checkbox
+                                                    checked={selectedVolunteers.has(volunteer.id)}
+                                                    onCheckedChange={() => toggleVolunteerSelection(volunteer.id)}
+                                                    aria-label={`Select ${volunteer.name}`}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="font-mono font-semibold">
+                                                {volunteer.volunteer_id}
+                                            </TableCell>
+                                            <TableCell className="font-medium">{volunteer.name}</TableCell>
+                                            <TableCell>
+                                                {volunteer.status === "pending" && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400">
+                                                        <Clock className="h-3 w-3" />Pending
                                                     </span>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8 text-muted-foreground hover:text-primary"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleCopyReferralLink(volunteer.volunteer_id);
-                                                        }}
-                                                        title="Copy Referral Link"
-                                                    >
-                                                        <Link2 className="h-4 w-4" />
-                                                    </Button>
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                                                        {/* Approval buttons for pending volunteers */}
+                                                )}
+                                                {volunteer.status === "active" && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
+                                                        <CheckCircle className="h-3 w-3" />Active
+                                                    </span>
+                                                )}
+                                                {volunteer.status === "suspended" && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">
+                                                        <XCircle className="h-3 w-3" />Suspended
+                                                    </span>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="text-muted-foreground text-sm">
+                                                {volunteer.phone}
+                                            </TableCell>
+                                            <TableCell>
+                                                <span className="font-semibold">{volunteer.confirmed_bottles}</span>
+                                            </TableCell>
+                                            <TableCell>{volunteer.goal}</TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-16 h-2 bg-secondary rounded-full overflow-hidden">
+                                                        <div
+                                                            className="h-full bg-gradient-to-r from-primary to-gold-500"
+                                                            style={{ width: `${Math.min(volunteer.progress_percentage, 100)}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="text-sm text-muted-foreground">
+                                                        {volunteer.progress_percentage}%
+                                                    </span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <span className="font-semibold text-gold-600 dark:text-gold-400">
+                                                    ₹{calculateCommission(volunteer.confirmed_bottles, volunteer.goal)}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl">
+                                                            <MoreVertical className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-52">
+                                                        <DropdownMenuItem onClick={() => router.push(`/admin/volunteers/${volunteer.volunteer_id}`)}>
+                                                            <Eye className="mr-2 h-4 w-4" />View Profile
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => router.push(`/admin/volunteers/${volunteer.id}/edit`)}>
+                                                            <Edit className="mr-2 h-4 w-4" />Edit
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleCopyReferralLink(volunteer.volunteer_id)}>
+                                                            <Link2 className="mr-2 h-4 w-4" />Copy Referral Link
+                                                        </DropdownMenuItem>
+
+                                                        <DropdownMenuSeparator />
+
+                                                        {/* Status actions */}
                                                         {volunteer.status === "pending" && (
                                                             <>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    className="h-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
+                                                                <DropdownMenuItem
                                                                     onClick={() => handleApprove(volunteer.id)}
-                                                                    disabled={approvingId === volunteer.id || rejectingId === volunteer.id}
+                                                                    disabled={approvingId === volunteer.id}
+                                                                    className="text-emerald-600 focus:text-emerald-600"
                                                                 >
-                                                                    {approvingId === volunteer.id ? (
-                                                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                                                    ) : (
-                                                                        <>
-                                                                            <CheckCircle className="h-4 w-4 mr-1" />
-                                                                            Approve
-                                                                        </>
-                                                                    )}
-                                                                </Button>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                                                    <CheckCircle className="mr-2 h-4 w-4" />
+                                                                    {approvingId === volunteer.id ? "Approving..." : "Approve"}
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem
                                                                     onClick={() => handleReject(volunteer.id)}
-                                                                    disabled={approvingId === volunteer.id || rejectingId === volunteer.id}
+                                                                    disabled={rejectingId === volunteer.id}
+                                                                    className="text-red-600 focus:text-red-600"
                                                                 >
-                                                                    {rejectingId === volunteer.id ? (
-                                                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                                                    ) : (
-                                                                        <>
-                                                                            <XCircle className="h-4 w-4 mr-1" />
-                                                                            Reject
-                                                                        </>
-                                                                    )}
-                                                                </Button>
+                                                                    <XCircle className="mr-2 h-4 w-4" />
+                                                                    {rejectingId === volunteer.id ? "Rejecting..." : "Reject"}
+                                                                </DropdownMenuItem>
                                                             </>
                                                         )}
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="h-8"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                router.push(`/admin/volunteers/${volunteer.id}/edit`);
-                                                            }}
+                                                        {volunteer.status === "active" && (
+                                                            <DropdownMenuItem onClick={() => handleStatusChange(volunteer.id, "suspended")}>
+                                                                <UserX className="mr-2 h-4 w-4" />Suspend
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        {volunteer.status === "suspended" && (
+                                                            <DropdownMenuItem onClick={() => handleStatusChange(volunteer.id, "active")}>
+                                                                <UserCheck className="mr-2 h-4 w-4" />Activate
+                                                            </DropdownMenuItem>
+                                                        )}
+
+                                                        <DropdownMenuSeparator />
+
+                                                        <DropdownMenuItem
+                                                            onClick={() => setDeleteId(volunteer.id)}
+                                                            className="text-destructive focus:text-destructive"
                                                         >
-                                                            <Edit className="h-4 w-4" />
-                                                        </Button>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="h-8 text-destructive hover:text-destructive"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setDeleteId(volunteer.id);
-                                                            }}
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
+                                                            <Trash2 className="mr-2 h-4 w-4" />Delete
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
                                 </TableBody>
                             </Table>
                         </div>
@@ -580,23 +596,9 @@ export default function VolunteersPage() {
             {/* Pagination */}
             {!isLoading && volunteers.length > 0 && totalPages > 1 && (
                 <div className="flex items-center justify-center gap-2">
-                    <Button
-                        variant="outline"
-                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                    >
-                        Previous
-                    </Button>
-                    <span className="text-sm text-muted-foreground">
-                        Page {currentPage} of {totalPages}
-                    </span>
-                    <Button
-                        variant="outline"
-                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                    >
-                        Next
-                    </Button>
+                    <Button variant="outline" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Previous</Button>
+                    <span className="text-sm text-muted-foreground">Page {currentPage} of {totalPages}</span>
+                    <Button variant="outline" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Next</Button>
                 </div>
             )}
 
@@ -612,73 +614,20 @@ export default function VolunteersPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={handleDelete}
-                            disabled={isDeleting}
-                            className="bg-destructive hover:bg-destructive/90"
-                        >
-                            {isDeleting ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Deleting...
-                                </>
-                            ) : (
-                                "Delete Volunteer"
-                            )}
+                        <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
+                            {isDeleting ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Deleting...</>) : ("Delete Volunteer")}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
 
-            {/* Bulk Delete Button - Floating */}
-            {selectedVolunteers.size > 0 && (
-                <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
-                    <Button
-                        onClick={() => setBulkDeleteDialogOpen(true)}
-                        className="rounded-full shadow-lg bg-destructive hover:bg-destructive/90 text-white px-6 py-6 flex items-center gap-2"
-                        size="lg"
-                    >
-                        <Trash className="w-5 h-5" />
-                        Delete {selectedVolunteers.size} selected
-                    </Button>
-                </div>
-            )}
-
-            {/* Bulk Delete Confirmation Dialog */}
-            <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Bulk Delete Volunteers</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Are you sure you want to permanently delete {selectedVolunteers.size} volunteer(s) from the database?
-                            <br />
-                            <strong className="text-destructive">This action will:</strong>
-                            <ul className="list-disc list-inside mt-2 space-y-1">
-                                <li>Delete volunteer accounts and challenge progress (CASCADE)</li>
-                                <li>Keep orders but set referred_by to NULL</li>
-                            </ul>
-                            <strong className="text-destructive mt-2 block">This cannot be undone.</strong>
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={handleBulkDelete}
-                            disabled={bulkDeleting}
-                            className="bg-destructive hover:bg-destructive/90"
-                        >
-                            {bulkDeleting ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Deleting from database...
-                                </>
-                            ) : (
-                                `Delete ${selectedVolunteers.size} Volunteer(s)`
-                            )}
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+            {/* Bulk Action Bar */}
+            <BulkActionBar
+                selectedCount={selectedVolunteers.size}
+                onClearSelection={() => setSelectedVolunteers(new Set())}
+                actions={bulkActions}
+                isProcessing={bulkProcessing}
+            />
         </div>
     );
 }

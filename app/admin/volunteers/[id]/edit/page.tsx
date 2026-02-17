@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Loader2, Save, AlertCircle } from "lucide-react";
-import { CountryCodeSelect } from "@/components/ui/country-code-select";
+import { CountryCodeSelect, COUNTRY_CODES } from "@/components/ui/country-code-select";
 import { AddressSection } from "@/components/forms/address-section";
 import { ProfilePhotoUpload } from "@/components/custom/profile-photo-upload";
 import { toast } from "sonner";
@@ -87,9 +87,25 @@ export default function EditVolunteerPage() {
                 const data = await response.json();
 
                 // Extract phone country code
-                const phone = data.phone || "";
-                const countryCode = phone.match(/^\+\d{1,4}/)?.[0] || "+91";
-                const phoneNumber = phone.replace(countryCode, "");
+                // Extract phone country code
+                const fullPhone = data.phone || "";
+                let countryCode = "+91";
+                let phoneNumber = fullPhone;
+
+                if (fullPhone.startsWith("+")) {
+                    // Sort country codes by length (longest first) to match correctly
+                    const sortedCodes = [...COUNTRY_CODES].sort((a, b) => b.code.length - a.code.length);
+                    const matched = sortedCodes.find(c => fullPhone.startsWith(c.code));
+
+                    if (matched) {
+                        countryCode = matched.code;
+                        phoneNumber = fullPhone.slice(matched.code.length);
+                    } else {
+                        // Fallback: assume +91
+                        countryCode = "+91";
+                        phoneNumber = fullPhone.replace(/^\+/, '').replace(/^91/, '');
+                    }
+                }
 
                 setPhoneCountryCode(countryCode);
 

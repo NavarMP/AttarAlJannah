@@ -7,8 +7,6 @@ import { orderSchema, type OrderFormData } from "@/lib/validations/order-schema"
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, CheckCircle2, Copy } from "lucide-react";
 import { LocationLink } from "@/components/forms/location-link";
@@ -653,7 +651,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                             id="quantity"
                             type="number"
                             min={1}
-                            // max={1000}
+                            max={1000}
                             {...register("quantity", { valueAsNumber: true })}
                         />
                         {errors.quantity && (

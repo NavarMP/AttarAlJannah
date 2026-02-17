@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { OrderBill } from "@/components/order-bill";
-import { CheckCircle2, Loader2, ShoppingBag, Pencil } from "lucide-react";
+import { CheckCircle2, Loader2, ShoppingBag, User } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useCustomerAuth } from "@/lib/contexts/customer-auth-context";
@@ -115,18 +115,19 @@ function ThanksContent() {
 
     return (
         
-        <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="min-h-screen p-4">
             <AutoHideContainer className="fixed top-6 right-6 z-50 flex gap-2">
-                <ThemeToggle />
+                <ThemeToggle/>
                 <Link href="/">
-                    <Button variant="ghost" size="icon" className="mr-2">
+                    <Button variant="outline" size="icon" className="mr-2">
                         <span className="sr-only">Home</span>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-home"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
                     </Button>
                 </Link>
                 <Link href="/customer/dashboard">
-                    <Button className="bg-gradient-to-r from-primary/10 to-gold-500/10 hover:from-primary/20 hover:to-gold-500/20 border border-primary/20 rounded-xl">
-                        Customer Dashboard
+                    <Button variant="outline" size="icon" className="mr-2">
+                        <span className="sr-only">Dashboard</span>
+                        <User width="24" height="24"/>
                     </Button>
                 </Link>
             </AutoHideContainer>

@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ProfilePhotoUpload } from "@/components/custom/profile-photo-upload";
 import { AddressSection } from "@/components/forms/address-section";
-import { CountryCodeSelect } from "@/components/ui/country-code-select";
+import { CountryCodeSelect, COUNTRY_CODES } from "@/components/ui/country-code-select";
 import { toast } from "sonner";
 import {
     Loader2,
@@ -94,9 +94,23 @@ export default function VolunteerProfilePage() {
             setStats(data.stats);
 
             // Extract phone country code
-            const phone = data.volunteer.phone || "";
-            const countryCode = phone.match(/^\+\d{1,4}/)?.[0] || "+91";
-            const phoneNumber = phone.replace(countryCode, "");
+            // Extract phone country code
+            const fullPhone = data.volunteer.phone || "";
+            let countryCode = "+91";
+            let phoneNumber = fullPhone;
+
+            if (fullPhone.startsWith("+")) {
+                const sortedCodes = [...COUNTRY_CODES].sort((a, b) => b.code.length - a.code.length);
+                const matched = sortedCodes.find(c => fullPhone.startsWith(c.code));
+
+                if (matched) {
+                    countryCode = matched.code;
+                    phoneNumber = fullPhone.slice(matched.code.length);
+                } else {
+                    countryCode = "+91";
+                    phoneNumber = fullPhone.replace(/^\+/, '').replace(/^91/, '');
+                }
+            }
 
             setPhoneCountryCode(countryCode);
             setProfilePhotoPreview(data.volunteer.profile_photo);

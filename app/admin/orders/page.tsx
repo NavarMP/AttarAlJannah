@@ -7,9 +7,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Search, Trash2, Trash } from "lucide-react";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuSub,
+    DropdownMenuSubContent,
+    DropdownMenuSubTrigger,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+    Search, Trash2, MoreVertical, Eye, FileDown, Printer,
+    Phone, MessageSquare, Truck, Package, Download, Copy
+} from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionBar, BulkAction } from "@/components/admin/bulk-action-bar";
 
 interface Order {
     id: string;
@@ -20,10 +34,25 @@ interface Order {
     quantity: number;
     payment_method: string;
     order_status: string;
+    delivery_method?: string;
     created_at: string;
     referred_by?: string;
     volunteer_name?: string;
 }
+
+const ORDER_STATUSES = [
+    { label: "Ordered", value: "ordered" },
+    { label: "Delivered", value: "delivered" },
+    { label: "Can't Reach", value: "cant_reach" },
+    { label: "Cancelled", value: "cancelled" },
+];
+
+const DELIVERY_METHODS = [
+    { label: "Self Pickup", value: "self_pickup" },
+    { label: "Volunteer Delivery", value: "volunteer_delivery" },
+    { label: "Courier", value: "courier" },
+    { label: "By Post", value: "by_post" },
+];
 
 export default function OrdersPage() {
     const [orders, setOrders] = useState<Order[]>([]);
@@ -35,23 +64,21 @@ export default function OrdersPage() {
     const [search, setSearch] = useState("");
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
-    const [searchInput, setSearchInput] = useState(""); // For debouncing
+    const [searchInput, setSearchInput] = useState("");
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
     const [deleting, setDeleting] = useState(false);
 
-    // Bulk delete state
+    // Bulk state
     const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
-    const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
-    const [bulkDeleting, setBulkDeleting] = useState(false);
+    const [bulkProcessing, setBulkProcessing] = useState(false);
 
     // Debounce search input
     useEffect(() => {
         const timer = setTimeout(() => {
             setSearch(searchInput);
-            setPage(1); // Reset to first page on search
+            setPage(1);
         }, 500);
-
         return () => clearTimeout(timer);
     }, [searchInput]);
 
@@ -67,7 +94,6 @@ export default function OrdersPage() {
             if (startDate) queryParams.append("startDate", startDate);
             if (endDate) queryParams.append("endDate", endDate);
 
-            console.log("Fetching orders with search:", search);
             const response = await fetch(`/api/admin/orders?${queryParams}`);
 
             if (response.status === 401 || response.status === 403) {
@@ -77,7 +103,6 @@ export default function OrdersPage() {
             }
 
             const data = await response.json();
-
             setOrders(data.orders || []);
             setTotalCount(data.totalCount || 0);
             setTotalPages(data.totalPages || 1);
@@ -91,13 +116,13 @@ export default function OrdersPage() {
 
     useEffect(() => {
         fetchOrders();
-        // Clear selection when fetching new data
         setSelectedOrders(new Set());
     }, [fetchOrders]);
 
+    // ==== Individual actions ====
+
     const handleDelete = async () => {
         if (!orderToDelete) return;
-
         setDeleting(true);
         try {
             const response = await fetch("/api/admin/orders/delete", {
@@ -105,10 +130,9 @@ export default function OrdersPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ orderId: orderToDelete.id }),
             });
-
             if (response.ok) {
                 toast.success("Order deleted successfully");
-                fetchOrders(); // Refresh the list
+                fetchOrders();
             } else {
                 const data = await response.json();
                 toast.error(data.error || "Failed to delete order");
@@ -123,34 +147,84 @@ export default function OrdersPage() {
         }
     };
 
-    const handleBulkDelete = async () => {
-        if (selectedOrders.size === 0) return;
-
-        setBulkDeleting(true);
+    const handleStatusChange = async (orderId: string, status: string) => {
         try {
-            const response = await fetch("/api/admin/orders/bulk-delete", {
+            const response = await fetch("/api/admin/orders/bulk-update", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ orderIds: Array.from(selectedOrders) }),
+                body: JSON.stringify({ orderIds: [orderId], status }),
             });
-
             const data = await response.json();
-
             if (response.ok) {
-                toast.success(data.message || `Deleted ${data.deletedCount} order(s) from database`);
-                setSelectedOrders(new Set());
+                toast.success(`Status updated to ${status}`);
                 fetchOrders();
             } else {
-                toast.error(data.error || "Failed to bulk delete orders");
+                toast.error(data.error || "Failed to update status");
             }
         } catch (error) {
-            console.error("Bulk delete error:", error);
-            toast.error("An error occurred while deleting orders");
-        } finally {
-            setBulkDeleting(false);
-            setBulkDeleteDialogOpen(false);
+            toast.error("Failed to update status");
         }
     };
+
+    const handleDeliveryMethodChange = async (orderId: string, deliveryMethod: string) => {
+        try {
+            const response = await fetch(`/api/admin/orders/${orderId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ delivery_method: deliveryMethod }),
+            });
+            if (response.ok) {
+                toast.success(`Delivery method set to ${deliveryMethod.replace(/_/g, " ")}`);
+                fetchOrders();
+            } else {
+                const data = await response.json();
+                toast.error(data.error || "Failed to update delivery method");
+            }
+        } catch (error) {
+            toast.error("Failed to update delivery method");
+        }
+    };
+
+    const handleCopy = (text: string, label: string) => {
+        navigator.clipboard.writeText(text);
+        toast.success(`${label} copied to clipboard`);
+    };
+
+    const handleInvoiceDownload = (orderId: string) => {
+        window.open(`/admin/orders/${orderId}?action=download`, "_blank");
+    };
+
+    const handleInvoicePrint = (orderId: string) => {
+        window.open(`/admin/orders/${orderId}?action=print`, "_blank");
+    };
+
+    const handleExportCSV = async (selectedIds?: string[]) => {
+        try {
+            const params = new URLSearchParams({ type: "orders" });
+            if (selectedIds && selectedIds.length > 0) {
+                params.set("ids", selectedIds.join(","));
+            }
+            const response = await fetch(`/api/admin/export?${params}`);
+            if (!response.ok) {
+                toast.error("Failed to export");
+                return;
+            }
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `orders_export_${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            toast.success("Orders exported successfully");
+        } catch (error) {
+            toast.error("Failed to export orders");
+        }
+    };
+
+    // ==== Selection helpers ====
 
     const toggleOrderSelection = (orderId: string) => {
         const newSelection = new Set(selectedOrders);
@@ -170,26 +244,143 @@ export default function OrdersPage() {
         }
     };
 
+    // ==== Bulk actions config ====
+
+    const bulkActions: BulkAction[] = [
+        {
+            label: "Change Status",
+            icon: <Package className="h-4 w-4" />,
+            options: ORDER_STATUSES.map(s => ({ label: s.label, value: s.value })),
+            onExecute: async (_ids, value) => {
+                setBulkProcessing(true);
+                try {
+                    const response = await fetch("/api/admin/orders/bulk-update", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            orderIds: Array.from(selectedOrders),
+                            status: value,
+                        }),
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        toast.success(data.message || `Updated ${selectedOrders.size} order(s)`);
+                        setSelectedOrders(new Set());
+                        fetchOrders();
+                    } else {
+                        toast.error(data.error || "Failed to update orders");
+                    }
+                } catch (error) {
+                    toast.error("An error occurred");
+                } finally {
+                    setBulkProcessing(false);
+                }
+            },
+        },
+        {
+            label: "Delivery Method",
+            icon: <Truck className="h-4 w-4" />,
+            options: DELIVERY_METHODS.map(d => ({ label: d.label, value: d.value })),
+            onExecute: async (_ids, value) => {
+                setBulkProcessing(true);
+                try {
+                    // Update each order's delivery method
+                    const promises = Array.from(selectedOrders).map(orderId =>
+                        fetch(`/api/admin/orders/${orderId}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ delivery_method: value }),
+                        })
+                    );
+                    await Promise.all(promises);
+                    toast.success(`Delivery method updated for ${selectedOrders.size} order(s)`);
+                    setSelectedOrders(new Set());
+                    fetchOrders();
+                } catch (error) {
+                    toast.error("Failed to update delivery method");
+                } finally {
+                    setBulkProcessing(false);
+                }
+            },
+        },
+        {
+            label: "Export CSV",
+            icon: <Download className="h-4 w-4" />,
+            variant: "outline",
+            onExecute: async () => {
+                await handleExportCSV(Array.from(selectedOrders));
+            },
+        },
+        {
+            label: "Delete",
+            icon: <Trash2 className="h-4 w-4" />,
+            variant: "destructive",
+            requireConfirm: true,
+            confirmTitle: "Bulk Delete Orders",
+            confirmDescription: `Are you sure you want to permanently delete ${selectedOrders.size} order(s)? This action cannot be undone.`,
+            onExecute: async () => {
+                setBulkProcessing(true);
+                try {
+                    const response = await fetch("/api/admin/orders/bulk-delete", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ orderIds: Array.from(selectedOrders) }),
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        toast.success(data.message || `Deleted ${selectedOrders.size} order(s)`);
+                        setSelectedOrders(new Set());
+                        fetchOrders();
+                    } else {
+                        toast.error(data.error || "Failed to delete orders");
+                    }
+                } catch (error) {
+                    toast.error("An error occurred");
+                } finally {
+                    setBulkProcessing(false);
+                }
+            },
+        },
+    ];
+
+    // ==== UI helpers ====
+
     const getStatusColor = (status: string) => {
         switch (status) {
             case "ordered":
-                return "bg-blue-100 text-blue-700";
+                return "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400";
             case "delivered":
-                return "bg-green-100 text-green-700";
+                return "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400";
             case "cant_reach":
-                return "bg-yellow-100 text-yellow-700";
+                return "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400";
             case "cancelled":
-                return "bg-red-100 text-red-700";
+                return "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400";
             default:
                 return "bg-gray-100 text-gray-700 dark:bg-gray-950/30 dark:text-gray-400";
         }
     };
 
+    const getDeliveryLabel = (method?: string) => {
+        if (!method) return "-";
+        return DELIVERY_METHODS.find(d => d.value === method)?.label || method;
+    };
+
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold">Orders</h1>
-                <p className="text-muted-foreground">Manage all customer orders</p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold">Orders</h1>
+                    <p className="text-muted-foreground">Manage all customer orders • {totalCount} total</p>
+                </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl gap-2"
+                    onClick={() => handleExportCSV()}
+                >
+                    <Download className="h-4 w-4" />
+                    Export All
+                </Button>
             </div>
 
             {/* Filters */}
@@ -220,19 +411,15 @@ export default function OrdersPage() {
                             placeholder="End Date"
                         />
                     </div>
-                    <Select
-                        value={statusFilter}
-                        onValueChange={setStatusFilter}
-                    >
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
                         <SelectTrigger className="w-full md:w-48">
                             <SelectValue placeholder="All Status" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Status</SelectItem>
-                            <SelectItem value="ordered">Ordered</SelectItem>
-                            <SelectItem value="delivered">Delivered</SelectItem>
-                            <SelectItem value="cant_reach">Can&apos;t Reach</SelectItem>
-                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                            {ORDER_STATUSES.map(s => (
+                                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                 </div>
@@ -249,32 +436,32 @@ export default function OrdersPage() {
                         <table className="w-full">
                             <thead className="bg-muted/50">
                                 <tr>
-                                    <th className="px-6 py-4 text-left">
+                                    <th className="px-4 py-4 text-left">
                                         <Checkbox
                                             checked={orders.length > 0 && selectedOrders.size === orders.length}
                                             onCheckedChange={toggleSelectAll}
                                             aria-label="Select all orders"
                                         />
                                     </th>
-                                    <th className="px-6 py-4 text-left text-sm font-semibold">Customer</th>
-                                    <th className="px-6 py-4 text-left text-sm font-semibold">Phone</th>
-                                    <th className="px-6 py-4 text-left text-sm font-semibold">Volunteer</th>
-                                    <th className="px-6 py-4 text-left text-sm font-semibold">Quantity</th>
-                                    <th className="px-6 py-4 text-left text-sm font-semibold">Total</th>
-                                    <th className="px-6 py-4 text-left text-sm font-semibold">Payment</th>
-                                    <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
-                                    <th className="px-6 py-4 text-left text-sm font-semibold">Date</th>
-                                    <th className="px-6 py-4 text-left text-sm font-semibold">Actions</th>
+                                    <th className="px-4 py-4 text-left text-sm font-semibold">Customer</th>
+                                    <th className="px-4 py-4 text-left text-sm font-semibold">Phone</th>
+                                    <th className="px-4 py-4 text-left text-sm font-semibold">Volunteer</th>
+                                    <th className="px-4 py-4 text-left text-sm font-semibold">Qty</th>
+                                    <th className="px-4 py-4 text-left text-sm font-semibold">Total</th>
+                                    <th className="px-4 py-4 text-left text-sm font-semibold">Payment</th>
+                                    <th className="px-4 py-4 text-left text-sm font-semibold">Status</th>
+                                    <th className="px-4 py-4 text-left text-sm font-semibold">Delivery</th>
+                                    <th className="px-4 py-4 text-left text-sm font-semibold">Date</th>
+                                    <th className="px-4 py-4 text-center text-sm font-semibold">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
                                 {orders.map((order) => (
                                     <tr
                                         key={order.id}
-                                        className={`hover:bg-muted/30 transition-colors ${selectedOrders.has(order.id) ? 'bg-blue-50 dark:bg-blue-950/20' : ''
-                                            }`}
+                                        className={`hover:bg-muted/30 transition-colors ${selectedOrders.has(order.id) ? 'bg-primary/5' : ''}`}
                                     >
-                                        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                                        <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
                                             <Checkbox
                                                 checked={selectedOrders.has(order.id)}
                                                 onCheckedChange={() => toggleOrderSelection(order.id)}
@@ -282,18 +469,15 @@ export default function OrdersPage() {
                                             />
                                         </td>
                                         <td
-                                            className="px-6 py-4 cursor-pointer"
+                                            className="px-4 py-4 cursor-pointer"
                                             onClick={() => window.location.href = `/admin/orders/${order.id}`}
                                         >
                                             <p className="font-medium">{order.customer_name}</p>
                                         </td>
-                                        <td
-                                            className="px-6 py-4 text-sm text-muted-foreground cursor-pointer"
-                                            onClick={() => window.location.href = `/admin/orders/${order.id}`}
-                                        >
+                                        <td className="px-4 py-4 text-sm text-muted-foreground">
                                             {order.customer_phone}
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-4 py-4">
                                             {order.volunteer_name ? (
                                                 <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">
                                                     {order.volunteer_name}
@@ -302,53 +486,120 @@ export default function OrdersPage() {
                                                 <span className="text-sm text-muted-foreground">-</span>
                                             )}
                                         </td>
-                                        <td className="px-6 py-4">{order.quantity}</td>
-                                        <td className="px-6 py-4 font-semibold text-primary">
+                                        <td className="px-4 py-4">{order.quantity}</td>
+                                        <td className="px-4 py-4 font-semibold text-primary">
                                             ₹{order.total_price}
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-4 py-4">
                                             <span className="text-sm capitalize">{order.payment_method}</span>
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-4 py-4">
                                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.order_status)}`}>
-                                                {order.order_status}
+                                                {order.order_status === "cant_reach" ? "Can't Reach" : order.order_status}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-muted-foreground">
+                                        <td className="px-4 py-4">
+                                            <span className="text-sm text-muted-foreground">
+                                                {getDeliveryLabel(order.delivery_method)}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-4 text-sm text-muted-foreground">
                                             {new Date(order.created_at).toLocaleDateString()}
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2">
-                                                {order.order_status === 'ordered' && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            window.location.href = `/admin/orders/${order.id}`;
-                                                        }}
-                                                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/20"
-                                                        title="Edit Order"
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                                                            <path d="m15 5 4 4" />
-                                                        </svg>
+                                        <td className="px-4 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl">
+                                                        <MoreVertical className="h-4 w-4" />
                                                     </Button>
-                                                )}
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setOrderToDelete(order);
-                                                        setDeleteDialogOpen(true);
-                                                    }}
-                                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </div>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-52">
+                                                    <DropdownMenuItem onClick={() => window.location.href = `/admin/orders/${order.id}`}>
+                                                        <Eye className="mr-2 h-4 w-4" />
+                                                        View Details
+                                                    </DropdownMenuItem>
+
+                                                    <DropdownMenuSeparator />
+
+                                                    {/* Change Status submenu */}
+                                                    <DropdownMenuSub>
+                                                        <DropdownMenuSubTrigger>
+                                                            <Package className="mr-2 h-4 w-4" />
+                                                            Change Status
+                                                        </DropdownMenuSubTrigger>
+                                                        <DropdownMenuSubContent>
+                                                            {ORDER_STATUSES.map(s => (
+                                                                <DropdownMenuItem
+                                                                    key={s.value}
+                                                                    onClick={() => handleStatusChange(order.id, s.value)}
+                                                                    disabled={order.order_status === s.value}
+                                                                >
+                                                                    <span className={`mr-2 h-2 w-2 rounded-full inline-block ${getStatusColor(s.value).split(" ")[0]}`} />
+                                                                    {s.label}
+                                                                </DropdownMenuItem>
+                                                            ))}
+                                                        </DropdownMenuSubContent>
+                                                    </DropdownMenuSub>
+
+                                                    {/* Delivery Method submenu */}
+                                                    <DropdownMenuSub>
+                                                        <DropdownMenuSubTrigger>
+                                                            <Truck className="mr-2 h-4 w-4" />
+                                                            Delivery Method
+                                                        </DropdownMenuSubTrigger>
+                                                        <DropdownMenuSubContent>
+                                                            {DELIVERY_METHODS.map(d => (
+                                                                <DropdownMenuItem
+                                                                    key={d.value}
+                                                                    onClick={() => handleDeliveryMethodChange(order.id, d.value)}
+                                                                    disabled={order.delivery_method === d.value}
+                                                                >
+                                                                    {d.label}
+                                                                </DropdownMenuItem>
+                                                            ))}
+                                                        </DropdownMenuSubContent>
+                                                    </DropdownMenuSub>
+
+                                                    <DropdownMenuSeparator />
+
+                                                    {/* Invoice actions */}
+                                                    <DropdownMenuItem onClick={() => handleInvoiceDownload(order.id)}>
+                                                        <FileDown className="mr-2 h-4 w-4" />
+                                                        Download Invoice
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleInvoicePrint(order.id)}>
+                                                        <Printer className="mr-2 h-4 w-4" />
+                                                        Print Invoice
+                                                    </DropdownMenuItem>
+
+                                                    <DropdownMenuSeparator />
+
+                                                    {/* Copy actions */}
+                                                    <DropdownMenuItem onClick={() => handleCopy(order.customer_phone, "Phone number")}>
+                                                        <Phone className="mr-2 h-4 w-4" />
+                                                        Copy Phone
+                                                    </DropdownMenuItem>
+                                                    {order.whatsapp_number && (
+                                                        <DropdownMenuItem onClick={() => handleCopy(order.whatsapp_number, "WhatsApp number")}>
+                                                            <MessageSquare className="mr-2 h-4 w-4" />
+                                                            Copy WhatsApp
+                                                        </DropdownMenuItem>
+                                                    )}
+
+                                                    <DropdownMenuSeparator />
+
+                                                    <DropdownMenuItem
+                                                        onClick={() => {
+                                                            setOrderToDelete(order);
+                                                            setDeleteDialogOpen(true);
+                                                        }}
+                                                        className="text-destructive focus:text-destructive"
+                                                    >
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </td>
                                     </tr>
                                 ))}
@@ -409,105 +660,13 @@ export default function OrdersPage() {
                 </AlertDialogContent>
             </AlertDialog>
 
-            {/* Bulk Actions - Floating */}
-            {selectedOrders.size > 0 && (
-                <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300 flex flex-col gap-2 glass-strong p-4 rounded-3xl border border-border shadow-2xl">
-                    <div className="flex items-center justify-between mb-2">
-                        <span className="font-bold">{selectedOrders.size} selected</span>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedOrders(new Set());
-                            }}
-                            className="h-6 w-6 p-0 rounded-full"
-                        >
-                            <span className="sr-only">Clear selection</span>
-                            ×
-                        </Button>
-                    </div>
-
-                    <div className="flex gap-2">
-                        <select
-                            className="h-10 rounded-xl border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus:ring-2 focus:ring-ring"
-                            onChange={async (e) => {
-                                const value = e.target.value;
-                                if (!value) return;
-
-                                setBulkDeleting(true); // Reuse loading state
-                                try {
-                                    const response = await fetch("/api/admin/orders/bulk-update", {
-                                        method: "POST",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({
-                                            orderIds: Array.from(selectedOrders),
-                                            status: value
-                                        }),
-                                    });
-
-                                    const data = await response.json();
-
-                                    if (response.ok) {
-                                        toast.success(data.message);
-                                        setSelectedOrders(new Set());
-                                        fetchOrders();
-                                    } else {
-                                        toast.error(data.error || "Failed to update orders");
-                                    }
-                                } catch (error) {
-                                    console.error("Bulk update error:", error);
-                                    toast.error("An error occurred");
-                                } finally {
-                                    setBulkDeleting(false);
-                                    e.target.value = ""; // Reset select
-                                }
-                            }}
-                            defaultValue=""
-                        >
-                            <option value="" disabled>Change Status...</option>
-                            <option value="ordered">Mark Ordered</option>
-                            <option value="delivered">Mark Delivered</option>
-                            <option value="cant_reach">Mark Can&apos;t Reach</option>
-                            <option value="cancelled">Mark Cancelled</option>
-                        </select>
-
-                        <Button
-                            onClick={() => setBulkDeleteDialogOpen(true)}
-                            variant="destructive"
-                            size="icon"
-                            className="rounded-xl shrink-0"
-                            title="Delete Selected"
-                        >
-                            <Trash className="w-4 h-4" />
-                        </Button>
-                    </div>
-                </div>
-            )}
-
-            {/* Bulk Delete Confirmation Dialog */}
-            <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Bulk Delete Orders</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Are you sure you want to permanently delete {selectedOrders.size} order(s) from the database?
-                            <br />
-                            <strong className="text-destructive">This action cannot be undone.</strong>
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={handleBulkDelete}
-                            disabled={bulkDeleting}
-                            className="bg-destructive hover:bg-destructive/90"
-                        >
-                            {bulkDeleting ? "Deleting..." : `Delete ${selectedOrders.size} Order(s)`}
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+            {/* Bulk Action Bar */}
+            <BulkActionBar
+                selectedCount={selectedOrders.size}
+                onClearSelection={() => setSelectedOrders(new Set())}
+                actions={bulkActions}
+                isProcessing={bulkProcessing}
+            />
         </div>
     );
 }

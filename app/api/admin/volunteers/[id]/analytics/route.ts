@@ -36,7 +36,7 @@ export async function GET(
         const { data: orders, error: ordersError } = await supabase
             .from("orders")
             .select("*")
-            .eq("volunteer_id", volunteer.volunteer_id)
+            .eq("volunteer_id", volunteer.id)
             .order("created_at", { ascending: false });
 
         if (ordersError) {

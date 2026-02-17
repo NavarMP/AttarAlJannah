@@ -31,7 +31,7 @@ export async function GET(
         // Get volunteer details first to get the volunteer_id (string)
         const { data: volunteer, error: volunteerError } = await supabase
             .from("volunteers")
-            .select("volunteer_id")
+            .select("id")
             .eq("id", volunteerId)
             .single();
 
@@ -43,7 +43,7 @@ export async function GET(
         let query = supabase
             .from("orders")
             .select("*", { count: "exact" })
-            .eq("volunteer_id", volunteer.volunteer_id)
+            .eq("volunteer_id", volunteerId) // Use the UUID directly
             .order("created_at", { ascending: false })
             .range(offset, offset + limit - 1);
 

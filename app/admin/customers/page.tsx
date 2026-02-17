@@ -6,26 +6,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Search, Trash2, Loader2, Phone, Mail, Package } from "lucide-react";
+import {
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+    DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+    Users, Search, Trash2, Loader2, Phone, Mail, Package,
+    MoreVertical, Copy, Download
+} from "lucide-react";
 import { toast } from "sonner";
-import Link from "next/link";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionBar, BulkAction } from "@/components/admin/bulk-action-bar";
 
 interface Customer {
     id: string;
@@ -49,6 +46,10 @@ export default function CustomersPage() {
         newThisMonth: 0,
     });
 
+    // Bulk state
+    const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
+    const [bulkProcessing, setBulkProcessing] = useState(false);
+
     const fetchCustomers = useCallback(async () => {
         try {
             setIsLoading(true);
@@ -61,7 +62,6 @@ export default function CustomersPage() {
             const data = await response.json();
             setCustomers(data.customers || []);
 
-            // Calculate stats
             const total = data.customers?.length || 0;
             const withOrders = data.customers?.filter((c: Customer) => c.total_orders > 0).length || 0;
             const now = new Date();
@@ -81,19 +81,17 @@ export default function CustomersPage() {
 
     useEffect(() => {
         fetchCustomers();
+        setSelectedCustomers(new Set());
     }, [fetchCustomers]);
+
+    // ==== Individual actions ====
 
     const handleDelete = async () => {
         if (!deleteId) return;
-
         try {
             setIsDeleting(true);
-            const response = await fetch(`/api/admin/customers/${deleteId}`, {
-                method: "DELETE",
-            });
-
+            const response = await fetch(`/api/admin/customers/${deleteId}`, { method: "DELETE" });
             if (!response.ok) throw new Error("Failed to delete customer");
-
             toast.success("Customer deleted successfully");
             setDeleteId(null);
             fetchCustomers();
@@ -105,6 +103,97 @@ export default function CustomersPage() {
         }
     };
 
+    const handleCopy = (text: string, label: string) => {
+        navigator.clipboard.writeText(text);
+        toast.success(`${label} copied to clipboard`);
+    };
+
+    const handleExportCSV = async (selectedIds?: string[]) => {
+        try {
+            const params = new URLSearchParams({ type: "customers" });
+            if (selectedIds && selectedIds.length > 0) {
+                params.set("ids", selectedIds.join(","));
+            }
+            const response = await fetch(`/api/admin/export?${params}`);
+            if (!response.ok) { toast.error("Failed to export"); return; }
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `customers_export_${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            toast.success("Customers exported successfully");
+        } catch {
+            toast.error("Failed to export");
+        }
+    };
+
+    // ==== Selection helpers ====
+
+    const toggleCustomerSelection = (customerId: string) => {
+        const newSelection = new Set(selectedCustomers);
+        if (newSelection.has(customerId)) {
+            newSelection.delete(customerId);
+        } else {
+            newSelection.add(customerId);
+        }
+        setSelectedCustomers(newSelection);
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedCustomers.size === customers.length) {
+            setSelectedCustomers(new Set());
+        } else {
+            setSelectedCustomers(new Set(customers.map(c => c.id)));
+        }
+    };
+
+    // ==== Bulk actions config ====
+
+    const bulkActions: BulkAction[] = [
+        {
+            label: "Export CSV",
+            icon: <Download className="h-4 w-4" />,
+            variant: "outline",
+            onExecute: async () => {
+                await handleExportCSV(Array.from(selectedCustomers));
+            },
+        },
+        {
+            label: "Delete",
+            icon: <Trash2 className="h-4 w-4" />,
+            variant: "destructive",
+            requireConfirm: true,
+            confirmTitle: "Bulk Delete Customers",
+            confirmDescription: `Are you sure you want to permanently delete ${selectedCustomers.size} customer(s)? Their past orders will remain in the system. This cannot be undone.`,
+            onExecute: async () => {
+                setBulkProcessing(true);
+                try {
+                    const response = await fetch("/api/admin/customers/bulk-delete", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ customerIds: Array.from(selectedCustomers) }),
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        toast.success(data.message || `Deleted ${selectedCustomers.size} customer(s)`);
+                        setSelectedCustomers(new Set());
+                        fetchCustomers();
+                    } else {
+                        toast.error(data.error || "Failed to delete");
+                    }
+                } catch {
+                    toast.error("An error occurred");
+                } finally {
+                    setBulkProcessing(false);
+                }
+            },
+        },
+    ];
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -115,52 +204,42 @@ export default function CustomersPage() {
                         Manage customer accounts and view order history
                     </p>
                 </div>
+                <Button variant="outline" size="sm" className="rounded-xl gap-2" onClick={() => handleExportCSV()}>
+                    <Download className="h-4 w-4" />
+                    Export All
+                </Button>
             </div>
 
             {/* Stats Cards */}
             <div className="grid gap-6 md:grid-cols-3">
                 <Card className="glass-strong">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">
-                            Total Customers
-                        </CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Total Customers</CardTitle>
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{stats.total}</div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            All registered customers
-                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">All registered customers</p>
                     </CardContent>
                 </Card>
-
                 <Card className="glass-strong">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">
-                            With Orders
-                        </CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground">With Orders</CardTitle>
                         <Package className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{stats.withOrders}</div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            Customers who placed orders
-                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">Customers who placed orders</p>
                     </CardContent>
                 </Card>
-
                 <Card className="glass-strong">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">
-                            New This Month
-                        </CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground">New This Month</CardTitle>
                         <Users className="h-4 w-4 text-primary" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold text-primary">{stats.newThisMonth}</div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            Joined this month
-                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">Joined this month</p>
                     </CardContent>
                 </Card>
             </div>
@@ -200,18 +279,35 @@ export default function CustomersPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
+                                        <TableHead>
+                                            <Checkbox
+                                                checked={customers.length > 0 && selectedCustomers.size === customers.length}
+                                                onCheckedChange={toggleSelectAll}
+                                                aria-label="Select all customers"
+                                            />
+                                        </TableHead>
                                         <TableHead>Name</TableHead>
                                         <TableHead>Phone</TableHead>
                                         <TableHead>Email</TableHead>
                                         <TableHead>Orders</TableHead>
                                         <TableHead>Last Order</TableHead>
                                         <TableHead>Joined</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
+                                        <TableHead className="text-center">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {customers.map((customer) => (
-                                        <TableRow key={customer.id}>
+                                        <TableRow
+                                            key={customer.id}
+                                            className={`${selectedCustomers.has(customer.id) ? 'bg-primary/5' : ''}`}
+                                        >
+                                            <TableCell>
+                                                <Checkbox
+                                                    checked={selectedCustomers.has(customer.id)}
+                                                    onCheckedChange={() => toggleCustomerSelection(customer.id)}
+                                                    aria-label={`Select ${customer.name || customer.phone}`}
+                                                />
+                                            </TableCell>
                                             <TableCell className="font-medium">
                                                 {customer.name || <span className="text-muted-foreground italic">No name</span>}
                                             </TableCell>
@@ -242,15 +338,31 @@ export default function CustomersPage() {
                                             <TableCell className="text-sm text-muted-foreground">
                                                 {new Date(customer.created_at).toLocaleDateString()}
                                             </TableCell>
-                                            <TableCell className="text-right">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => setDeleteId(customer.id)}
-                                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
+                                            <TableCell className="text-center">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl">
+                                                            <MoreVertical className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-48">
+                                                        <DropdownMenuItem onClick={() => handleCopy(customer.phone, "Phone number")}>
+                                                            <Phone className="mr-2 h-4 w-4" />Copy Phone
+                                                        </DropdownMenuItem>
+                                                        {customer.email && (
+                                                            <DropdownMenuItem onClick={() => handleCopy(customer.email!, "Email")}>
+                                                                <Mail className="mr-2 h-4 w-4" />Copy Email
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            onClick={() => setDeleteId(customer.id)}
+                                                            className="text-destructive focus:text-destructive"
+                                                        >
+                                                            <Trash2 className="mr-2 h-4 w-4" />Delete
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -273,23 +385,20 @@ export default function CustomersPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={handleDelete}
-                            disabled={isDeleting}
-                            className="bg-destructive hover:bg-destructive/90"
-                        >
-                            {isDeleting ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Deleting...
-                                </>
-                            ) : (
-                                "Delete Customer"
-                            )}
+                        <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
+                            {isDeleting ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Deleting...</>) : ("Delete Customer")}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Bulk Action Bar */}
+            <BulkActionBar
+                selectedCount={selectedCustomers.size}
+                onClearSelection={() => setSelectedCustomers(new Set())}
+                actions={bulkActions}
+                isProcessing={bulkProcessing}
+            />
         </div>
     );
 }
