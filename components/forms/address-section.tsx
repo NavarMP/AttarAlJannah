@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -215,6 +215,23 @@ export function AddressSection({
         toast.success("Address auto-filled!");
     }, [setValue]);
 
+    // Deduplicate and format post office options
+    const postOfficeOptions = useMemo(() => {
+        const allOffices = [...postOfficeData, ...postOfficeSearchResults];
+        const uniqueMap = new Map();
+        allOffices.forEach(o => {
+            const key = `${o.Name}-${o.Pincode}`;
+            if (!uniqueMap.has(key)) {
+                uniqueMap.set(key, {
+                    value: key,
+                    label: o.Name,
+                    subLabel: o.Pincode,
+                    original: o
+                });
+            }
+        });
+        return Array.from(uniqueMap.values());
+    }, [postOfficeData, postOfficeSearchResults]);
 
     // Render validation icon for pincode
     const renderPincodeValidation = () => {
@@ -287,14 +304,19 @@ export function AddressSection({
                     </span>
                 </Label>
                 <SearchableSelect
-                    options={[...postOffices, ...postOfficeSearchResults.map(o => o.Name)]}
+                    options={postOfficeOptions}
                     value={watch("post") || ""}
-                    onChange={(value) => {
-                        setValue("post", value);
-                        // Check if this is from search results
-                        const searchResult = postOfficeSearchResults.find(o => o.Name === value);
-                        if (searchResult) {
-                            handlePostOfficeSelect(searchResult);
+                    onChange={(selectedValue) => {
+                        // value is unique key "Name-Pincode"
+
+                        // Find original in the memoized options
+                        const selectedOption = postOfficeOptions.find((o: any) => o.value === selectedValue);
+
+                        if (selectedOption) {
+                            handlePostOfficeSelect(selectedOption.original);
+                        } else {
+                            // Fallback for direct text input or legacy state
+                            setValue("post", selectedValue);
                         }
                     }}
                     placeholder="Select or search post office"
@@ -317,8 +339,8 @@ export function AddressSection({
             <div className="space-y-2">
                 <Label htmlFor="pincode">Pincode {variant === 'order' && '*'}</Label>
                 <span className="text-xs text-muted-foreground ml-2">
-                        (Input a pincode to auto-fill district and state)
-                    </span>
+                    (Input a pincode to auto-fill district and state)
+                </span>
                 <div className="relative">
                     <Input
                         id="pincode"

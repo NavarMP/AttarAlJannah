@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/contexts/auth-context";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { LogOut, LayoutDashboard, Package, Menu, X, Users, Award, MessageSquare, Bell, Truck, BarChart3, Map } from "lucide-react";
+import { LogOut, LayoutDashboard, Package, Menu, X, Users, Award, MessageSquare, Bell, Truck, BarChart3, Map, Video } from "lucide-react";
 import { ThemeToggle } from "@/components/custom/theme-toggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import Link from "next/link";
@@ -118,6 +118,15 @@ export default function AdminLayout({
                         <Button variant="ghost" className="w-full justify-start rounded-xl">
                             <Bell className="mr-2 h-5 w-5" />
                             Send Notification
+                        </Button>
+                    </Link>
+                    <Link href="/admin/promo">
+                        <Button
+                            variant="ghost"
+                            className={`w-full justify-start rounded-xl ${pathname.startsWith("/admin/promo") ? "bg-primary/10 text-primary" : ""}`}
+                        >
+                            <Video className="mr-2 h-5 w-5" />
+                            Promo
                         </Button>
                     </Link>
                     <Link href="/admin/volunteers">

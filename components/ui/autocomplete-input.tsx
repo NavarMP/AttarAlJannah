@@ -125,7 +125,10 @@ export function AutocompleteInput({
 
             {/* Suggestions dropdown */}
             {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute z-50 w-full mt-1 bg-popover border rounded-lg shadow-lg max-h-60 overflow-auto">
+                <div
+                    className="absolute z-50 w-full mt-1 bg-popover border rounded-lg shadow-lg max-h-60 overflow-auto"
+                    data-lenis-prevent
+                >
                     {suggestions.map((suggestion, index) => (
                         <button
                             key={index}
@@ -134,6 +137,7 @@ export function AutocompleteInput({
                             className={cn(
                                 "w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors",
                                 "border-b last:border-b-0",
+                                "focus:outline-none focus:bg-accent",
                                 selectedIndex === index && "bg-accent"
                             )}
                         >

@@ -15,8 +15,6 @@ import { LocationLink } from "@/components/forms/location-link";
 import { AddressSection } from "@/components/forms/address-section";
 import { toast } from "sonner";
 import { loadRazorpayScript, createRazorpayOptions, openRazorpayCheckout, type RazorpayResponse } from "@/lib/config/razorpay-config";
-
-import { SearchableSelect } from "@/components/ui/searchable-select";
 import { CountryCodeSelect, COUNTRY_CODES } from "@/components/ui/country-code-select";
 
 interface CustomerProfile {
