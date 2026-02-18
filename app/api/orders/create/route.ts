@@ -17,6 +17,9 @@ export async function POST(request: NextRequest) {
         const referredBy = formData.get("referredBy") as string || null;
         const paymentMethod = formData.get("paymentMethod") as string || "razorpay";
         const paymentScreenshotUrl = formData.get("paymentScreenshotUrl") as string || null;
+        const screenshotVerified = formData.get("screenshotVerified") as string || null;
+        const screenshotVerificationDetails = formData.get("screenshotVerificationDetails") as string || null;
+        const extractedTransactionId = formData.get("extractedTransactionId") as string || null;
 
         // Get individual address fields for structured storage
         const houseBuilding = formData.get("houseBuilding") as string;
@@ -94,6 +97,9 @@ export async function POST(request: NextRequest) {
                 total_price: totalPrice,
                 payment_method: paymentMethod,
                 payment_screenshot_url: paymentScreenshotUrl,
+                screenshot_verified: screenshotVerified === "true" ? true : screenshotVerified === "false" ? false : null,
+                screenshot_verification_details: screenshotVerificationDetails ? JSON.parse(screenshotVerificationDetails) : null,
+                extracted_transaction_id: extractedTransactionId,
                 payment_status: isQrPayment ? "pending" : "pending",
                 order_status: "payment_pending", // QR: stays until admin verifies; Razorpay: promoted after verify
                 volunteer_id: referredByUuid,

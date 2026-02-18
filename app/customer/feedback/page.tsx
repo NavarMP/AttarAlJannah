@@ -430,7 +430,7 @@ export default function CustomerFeedbackPage() {
                             <div className="space-y-2 pt-4 border-t border-border">
                                 <label className="text-lg font-semibold">
                                     Product Photo
-                                    <span className="text-sm font-normal text-muted-foreground ml-2">(Optional)</span>
+                                    {/* <span className="text-sm font-normal text-muted-foreground ml-2">(Optional)</span> */}
                                 </label>
                                 <p className="text-sm text-muted-foreground mb-3">
                                     Upload from gallery or take a photo

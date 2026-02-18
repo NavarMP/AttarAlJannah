@@ -32,6 +32,9 @@ interface Order {
     payment_status: string;
     order_status: string;
     payment_screenshot_url: string | null;
+    screenshot_verified: boolean | null;
+    screenshot_verification_details: any;
+    extracted_transaction_id: string | null;
     volunteer_id?: string;
     delivery_volunteer_id?: string; // Human-readable volunteer ID like VOL001
     is_delivery_duty?: boolean;
@@ -325,7 +328,7 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                                 Payment Screenshot
                             </CardTitle>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="space-y-4">
                             <div className="relative w-full max-w-md h-96 rounded-2xl overflow-hidden border-2 border-border">
                                 <Image
                                     src={order.payment_screenshot_url}
@@ -334,6 +337,37 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                                     className="object-contain"
                                 />
                             </div>
+
+                            {/* AI Verification Badge */}
+                            {order.screenshot_verified !== null && order.screenshot_verified !== undefined && (
+                                <div className={`p-3 rounded-2xl border text-sm ${order.screenshot_verified
+                                        ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800"
+                                        : "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800"
+                                    }`}>
+                                    <div className="flex items-center gap-2 font-medium">
+                                        <span>{order.screenshot_verified ? "🛡️ AI Verified" : "⚠️ Not Verified"}</span>
+                                    </div>
+                                    {order.screenshot_verification_details && (
+                                        <div className="text-xs text-muted-foreground mt-2 space-y-1">
+                                            {order.screenshot_verification_details.extracted?.amount && (
+                                                <p>Amount detected: <span className={order.screenshot_verification_details.checks?.amount_match === false ? "text-red-500 font-bold" : ""}>₹{order.screenshot_verification_details.extracted.amount}</span></p>
+                                            )}
+                                            {order.screenshot_verification_details.extracted?.app_name && (
+                                                <p>App: {order.screenshot_verification_details.extracted.app_name}</p>
+                                            )}
+                                            {order.extracted_transaction_id && (
+                                                <p>Txn ID: <code className="bg-muted px-1 rounded">{order.extracted_transaction_id}</code></p>
+                                            )}
+                                            {order.screenshot_verification_details.checks?.is_duplicate && (
+                                                <p className="text-red-500 font-bold">⚠️ Duplicate transaction ID detected!</p>
+                                            )}
+                                            {order.screenshot_verification_details.message && (
+                                                <p className="italic">{order.screenshot_verification_details.message}</p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 )

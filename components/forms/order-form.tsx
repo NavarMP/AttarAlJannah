@@ -8,11 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, CheckCircle2, Copy, Camera, Upload, X, QrCode, Smartphone } from "lucide-react";
+import { Loader2, CheckCircle2, Copy, Camera, Upload, X, QrCode, Smartphone, ShieldCheck, ShieldAlert, ShieldX, AlertTriangle } from "lucide-react";
 import { LocationLink } from "@/components/forms/location-link";
 import { AddressSection } from "@/components/forms/address-section";
 import { toast } from "sonner";
 import { loadRazorpayScript, createRazorpayOptions, openRazorpayCheckout, type RazorpayResponse } from "@/lib/config/razorpay-config";
+import Image from "next/image";
 import { CountryCodeSelect, COUNTRY_CODES } from "@/components/ui/country-code-select";
 import { CameraCapture } from "@/components/ui/camera-capture";
 import { createClient } from "@/lib/supabase/client";
@@ -48,6 +49,11 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
     const [screenshotPreview, setScreenshotPreview] = useState<string>("");
     const [showCamera, setShowCamera] = useState(false);
     const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
+    const [screenshotPublicUrl, setScreenshotPublicUrl] = useState<string>("");
+
+    // AI Verification state
+    const [verifying, setVerifying] = useState(false);
+    const [verificationResult, setVerificationResult] = useState<any>(null);
 
     // UPI / dynamic QR state
     const [upiId, setUpiId] = useState("");
@@ -312,6 +318,77 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
     };
 
 
+
+    // Upload screenshot to Supabase & verify with Gemini AI
+    const handleScreenshotUploadAndVerify = async (file: File) => {
+        setUploadingScreenshot(true);
+        setVerificationResult(null);
+        setScreenshotPublicUrl("");
+
+        try {
+            // Step 1: Upload to Supabase Storage
+            const supabase = createClient();
+            const fileExt = file.name.split(".").pop() || "jpg";
+            const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+            const filePath = `screenshots/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from("payment-screenshots")
+                .upload(filePath, file, { cacheControl: "3600", upsert: false });
+
+            if (uploadError) {
+                throw new Error(`Upload failed: ${uploadError.message}`);
+            }
+
+            const { data: urlData } = supabase.storage
+                .from("payment-screenshots")
+                .getPublicUrl(filePath);
+
+            const publicUrl = urlData.publicUrl;
+            setScreenshotPublicUrl(publicUrl);
+            setUploadingScreenshot(false);
+
+            // Step 2: Verify with Gemini AI
+            setVerifying(true);
+            try {
+                const verifyResponse = await fetch("/api/verify-payment-screenshot", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        imageUrl: publicUrl,
+                        expectedAmount: totalPrice,
+                    }),
+                });
+
+                const result = await verifyResponse.json();
+                setVerificationResult(result);
+
+                // Show toast based on result
+                if (result.verified) {
+                    toast.success("Payment verified by AI!");
+                } else if (result.checks?.is_payment_screenshot === false) {
+                    toast.error("This doesn't look like a payment screenshot");
+                } else {
+                    toast.warning(result.message || "Payment needs admin verification");
+                }
+            } catch (verifyErr) {
+                console.error("Verification error:", verifyErr);
+                // Don't block — verification is advisory
+                setVerificationResult({
+                    verified: false,
+                    message: "Verification skipped. Admin will verify manually.",
+                    checks: { is_payment_screenshot: true, amount_match: null, is_duplicate: false },
+                    extracted: {},
+                });
+            } finally {
+                setVerifying(false);
+            }
+        } catch (uploadErr: any) {
+            toast.error(uploadErr.message || "Failed to upload screenshot");
+            setUploadingScreenshot(false);
+        }
+    };
+
     // Validate volunteer ID with debouncing
     const validateVolunteerId = async (id: string) => {
         if (!id || id.trim() === "") {
@@ -420,41 +497,23 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
             // Add payment method
             formData.append("paymentMethod", activePaymentMethod);
 
-            // Handle QR payment: upload screenshot to Supabase Storage first
+            // Handle QR payment: attach previously uploaded screenshot URL + verification
             if (activePaymentMethod === "qr") {
-                if (!screenshotFile) {
+                if (!screenshotPublicUrl) {
                     toast.error("Please upload a payment screenshot");
                     setIsSubmitting(false);
                     return;
                 }
 
-                setUploadingScreenshot(true);
-                try {
-                    const supabase = createClient();
-                    const fileExt = screenshotFile.name.split(".").pop() || "jpg";
-                    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-                    const filePath = `screenshots/${fileName}`;
+                formData.append("paymentScreenshotUrl", screenshotPublicUrl);
 
-                    const { error: uploadError } = await supabase.storage
-                        .from("payment-screenshots")
-                        .upload(filePath, screenshotFile, { cacheControl: "3600", upsert: false });
-
-                    if (uploadError) {
-                        throw new Error(`Upload failed: ${uploadError.message}`);
+                // Attach verification data if available
+                if (verificationResult) {
+                    formData.append("screenshotVerified", String(verificationResult.verified));
+                    formData.append("screenshotVerificationDetails", JSON.stringify(verificationResult));
+                    if (verificationResult.extracted?.transaction_id) {
+                        formData.append("extractedTransactionId", verificationResult.extracted.transaction_id);
                     }
-
-                    const { data: urlData } = supabase.storage
-                        .from("payment-screenshots")
-                        .getPublicUrl(filePath);
-
-                    formData.append("paymentScreenshotUrl", urlData.publicUrl);
-                } catch (uploadErr: any) {
-                    toast.error(uploadErr.message || "Failed to upload screenshot");
-                    setIsSubmitting(false);
-                    setUploadingScreenshot(false);
-                    return;
-                } finally {
-                    setUploadingScreenshot(false);
                 }
             }
 
@@ -779,7 +838,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                             <div className="border-t pt-4">
                                 <h3 className="font-semibold text-lg flex items-center gap-2 mb-3">
                                     <QrCode className="h-5 w-5 text-primary" />
-                                    Pay via QR Code
+                                    Pay via UPI
                                 </h3>
                                 <p className="text-sm text-muted-foreground mb-4">
                                     Scan the QR code below to pay <span className="font-bold text-foreground">₹{totalPrice}</span>, then upload the payment screenshot.
@@ -789,12 +848,13 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                                 <div className="flex justify-center mb-4">
                                     <div className="bg-white p-3 rounded-2xl shadow-md inline-block">
                                         {qrDataUrl ? (
-                                            <img
+                                            <Image
                                                 src={qrDataUrl}
                                                 alt="UPI Payment QR Code"
                                                 width={280}
                                                 height={280}
                                                 className="rounded-xl"
+                                                unoptimized
                                             />
                                         ) : (
                                             <div className="w-[280px] h-[280px] flex items-center justify-center text-muted-foreground">
@@ -864,25 +924,82 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
 
                                     {screenshotPreview ? (
                                         <div className="relative w-full max-w-sm mx-auto">
-                                            <img
+                                            <Image
                                                 src={screenshotPreview}
                                                 alt="Payment screenshot"
-                                                className="w-full rounded-2xl border shadow-sm"
+                                                width={400}
+                                                height={300}
+                                                className="w-full h-auto rounded-2xl border shadow-sm"
+                                                unoptimized
                                             />
                                             <button
                                                 type="button"
                                                 onClick={() => {
                                                     setScreenshotFile(null);
                                                     setScreenshotPreview("");
+                                                    setScreenshotPublicUrl("");
+                                                    setVerificationResult(null);
                                                 }}
                                                 className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1.5 shadow-md hover:opacity-90 transition-opacity"
                                             >
                                                 <X className="h-4 w-4" />
                                             </button>
-                                            <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-2 flex items-center gap-1 justify-center">
-                                                <CheckCircle2 className="w-4 h-4" />
-                                                Screenshot uploaded
-                                            </p>
+
+                                            {/* Upload / Verify Status */}
+                                            {uploadingScreenshot && (
+                                                <p className="text-sm text-muted-foreground mt-2 flex items-center gap-1 justify-center">
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                    Uploading screenshot...
+                                                </p>
+                                            )}
+                                            {verifying && (
+                                                <p className="text-sm text-blue-600 dark:text-blue-400 mt-2 flex items-center gap-1 justify-center">
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                    AI is verifying payment...
+                                                </p>
+                                            )}
+
+                                            {/* Verification Result Badge */}
+                                            {verificationResult && !verifying && !uploadingScreenshot && (
+                                                <div className={`mt-3 p-3 rounded-2xl border text-sm ${verificationResult.verified
+                                                    ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800"
+                                                    : verificationResult.checks?.is_payment_screenshot === false
+                                                        ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
+                                                        : "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800"
+                                                    }`}>
+                                                    <div className="flex items-center gap-2">
+                                                        {verificationResult.verified ? (
+                                                            <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                                                        ) : verificationResult.checks?.is_payment_screenshot === false ? (
+                                                            <ShieldX className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
+                                                        ) : (
+                                                            <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                                                        )}
+                                                        <span className={`font-medium ${verificationResult.verified
+                                                            ? "text-emerald-700 dark:text-emerald-300"
+                                                            : verificationResult.checks?.is_payment_screenshot === false
+                                                                ? "text-red-700 dark:text-red-300"
+                                                                : "text-amber-700 dark:text-amber-300"
+                                                            }`}>
+                                                            {verificationResult.message}
+                                                        </span>
+                                                    </div>
+                                                    {verificationResult.extracted?.amount && (
+                                                        <p className="text-xs text-muted-foreground mt-1 ml-7">
+                                                            Detected: ₹{verificationResult.extracted.amount}
+                                                            {verificationResult.extracted.app_name && ` via ${verificationResult.extracted.app_name}`}
+                                                            {verificationResult.extracted.transaction_id && ` • Txn: ${verificationResult.extracted.transaction_id}`}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {!uploadingScreenshot && !verifying && !verificationResult && screenshotPublicUrl && (
+                                                <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-2 flex items-center gap-1 justify-center">
+                                                    <CheckCircle2 className="w-4 h-4" />
+                                                    Screenshot uploaded
+                                                </p>
+                                            )}
                                         </div>
                                     ) : (
                                         <div className="flex gap-3">
@@ -905,6 +1022,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                                                                 setScreenshotPreview(reader.result as string);
                                                             };
                                                             reader.readAsDataURL(file);
+                                                            handleScreenshotUploadAndVerify(file);
                                                         }
                                                     }}
                                                 />
@@ -930,6 +1048,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                                                 setScreenshotFile(file);
                                                 setScreenshotPreview(dataUrl);
                                                 setShowCamera(false);
+                                                handleScreenshotUploadAndVerify(file);
                                             }}
                                             onClose={() => setShowCamera(false)}
                                         />
@@ -944,7 +1063,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                         type="submit"
                         size="lg"
                         className="w-full bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600 rounded-2xl"
-                        disabled={isSubmitting || isProcessingPayment || uploadingScreenshot || (activePaymentMethod === "qr" && !screenshotFile)}
+                        disabled={isSubmitting || isProcessingPayment || uploadingScreenshot || verifying || (activePaymentMethod === "qr" && !screenshotPublicUrl)}
                     >
                         {isProcessingPayment ? (
                             <>
