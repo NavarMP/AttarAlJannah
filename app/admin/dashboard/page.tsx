@@ -3,8 +3,12 @@
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, Clock, CheckCircle, DollarSign } from "lucide-react";
+import { Package, Clock, CheckCircle, DollarSign, CreditCard, QrCode, Pencil, Save } from "lucide-react";
 import { MetricToggle } from "@/components/custom/metric-toggle";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 interface Stats {
     totalBottles: number;
@@ -29,9 +33,16 @@ export default function AdminDashboard() {
     const [stats, setStats] = useState<Stats | null>(null);
     const [recentOrders, setRecentOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
+    const [paymentMethod, setPaymentMethod] = useState<string>("qr");
+    const [togglingPayment, setTogglingPayment] = useState(false);
+    const [upiId, setUpiId] = useState("");
+    const [merchantName, setMerchantName] = useState("");
+    const [editingUpi, setEditingUpi] = useState(false);
+    const [savingUpi, setSavingUpi] = useState(false);
 
     useEffect(() => {
         fetchStats();
+        fetchPaymentMethod();
     }, []);
 
     const fetchStats = async () => {
@@ -44,6 +55,74 @@ export default function AdminDashboard() {
             console.error("Failed to fetch stats:", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchPaymentMethod = async () => {
+        try {
+            const response = await fetch("/api/admin/settings");
+            const data = await response.json();
+            const s = data.settings || {};
+            setPaymentMethod(s.payment_method || "qr");
+            setUpiId(s.upi_id || "");
+            setMerchantName(s.merchant_name || "Attar Al Jannah");
+        } catch (error) {
+            console.error("Failed to fetch settings:", error);
+        }
+    };
+
+    const togglePaymentMethod = async () => {
+        const newMethod = paymentMethod === "qr" ? "razorpay" : "qr";
+        setTogglingPayment(true);
+        try {
+            const response = await fetch("/api/admin/settings", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ key: "payment_method", value: newMethod }),
+            });
+            if (response.ok) {
+                setPaymentMethod(newMethod);
+                toast.success(`Payment method switched to ${newMethod === "qr" ? "QR Code" : "Razorpay"}`);
+            } else {
+                toast.error("Failed to update payment method");
+            }
+        } catch (error) {
+            toast.error("Failed to update payment method");
+        } finally {
+            setTogglingPayment(false);
+        }
+    };
+
+    const saveUpiSettings = async () => {
+        if (!upiId.trim()) {
+            toast.error("UPI ID is required");
+            return;
+        }
+        setSavingUpi(true);
+        try {
+            const updates = [
+                fetch("/api/admin/settings", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ key: "upi_id", value: upiId.trim() }),
+                }),
+                fetch("/api/admin/settings", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ key: "merchant_name", value: merchantName.trim() }),
+                }),
+            ];
+            const results = await Promise.all(updates);
+            if (results.every(r => r.ok)) {
+                toast.success("UPI settings saved");
+                setEditingUpi(false);
+            } else {
+                toast.error("Failed to save UPI settings");
+            }
+        } catch (error) {
+            toast.error("Failed to save UPI settings");
+        } finally {
+            setSavingUpi(false);
         }
     };
 
@@ -98,6 +177,119 @@ export default function AdminDashboard() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Payment Method Toggle */}
+            <Card className="rounded-3xl border-2 border-primary/20">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <div>
+                        <CardTitle className="text-lg">Payment Method</CardTitle>
+                        <p className="text-sm text-muted-foreground mt-1">Active payment method for new orders</p>
+                    </div>
+                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${paymentMethod === "qr"
+                        ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
+                        : "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400"
+                        }`}>
+                        {paymentMethod === "qr" ? "QR Code" : "Razorpay"}
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex gap-3">
+                        <Button
+                            variant={paymentMethod === "qr" ? "default" : "outline"}
+                            className={`flex-1 rounded-2xl gap-2 ${paymentMethod === "qr" ? "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700" : ""}`}
+                            onClick={() => paymentMethod !== "qr" && togglePaymentMethod()}
+                            disabled={togglingPayment}
+                        >
+                            <QrCode className="h-4 w-4" />
+                            QR Code
+                        </Button>
+                        <Button
+                            variant={paymentMethod === "razorpay" ? "default" : "outline"}
+                            className={`flex-1 rounded-2xl gap-2 ${paymentMethod === "razorpay" ? "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700" : ""}`}
+                            onClick={() => paymentMethod !== "razorpay" && togglePaymentMethod()}
+                            disabled={togglingPayment}
+                        >
+                            <CreditCard className="h-4 w-4" />
+                            Razorpay
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* UPI Settings (visible when QR is active) */}
+            {paymentMethod === "qr" && (
+                <Card className="rounded-3xl">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <div>
+                            <CardTitle className="text-lg">UPI Settings</CardTitle>
+                            <p className="text-sm text-muted-foreground mt-1">Configure UPI details for dynamic QR generation</p>
+                        </div>
+                        {!editingUpi ? (
+                            <Button variant="ghost" size="icon" onClick={() => setEditingUpi(true)}>
+                                <Pencil className="h-4 w-4" />
+                            </Button>
+                        ) : (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={saveUpiSettings}
+                                disabled={savingUpi}
+                            >
+                                <Save className="h-4 w-4" />
+                            </Button>
+                        )}
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="upiId" className="text-sm">UPI ID *</Label>
+                            <Input
+                                id="upiId"
+                                value={upiId}
+                                onChange={(e) => setUpiId(e.target.value)}
+                                placeholder="yourname@upi"
+                                disabled={!editingUpi}
+                                className="font-mono"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="merchantName" className="text-sm">Merchant Name</Label>
+                            <Input
+                                id="merchantName"
+                                value={merchantName}
+                                onChange={(e) => setMerchantName(e.target.value)}
+                                placeholder="Your Store Name"
+                                disabled={!editingUpi}
+                            />
+                        </div>
+                        {editingUpi && (
+                            <div className="flex gap-2">
+                                <Button
+                                    className="flex-1 rounded-2xl"
+                                    onClick={saveUpiSettings}
+                                    disabled={savingUpi}
+                                >
+                                    {savingUpi ? "Saving..." : "Save Settings"}
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="rounded-2xl"
+                                    onClick={() => {
+                                        setEditingUpi(false);
+                                        fetchPaymentMethod(); // Reset to saved values
+                                    }}
+                                >
+                                    Cancel
+                                </Button>
+                            </div>
+                        )}
+                        {!editingUpi && upiId && (
+                            <p className="text-xs text-muted-foreground">
+                                QR codes will be generated with: <code className="bg-muted px-1 rounded">{upiId}</code>
+                            </p>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Recent Orders */}
             <Card className="rounded-3xl">

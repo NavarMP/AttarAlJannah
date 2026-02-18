@@ -381,6 +381,7 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                                 <SelectValue placeholder="Select status" />
                             </SelectTrigger>
                             <SelectContent>
+                                <SelectItem value="payment_pending">Payment Pending</SelectItem>
                                 <SelectItem value="ordered">Ordered</SelectItem>
                                 <SelectItem value="delivered">Delivered</SelectItem>
                                 <SelectItem value="cant_reach">Can&apos;t Reach</SelectItem>

@@ -41,6 +41,7 @@ interface Order {
 }
 
 const ORDER_STATUSES = [
+    { label: "Payment Pending", value: "payment_pending" },
     { label: "Ordered", value: "ordered" },
     { label: "Delivered", value: "delivered" },
     { label: "Can't Reach", value: "cant_reach" },
@@ -347,6 +348,8 @@ export default function OrdersPage() {
 
     const getStatusColor = (status: string) => {
         switch (status) {
+            case "payment_pending":
+                return "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400";
             case "ordered":
                 return "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400";
             case "delivered":
@@ -495,7 +498,7 @@ export default function OrdersPage() {
                                         </td>
                                         <td className="px-4 py-4">
                                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.order_status)}`}>
-                                                {order.order_status === "cant_reach" ? "Can't Reach" : order.order_status}
+                                                {order.order_status === "cant_reach" ? "Can't Reach" : order.order_status === "payment_pending" ? "Payment Pending" : order.order_status}
                                             </span>
                                         </td>
                                         <td className="px-4 py-4">

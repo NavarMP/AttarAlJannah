@@ -15,6 +15,8 @@ export async function POST(request: NextRequest) {
         const quantity = parseInt(formData.get("quantity") as string);
         const totalPrice = parseFloat(formData.get("totalPrice") as string);
         const referredBy = formData.get("referredBy") as string || null;
+        const paymentMethod = formData.get("paymentMethod") as string || "razorpay";
+        const paymentScreenshotUrl = formData.get("paymentScreenshotUrl") as string || null;
 
         // Get individual address fields for structured storage
         const houseBuilding = formData.get("houseBuilding") as string;
@@ -76,9 +78,9 @@ export async function POST(request: NextRequest) {
 
         const customerId = customerData?.id || null;
 
-        // Create order - NO payment_method or payment_screenshot_url
-        // All orders use Razorpay, status starts as 'ordered'
+        // Create order
         console.log("💾 Inserting order into database...");
+        const isQrPayment = paymentMethod === "qr";
         const { data: orderData, error: orderError } = await supabase
             .from("orders")
             .insert({
@@ -90,20 +92,11 @@ export async function POST(request: NextRequest) {
                 product_name: productName,
                 quantity,
                 total_price: totalPrice,
-                payment_status: "pending", // Will be updated after Razorpay payment
-                order_status: "payment_pending", // Will change to 'ordered' after payment verification
-                volunteer_id: referredByUuid, // Referral volunteer UUID
-                // Razorpay fields will be updated after payment
-                // razorpay_order_id: null,
-                // razorpay_payment_id: null,
-                // Address fields for delivery assignment - Commented out as they don't exist in DB
-                // house_name: houseBuilding,
-                // town: town,
-                // post_office: post,
-                // city: city,
-                // district: district,
-                // state: state,
-                // pincode: pincode,
+                payment_method: paymentMethod,
+                payment_screenshot_url: paymentScreenshotUrl,
+                payment_status: isQrPayment ? "pending" : "pending",
+                order_status: "payment_pending", // QR: stays until admin verifies; Razorpay: promoted after verify
+                volunteer_id: referredByUuid,
             })
             .select()
             .single();
@@ -173,13 +166,13 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Return order data including ID for Razorpay payment processing
+        // Return order data
         return NextResponse.json({
             success: true,
             order: orderData,
             message: "Order created successfully",
-            // Frontend will use this to create Razorpay order
-            needsPayment: true,
+            needsPayment: paymentMethod === "razorpay",
+            paymentMethod,
         });
     } catch (error: any) {
         console.error("❌ Unexpected error in order creation:", error);

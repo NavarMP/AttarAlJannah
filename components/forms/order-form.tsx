@@ -8,12 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, CheckCircle2, Copy } from "lucide-react";
+import { Loader2, CheckCircle2, Copy, Camera, Upload, X, QrCode, Smartphone } from "lucide-react";
 import { LocationLink } from "@/components/forms/location-link";
 import { AddressSection } from "@/components/forms/address-section";
 import { toast } from "sonner";
 import { loadRazorpayScript, createRazorpayOptions, openRazorpayCheckout, type RazorpayResponse } from "@/lib/config/razorpay-config";
 import { CountryCodeSelect, COUNTRY_CODES } from "@/components/ui/country-code-select";
+import { CameraCapture } from "@/components/ui/camera-capture";
+import { createClient } from "@/lib/supabase/client";
+import QRCodeLib from "qrcode";
 
 interface CustomerProfile {
     id: string;
@@ -35,6 +38,21 @@ const PRODUCT_PRICE = 313;
 export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFormProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+    // Payment method state
+    const [activePaymentMethod, setActivePaymentMethod] = useState<"qr" | "razorpay">("qr");
+    const [paymentMethodLoading, setPaymentMethodLoading] = useState(true);
+
+    // QR screenshot state
+    const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+    const [screenshotPreview, setScreenshotPreview] = useState<string>("");
+    const [showCamera, setShowCamera] = useState(false);
+    const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
+
+    // UPI / dynamic QR state
+    const [upiId, setUpiId] = useState("");
+    const [merchantName, setMerchantName] = useState("");
+    const [qrDataUrl, setQrDataUrl] = useState<string>("");
 
     // Volunteer referral state
     const [volunteerReferralId, setVolunteerReferralId] = useState<string>(volunteerId || "");
@@ -63,6 +81,26 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
             whatsappNumberCountry: "+91",
         },
     });
+
+    // Fetch active payment method and UPI settings
+    useEffect(() => {
+        const fetchPaymentMethod = async () => {
+            try {
+                const response = await fetch("/api/settings/payment-method");
+                const data = await response.json();
+                setActivePaymentMethod(data.paymentMethod === "razorpay" ? "razorpay" : "qr");
+                setUpiId(data.upiId || "");
+                setMerchantName(data.merchantName || "Attar Al Jannah");
+            } catch (error) {
+                console.error("Failed to fetch payment method:", error);
+                setActivePaymentMethod("qr");
+            } finally {
+                setPaymentMethodLoading(false);
+            }
+        };
+        fetchPaymentMethod();
+    }, []);
+
 
     // Helper function to correctly parse phone number with country code
     const parsePhoneWithCountryCode = (fullPhone: string): { code: string; number: string } => {
@@ -241,6 +279,28 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
     const selectedState = watch("state");
     const totalPrice = quantity * PRODUCT_PRICE;
 
+    // Generate dynamic UPI QR code whenever price or UPI settings change
+    useEffect(() => {
+        if (activePaymentMethod !== "qr" || !upiId) {
+            setQrDataUrl("");
+            return;
+        }
+
+        const upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(merchantName)}&am=${totalPrice.toFixed(2)}&cu=INR`;
+
+        QRCodeLib.toDataURL(upiUrl, {
+            width: 300,
+            margin: 2,
+            color: { dark: "#000000", light: "#ffffff" },
+            errorCorrectionLevel: "M",
+        })
+            .then((url: string) => setQrDataUrl(url))
+            .catch((err: Error) => {
+                console.error("QR generation error:", err);
+                setQrDataUrl("");
+            });
+    }, [activePaymentMethod, upiId, merchantName, totalPrice]);
+
     const copyPhoneToWhatsApp = () => {
         if (phoneNumber && phoneNumber.length >= 10) {
             setValue("whatsappNumber", phoneNumber);
@@ -357,6 +417,47 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
             formData.append("state", data.state);
             formData.append("pincode", data.pincode);
 
+            // Add payment method
+            formData.append("paymentMethod", activePaymentMethod);
+
+            // Handle QR payment: upload screenshot to Supabase Storage first
+            if (activePaymentMethod === "qr") {
+                if (!screenshotFile) {
+                    toast.error("Please upload a payment screenshot");
+                    setIsSubmitting(false);
+                    return;
+                }
+
+                setUploadingScreenshot(true);
+                try {
+                    const supabase = createClient();
+                    const fileExt = screenshotFile.name.split(".").pop() || "jpg";
+                    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+                    const filePath = `screenshots/${fileName}`;
+
+                    const { error: uploadError } = await supabase.storage
+                        .from("payment-screenshots")
+                        .upload(filePath, screenshotFile, { cacheControl: "3600", upsert: false });
+
+                    if (uploadError) {
+                        throw new Error(`Upload failed: ${uploadError.message}`);
+                    }
+
+                    const { data: urlData } = supabase.storage
+                        .from("payment-screenshots")
+                        .getPublicUrl(filePath);
+
+                    formData.append("paymentScreenshotUrl", urlData.publicUrl);
+                } catch (uploadErr: any) {
+                    toast.error(uploadErr.message || "Failed to upload screenshot");
+                    setIsSubmitting(false);
+                    setUploadingScreenshot(false);
+                    return;
+                } finally {
+                    setUploadingScreenshot(false);
+                }
+            }
+
             const response = await fetch("/api/orders/create", {
                 method: "POST",
                 body: formData,
@@ -373,9 +474,19 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                 throw new Error("Order ID not received");
             }
 
-            console.log("✅ Order created, initiating payment:", order.id);
+            console.log("✅ Order created:", order.id, "Payment method:", activePaymentMethod);
 
-            // Now create Razorpay order and process payment
+            // QR Payment: Order is done — redirect to thanks page
+            if (activePaymentMethod === "qr") {
+                toast.success("Order submitted! Payment is being verified.");
+                localStorage.removeItem('orderFormData');
+                await new Promise(resolve => setTimeout(resolve, 500));
+                window.location.href = `/thanks?orderId=${order.id}`;
+                return;
+            }
+
+            // Razorpay Payment: Create Razorpay order and process payment
+            console.log("💳 Initiating Razorpay payment for order:", order.id);
             setIsProcessingPayment(true);
             toast.loading("Preparing payment...", { id: "payment-loading" });
 
@@ -662,30 +773,206 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                         </p>
                     </div>
 
+                    {/* QR Payment Section */}
+                    {activePaymentMethod === "qr" && (
+                        <div className="space-y-4 mt-2">
+                            <div className="border-t pt-4">
+                                <h3 className="font-semibold text-lg flex items-center gap-2 mb-3">
+                                    <QrCode className="h-5 w-5 text-primary" />
+                                    Pay via QR Code
+                                </h3>
+                                <p className="text-sm text-muted-foreground mb-4">
+                                    Scan the QR code below to pay <span className="font-bold text-foreground">₹{totalPrice}</span>, then upload the payment screenshot.
+                                </p>
+
+                                {/* QR Code Image (Dynamic) */}
+                                <div className="flex justify-center mb-4">
+                                    <div className="bg-white p-3 rounded-2xl shadow-md inline-block">
+                                        {qrDataUrl ? (
+                                            <img
+                                                src={qrDataUrl}
+                                                alt="UPI Payment QR Code"
+                                                width={280}
+                                                height={280}
+                                                className="rounded-xl"
+                                            />
+                                        ) : (
+                                            <div className="w-[280px] h-[280px] flex items-center justify-center text-muted-foreground">
+                                                <Loader2 className="w-8 h-8 animate-spin" />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                {upiId && (
+                                    <p className="text-xs text-center text-muted-foreground mb-3">
+                                        Pay to: <code className="bg-muted px-1 rounded">{upiId}</code>
+                                    </p>
+                                )}
+
+                                {/* Quick Pay Options */}
+                                <div className="space-y-3 mb-4">
+                                    {/* Open UPI App Button */}
+                                    {upiId && (
+                                        <a
+                                            href={`upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(merchantName)}&am=${totalPrice.toFixed(2)}&cu=INR`}
+                                            className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-medium rounded-2xl transition-all shadow-md active:scale-[0.98]"
+                                        >
+                                            <Smartphone className="h-5 w-5" />
+                                            Open UPI App to Pay ₹{totalPrice}
+                                        </a>
+                                    )}
+
+                                    {/* Copy Details Row */}
+                                    <div className="flex gap-2">
+                                        {/* Copy UPI ID */}
+                                        {upiId && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(upiId);
+                                                    toast.success("UPI ID copied!");
+                                                }}
+                                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 border rounded-2xl hover:bg-accent/50 transition-colors text-sm"
+                                            >
+                                                <Copy className="h-4 w-4 text-muted-foreground" />
+                                                <span className="font-mono text-xs truncate">{upiId}</span>
+                                            </button>
+                                        )}
+
+                                        {/* Copy Amount */}
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(totalPrice.toString());
+                                                toast.success("Amount copied!");
+                                            }}
+                                            className="flex items-center justify-center gap-2 px-4 py-2.5 border rounded-2xl hover:bg-accent/50 transition-colors text-sm whitespace-nowrap"
+                                        >
+                                            <Copy className="h-4 w-4 text-muted-foreground" />
+                                            ₹{totalPrice}
+                                        </button>
+                                    </div>
+
+                                    <p className="text-xs text-center text-muted-foreground">
+                                        Tap button above to pay directly, or scan the QR code
+                                    </p>
+                                </div>
+
+                                {/* Screenshot Upload */}
+                                <div className="space-y-3">
+                                    <Label className="text-sm font-medium">Payment Screenshot *</Label>
+
+                                    {screenshotPreview ? (
+                                        <div className="relative w-full max-w-sm mx-auto">
+                                            <img
+                                                src={screenshotPreview}
+                                                alt="Payment screenshot"
+                                                className="w-full rounded-2xl border shadow-sm"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setScreenshotFile(null);
+                                                    setScreenshotPreview("");
+                                                }}
+                                                className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1.5 shadow-md hover:opacity-90 transition-opacity"
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </button>
+                                            <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-2 flex items-center gap-1 justify-center">
+                                                <CheckCircle2 className="w-4 h-4" />
+                                                Screenshot uploaded
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="flex gap-3">
+                                            {/* File Upload Button */}
+                                            <label className="flex-1 cursor-pointer">
+                                                <div className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-muted-foreground/30 rounded-2xl hover:border-primary/50 hover:bg-accent/50 transition-all">
+                                                    <Upload className="h-5 w-5 text-muted-foreground" />
+                                                    <span className="text-sm text-muted-foreground">Upload File</span>
+                                                </div>
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="hidden"
+                                                    onChange={(e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (file) {
+                                                            setScreenshotFile(file);
+                                                            const reader = new FileReader();
+                                                            reader.onloadend = () => {
+                                                                setScreenshotPreview(reader.result as string);
+                                                            };
+                                                            reader.readAsDataURL(file);
+                                                        }
+                                                    }}
+                                                />
+                                            </label>
+
+                                            {/* Camera Button */}
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                className="flex-1 rounded-2xl gap-2 border-2 border-dashed py-3 h-auto"
+                                                onClick={() => setShowCamera(true)}
+                                            >
+                                                <Camera className="h-5 w-5" />
+                                                <span className="text-sm">Take Photo</span>
+                                            </Button>
+                                        </div>
+                                    )}
+
+                                    {/* Camera Capture Modal */}
+                                    {showCamera && (
+                                        <CameraCapture
+                                            onCapture={(file: File, dataUrl: string) => {
+                                                setScreenshotFile(file);
+                                                setScreenshotPreview(dataUrl);
+                                                setShowCamera(false);
+                                            }}
+                                            onClose={() => setShowCamera(false)}
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Submit Button */}
                     <Button
                         type="submit"
                         size="lg"
                         className="w-full bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600 rounded-2xl"
-                        disabled={isSubmitting || isProcessingPayment}
+                        disabled={isSubmitting || isProcessingPayment || uploadingScreenshot || (activePaymentMethod === "qr" && !screenshotFile)}
                     >
                         {isProcessingPayment ? (
                             <>
                                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                                 Processing Payment...
                             </>
+                        ) : uploadingScreenshot ? (
+                            <>
+                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                Uploading Screenshot...
+                            </>
                         ) : isSubmitting ? (
                             <>
                                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                                 Creating Order...
                             </>
+                        ) : activePaymentMethod === "qr" ? (
+                            `Submit Order - ₹${totalPrice}`
                         ) : (
                             `Proceed to Payment - ₹${totalPrice}`
                         )}
                     </Button>
 
                     <p className="text-xs text-center text-muted-foreground">
-                        * Secure payment powered by Razorpay
+                        {activePaymentMethod === "qr"
+                            ? "* Your order will be confirmed after payment verification"
+                            : "* Secure payment powered by Razorpay"
+                        }
                     </p>
                 </CardContent>
             </Card>

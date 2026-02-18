@@ -114,10 +114,10 @@ function ThanksContent() {
     }
 
     return (
-        
+
         <div className="min-h-screen p-4">
             <AutoHideContainer className="fixed top-6 right-6 z-50 flex gap-2">
-                <ThemeToggle/>
+                <ThemeToggle />
                 <Link href="/">
                     <Button variant="outline" size="icon" className="mr-2">
                         <span className="sr-only">Home</span>
@@ -127,7 +127,7 @@ function ThanksContent() {
                 <Link href="/customer/dashboard">
                     <Button variant="outline" size="icon" className="mr-2">
                         <span className="sr-only">Dashboard</span>
-                        <User width="24" height="24"/>
+                        <User width="24" height="24" />
                     </Button>
                 </Link>
             </AutoHideContainer>
@@ -139,7 +139,9 @@ function ThanksContent() {
                             <CheckCircle2 className="w-20 h-20 text-primary animate-pulse" />
                         </div>
                         <div className="space-y-2">
-                            <h1 className="text-4xl font-bold text-foreground">Order Placed Successfully!</h1>
+                            <h1 className="text-4xl font-bold text-foreground">
+                                {order?.payment_method === "qr" ? "Order Submitted!" : "Order Placed Successfully!"}
+                            </h1>
                             {orderLoading ? (
                                 <div className="space-y-2">
                                     <Loader2 className="flex w-6 h-6 animate-spin mx-auto text-primary" />
@@ -150,10 +152,21 @@ function ThanksContent() {
                                     <p className="text-lg text-muted-foreground">
                                         Thank you for your order, <span className="font-semibold text-primary">{order.customer_name}</span>!
                                     </p>
-                                    <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
-                                        Your order has been received.
-                                        You&apos;ll receive updates via notification and WhatsApp.
-                                    </p>
+                                    {order.payment_method === "qr" ? (
+                                        <>
+                                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 text-sm font-medium">
+                                                ⏳ Payment Verification Pending
+                                            </div>
+                                            <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+                                                We&apos;ve received your screenshot. Your order will be confirmed once the payment is verified by our team.
+                                            </p>
+                                        </>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+                                            Your order has been received.
+                                            You&apos;ll receive updates via notification and WhatsApp.
+                                        </p>
+                                    )}
                                     <p className="text-xs text-muted-foreground">
                                         Order ID: <code className="px-2 py-1 rounded bg-muted text-foreground font-mono">{order.id.slice(0, 8).toUpperCase()}</code>
                                     </p>

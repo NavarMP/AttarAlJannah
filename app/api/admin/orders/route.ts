@@ -42,9 +42,6 @@ export async function GET(request: NextRequest) {
             `, { count: "exact" })
             .order("created_at", { ascending: false });
 
-        // Filter out payment_pending orders (not yet confirmed)
-        query = query.neq("order_status", "payment_pending");
-
         if (status && status !== "all") {
             query = query.eq("order_status", status);
         }

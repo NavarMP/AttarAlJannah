@@ -37,8 +37,10 @@ export interface Order {
     total_price: number;
     delivery_fee?: number;
 
-    // Payment (Razorpay only, no payment_method field)
+    // Payment
+    payment_method?: 'qr' | 'razorpay';
     payment_status: 'pending' | 'paid' | 'verified';
+    payment_screenshot_url?: string;
     razorpay_order_id?: string;
     razorpay_payment_id?: string;
 
