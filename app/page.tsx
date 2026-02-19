@@ -192,9 +192,9 @@ export default function Home() {
             </section>
 
             {/* Live Statistics */}
-            <div className="py-12 px-4">
+            {/* <div className="py-12 px-4">
                 <LiveStatsCard />
-            </div>
+            </div> */}
 
             {/* Eid Special Banner */}
             <div className="max-w-6xl mx-auto space-y-12">
