@@ -295,6 +295,34 @@ export function AddressSection({
                 )}
             </div>
 
+            {/* Pincode - Primary lookup method */}
+            <div className="space-y-2">
+                <Label htmlFor="pincode">Pincode {variant === 'order' && '*'}</Label>
+                <span className="text-xs text-muted-foreground ml-2">
+                    (Input a pincode to auto-fill district and state)
+                </span>
+                <div className="relative">
+                    <Input
+                        id="pincode"
+                        type="text"
+                        placeholder="Enter 6-digit pincode"
+                        maxLength={6}
+                        {...register("pincode")}
+                        className={isPincodeValid === false ? "border-destructive pr-10" : "pr-10"}
+                    />
+                    {renderPincodeValidation()}
+                </div>
+                {errors.pincode && (
+                    <p className="text-sm text-destructive">{errors.pincode.message as string}</p>
+                )}
+                {pincodeError && !errors.pincode && (
+                    <p className="text-sm text-destructive">{pincodeError}</p>
+                )}
+                {isPincodeValid === true && !errors.pincode && (
+                    <p className="text-sm text-emerald-600 dark:text-emerald-400">✓ Valid pincode</p>
+                )}
+            </div>
+
             {/* Post Office - Smart searchable dropdown */}
             <div className="space-y-2">
                 <Label htmlFor="post">
@@ -330,37 +358,9 @@ export function AddressSection({
                 {errors.post && (
                     <p className="text-sm text-destructive">{errors.post.message as string}</p>
                 )}
-                <p className="text-xs text-muted-foreground">
+                {/* <p className="text-xs text-muted-foreground">
                     💡 Tip: Input a pincode first to filter post offices by area.
-                </p>
-            </div>
-
-            {/* Pincode - Primary lookup method */}
-            <div className="space-y-2">
-                <Label htmlFor="pincode">Pincode {variant === 'order' && '*'}</Label>
-                <span className="text-xs text-muted-foreground ml-2">
-                    (Input a pincode to auto-fill district and state)
-                </span>
-                <div className="relative">
-                    <Input
-                        id="pincode"
-                        type="text"
-                        placeholder="Enter 6-digit pincode"
-                        maxLength={6}
-                        {...register("pincode")}
-                        className={isPincodeValid === false ? "border-destructive pr-10" : "pr-10"}
-                    />
-                    {renderPincodeValidation()}
-                </div>
-                {errors.pincode && (
-                    <p className="text-sm text-destructive">{errors.pincode.message as string}</p>
-                )}
-                {pincodeError && !errors.pincode && (
-                    <p className="text-sm text-destructive">{pincodeError}</p>
-                )}
-                {isPincodeValid === true && !errors.pincode && (
-                    <p className="text-sm text-emerald-600 dark:text-emerald-400">✓ Valid pincode</p>
-                )}
+                </p> */}
             </div>
 
             {/* City - Auto-populated from post office */}

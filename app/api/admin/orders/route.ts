@@ -12,6 +12,14 @@ export async function GET(request: NextRequest) {
         const page = parseInt(searchParams.get("page") || "1");
         const pageSize = 20;
 
+        // New: sorting params
+        const sortBy = searchParams.get("sortBy") || "created_at";
+        const sortOrder = searchParams.get("sortOrder") || "desc";
+
+        // New: additional filters
+        const referredBy = searchParams.get("referredBy");
+        const deliveryMethod = searchParams.get("deliveryMethod");
+
         const supabase = await createClient();
 
         // Verify user is admin
@@ -34,31 +42,50 @@ export async function GET(request: NextRequest) {
             process.env.SUPABASE_SERVICE_ROLE_KEY!
         );
 
+        // Validate sort field to prevent injection
+        const allowedSortFields = ["created_at", "quantity", "customer_name", "total_price"];
+        const safeSortBy = allowedSortFields.includes(sortBy) ? sortBy : "created_at";
+        const ascending = sortOrder === "asc";
+
         let query = adminSupabase
             .from("orders")
             .select(`
                 *,
                 volunteer:volunteers!orders_volunteer_id_fkey(name)
             `, { count: "exact" })
-            .order("created_at", { ascending: false });
+            .order(safeSortBy, { ascending });
 
+        // Status filter
         if (status && status !== "all") {
             query = query.eq("order_status", status);
         }
 
+        // Date filters — use IST-aware boundaries
         if (startDate) {
-            query = query.gte("created_at", `${startDate}T00:00:00.000Z`);
+            // startDate is YYYY-MM-DD, treat as local IST start of day
+            // IST = UTC+5:30, so start of day in IST = previous day 18:30 UTC
+            const startIST = new Date(`${startDate}T00:00:00+05:30`);
+            query = query.gte("created_at", startIST.toISOString());
         }
 
         if (endDate) {
-            // End of the day
-            query = query.lte("created_at", `${endDate}T23:59:59.999Z`);
+            // End of the day in IST
+            const endIST = new Date(`${endDate}T23:59:59.999+05:30`);
+            query = query.lte("created_at", endIST.toISOString());
+        }
+
+        // Referred volunteer filter
+        if (referredBy && referredBy !== "all") {
+            query = query.eq("referred_by", referredBy);
+        }
+
+        // Delivery method filter
+        if (deliveryMethod && deliveryMethod !== "all") {
+            query = query.eq("delivery_method", deliveryMethod);
         }
 
         if (search) {
             // For search, we need to handle both text fields and UUID
-            // Since Supabase doesn't support UUID::text casting in the query builder easily,
-            // we'll search text fields in the query and filter UUIDs in memory
             const searchTerm = search.trim();
             query = query.or(
                 `customer_name.ilike.%${searchTerm}%,customer_phone.ilike.%${searchTerm}%,whatsapp_number.ilike.%${searchTerm}%`
@@ -82,14 +109,12 @@ export async function GET(request: NextRequest) {
             const { count: totalRaw, error: rawError } = await adminSupabase.from("orders").select("*", { count: "exact", head: true });
             console.log(`DEBUG: Total Raw Orders in DB: ${totalRaw}. Error: ${rawError?.message}`);
 
-            // If raw orders exist but main query failed, it implies the JOIN or SELECT format is wrong.
-            // We can attempt a fallback fetch without the volunteer join if needed.
             if (totalRaw && totalRaw > 0) {
                 console.log("Attempting fallback fetch without join...");
                 const { data: fallbackOrders, error: fallbackError } = await adminSupabase
                     .from("orders")
                     .select("*")
-                    .order("created_at", { ascending: false })
+                    .order(safeSortBy, { ascending })
                     .range(from, to);
 
                 if (!fallbackError && fallbackOrders) {
@@ -100,28 +125,24 @@ export async function GET(request: NextRequest) {
         }
 
         // If searching and no results, try searching by UUID prefix
-        // We'll need to fetch without the text search and filter by UUID client-side
         if (search && (!orders || orders.length === 0)) {
             const searchTerm = search.trim().toLowerCase();
 
-            // Reset query and search by UUID client-side
             let uuidQuery = adminSupabase
                 .from("orders")
                 .select(`
                     *,
                     volunteer:volunteers!orders_volunteer_id_fkey(name)
                 `, { count: "exact" })
-                .order("created_at", { ascending: false });
+                .order(safeSortBy, { ascending });
 
             if (status && status !== "all") {
                 uuidQuery = uuidQuery.eq("order_status", status);
             }
 
-            // Fetch more results to filter client-side (up to 100 for UUID search)
             const { data: allOrders, error: uuidError } = await uuidQuery.limit(100);
 
             if (!uuidError && allOrders) {
-                // Filter by UUID prefix on client side
                 const filteredOrders = allOrders.filter(order =>
                     order.id.toLowerCase().startsWith(searchTerm)
                 );

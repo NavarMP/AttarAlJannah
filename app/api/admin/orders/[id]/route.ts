@@ -46,10 +46,11 @@ export async function PATCH(
     try {
         const { id } = await params;
         const body = await request.json();
-        const { order_status } = body;
+        const { order_status, delivery_method, volunteer_id, is_delivery_duty } = body;
 
-        if (!order_status) {
-            return NextResponse.json({ error: "Status is required" }, { status: 400 });
+        // Allow updates if at least one meaningful field is present
+        if (!order_status && !delivery_method && !volunteer_id && is_delivery_duty === undefined) {
+            return NextResponse.json({ error: "No fields to update provided" }, { status: 400 });
         }
 
         const supabase = await createClient();
@@ -57,7 +58,7 @@ export async function PATCH(
         // First, get the current order to check previous status, volunteer info, and quantity
         const { data: currentOrder, error: fetchError } = await supabase
             .from("orders")
-            .select("order_status, volunteer_id, quantity")
+            .select("order_status, volunteer_id, quantity, customer_id, id")
             .eq("id", id)
             .single();
 
@@ -66,21 +67,20 @@ export async function PATCH(
             return NextResponse.json({ error: "Order not found" }, { status: 404 });
         }
 
-        const previousStatus = currentOrder.order_status;
-        const volunteerId = currentOrder.volunteer_id;
-        const orderQuantity = currentOrder.quantity;
+        const updateData: any = {};
+        if (order_status) updateData.order_status = order_status;
+        if (delivery_method) updateData.delivery_method = delivery_method;
+        if (volunteer_id) updateData.volunteer_id = volunteer_id;
+        if (is_delivery_duty !== undefined) updateData.is_delivery_duty = is_delivery_duty;
 
-        console.log("=== Order Status Update ===");
+        console.log("=== Order Update ===");
         console.log("Order ID:", id);
-        console.log("Previous Status:", previousStatus);
-        console.log("New Status:", order_status);
-        console.log("Volunteer ID:", volunteerId);
-        console.log("Order Quantity:", orderQuantity);
+        console.log("Update Payload:", updateData);
 
-        // Update order status
+        // Update order
         const { data, error } = await supabase
             .from("orders")
-            .update({ order_status })
+            .update(updateData)
             .eq("id", id)
             .select()
             .single();
@@ -90,119 +90,131 @@ export async function PATCH(
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        console.log("✓ Order status updated successfully");
+        console.log("✓ Order updated successfully");
 
+        // Only run status-specific logic (commission, notifications) if status actually changed
+        if (order_status && order_status !== currentOrder.order_status) {
+            const previousStatus = currentOrder.order_status;
+            // Use the volunteer_id from the update if present, otherwise fall back to current order's volunteer
+            // Note: For commission logic, we generally track the *referral* volunteer.
+            // If volunteer_id is being updated here (e.g. for delivery), we should be careful.
+            // However, the original logic used `currentOrder.volunteer_id`.
+            // If we are assigning a delivery volunteer, `volunteer_id` might change to the delivery person.
+            // This is a potential existing edge case in the data model (single volunteer_id for both referral and delivery?),
+            // but for now we follow the existing pattern using the ID from the record (or the new one if updated).
+            const targetVolunteerId = volunteer_id || currentOrder.volunteer_id;
+            const orderQuantity = currentOrder.quantity;
 
-        // Update challenge_progress for volunteer orders
-        // NEW STATUS LOGIC: 'ordered' and 'delivered' count toward commission
-        if (volunteerId && (order_status === "ordered" || order_status === "delivered")) {
-            console.log("→ Volunteer order detected, checking progress update...");
+            console.log("→ Status changed from", previousStatus, "to", order_status);
 
-            // Increment bottles if this is a new qualifying order or reactivated from cancelled/cant_reach
-            const shouldIncrement = previousStatus === "cant_reach" || previousStatus === "cancelled" ||
-                (!previousStatus || (previousStatus !== "ordered" && previousStatus !== "delivered"));
+            // Update challenge_progress for volunteer orders
+            // NEW STATUS LOGIC: 'ordered' and 'delivered' count toward commission
+            if (targetVolunteerId && (order_status === "ordered" || order_status === "delivered")) {
+                console.log("→ Volunteer order detected, checking progress update...");
 
-            if (shouldIncrement) {
-                console.log(`→ Status changed to ${order_status} - adding to commission`);
-                console.log(`→ Adding ${orderQuantity} bottles to volunteer ${volunteerId}'s progress`);
+                // Increment bottles if this is a new qualifying order or reactivated from cancelled/cant_reach
+                const shouldIncrement = previousStatus === "cant_reach" || previousStatus === "cancelled" ||
+                    (!previousStatus || (previousStatus !== "ordered" && previousStatus !== "delivered"));
 
-                // Get current progress
-                const { data: progress, error: progressFetchError } = await supabase
-                    .from("challenge_progress")
-                    .select("confirmed_orders, goal")
-                    .eq("volunteer_id", volunteerId)
-                    .single();
+                if (shouldIncrement) {
+                    console.log(`→ Status changed to ${order_status} - adding to commission`);
+                    console.log(`→ Adding ${orderQuantity} bottles to volunteer ${targetVolunteerId}'s progress`);
 
-                if (progressFetchError) {
-                    console.error("❌ Error fetching progress:", progressFetchError);
-                } else if (progress) {
-                    console.log(`→ Current bottles: ${progress.confirmed_orders}, Goal: ${progress.goal}`);
-                    const newTotal = progress.confirmed_orders + orderQuantity;
-                    console.log(`→ New total will be: ${newTotal}`);
-
-                    // Add quantity (bottles) to confirmed_orders
-                    const { error: updateError } = await supabase
+                    // Get current progress
+                    const { data: progress, error: progressFetchError } = await supabase
                         .from("challenge_progress")
-                        .update({
-                            confirmed_orders: newTotal
-                        })
-                        .eq("volunteer_id", volunteerId);
+                        .select("confirmed_orders, goal")
+                        .eq("volunteer_id", targetVolunteerId)
+                        .single();
 
-                    if (updateError) {
-                        console.error("❌ Failed to update challenge_progress:", updateError);
+                    if (progressFetchError) {
+                        console.error("❌ Error fetching progress:", progressFetchError);
+                    } else if (progress) {
+                        console.log(`→ Current bottles: ${progress.confirmed_orders}, Goal: ${progress.goal}`);
+                        const newTotal = progress.confirmed_orders + orderQuantity;
+                        console.log(`→ New total will be: ${newTotal}`);
+
+                        // Add quantity (bottles) to confirmed_orders
+                        const { error: updateError } = await supabase
+                            .from("challenge_progress")
+                            .update({
+                                confirmed_orders: newTotal
+                            })
+                            .eq("volunteer_id", targetVolunteerId);
+
+                        if (updateError) {
+                            console.error("❌ Failed to update challenge_progress:", updateError);
+                        } else {
+                            console.log(`✅ Successfully added ${orderQuantity} bottles! New total: ${newTotal}`);
+                        }
                     } else {
-                        console.log(`✅ Successfully added ${orderQuantity} bottles! New total: ${newTotal}`);
+                        console.log("→ No progress record found, creating new one");
+                        // Create progress record if it doesn't exist
+                        const { error: insertError } = await supabase
+                            .from("challenge_progress")
+                            .insert({
+                                volunteer_id: targetVolunteerId,
+                                confirmed_orders: orderQuantity,
+                                goal: 20 // Default goal
+                            });
+
+                        if (insertError) {
+                            console.error("❌ Failed to create challenge_progress:", insertError);
+                        } else {
+                            console.log(`✅ Created progress record with ${orderQuantity} bottles`);
+                        }
                     }
                 } else {
-                    console.log("→ No progress record found, creating new one");
-                    // Create progress record if it doesn't exist
-                    const { error: insertError } = await supabase
-                        .from("challenge_progress")
-                        .insert({
-                            volunteer_id: volunteerId,
-                            confirmed_orders: orderQuantity,
-                            goal: 20 // Default goal
-                        });
+                    console.log(`⚠ Status was already ${previousStatus} - no update needed`);
+                }
+            } else if (targetVolunteerId && (order_status === "cant_reach" || order_status === "cancelled")) {
+                // If order is cancelled/cant_reach, subtract from progress if it was previously counted
+                if (previousStatus === "ordered" || previousStatus === "delivered") {
+                    console.log(`→ Order moved to ${order_status}, removing ${orderQuantity} bottles from progress`);
 
-                    if (insertError) {
-                        console.error("❌ Failed to create challenge_progress:", insertError);
-                    } else {
-                        console.log(`✅ Created progress record with ${orderQuantity} bottles`);
+                    const { data: progress } = await supabase
+                        .from("challenge_progress")
+                        .select("confirmed_orders")
+                        .eq("volunteer_id", targetVolunteerId)
+                        .single();
+
+                    if (progress) {
+                        const newTotal = Math.max(0, progress.confirmed_orders - orderQuantity);
+                        await supabase
+                            .from("challenge_progress")
+                            .update({ confirmed_orders: newTotal })
+                            .eq("volunteer_id", targetVolunteerId);
+                        console.log(`✅ Removed ${orderQuantity} bottles. New total: ${newTotal}`);
                     }
                 }
-            } else {
-                console.log(`⚠ Status was already ${previousStatus} - no update needed`);
             }
-        } else if (volunteerId && (order_status === "cant_reach" || order_status === "cancelled")) {
-            // If order is cancelled/cant_reach, subtract from progress if it was previously counted
-            if (previousStatus === "ordered" || previousStatus === "delivered") {
-                console.log(`→ Order moved to ${order_status}, removing ${orderQuantity} bottles from progress`);
 
-                const { data: progress } = await supabase
-                    .from("challenge_progress")
-                    .select("confirmed_orders")
-                    .eq("volunteer_id", volunteerId)
-                    .single();
+            console.log("✓ Progress updated successfully\n");
 
-                if (progress) {
-                    const newTotal = Math.max(0, progress.confirmed_orders - orderQuantity);
-                    await supabase
-                        .from("challenge_progress")
-                        .update({ confirmed_orders: newTotal })
-                        .eq("volunteer_id", volunteerId);
-                    console.log(`✅ Removed ${orderQuantity} bottles. New total: ${newTotal}`);
-                }
+            // Trigger notification for status change
+            try {
+                const { NotificationService } = await import("@/lib/services/notification-service");
+                await NotificationService.notifyOrderStatusChange({
+                    orderId: id,
+                    newStatus: order_status,
+                    customerId: currentOrder.customer_id,
+                    volunteerId: targetVolunteerId,
+                });
+                console.log("📧 Status change notification sent");
+            } catch (notifError) {
+                console.error("⚠️ Notification error (non-blocking):", notifError);
             }
-        } else {
-            if (!volunteerId) {
-                console.log("⚠ No volunteer referral on this order");
-            }
-        }
-        console.log("✓ Progress updated successfully\n");
-
-        // Trigger notification for status change
-        try {
-            const { NotificationService } = await import("@/lib/services/notification-service");
-            await NotificationService.notifyOrderStatusChange({
-                orderId: id,
-                newStatus: order_status,
-                customerId: data.customer_id || undefined,
-                volunteerId: data.volunteer_id || undefined,
-            });
-            console.log("📧 Status change notification sent");
-        } catch (notifError) {
-            console.error("⚠️ Notification error (non-blocking):", notifError);
         }
 
         return NextResponse.json({
             success: true,
             data,
-            progressUpdated: true
+            message: "Order updated successfully"
         });
     } catch (error) {
-        console.error("Order status update error:", error);
+        console.error("Order update error:", error);
         return NextResponse.json(
-            { error: "Failed to update order status" },
+            { error: "Failed to update order" },
             { status: 500 }
         );
     }

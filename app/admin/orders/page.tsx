@@ -19,7 +19,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
     Search, Trash2, MoreVertical, Eye, FileDown, Printer,
-    Phone, MessageSquare, Truck, Package, Download, Copy
+    Phone, MessageSquare, Truck, Package, Download, Copy,
+    ArrowUpDown, ArrowUp, ArrowDown, CalendarDays, Filter, X, RotateCcw
 } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -40,6 +41,12 @@ interface Order {
     volunteer_name?: string;
 }
 
+interface Volunteer {
+    id: string;
+    name: string;
+    volunteer_id: string;
+}
+
 const ORDER_STATUSES = [
     { label: "Payment Pending", value: "payment_pending" },
     { label: "Ordered", value: "ordered" },
@@ -49,11 +56,35 @@ const ORDER_STATUSES = [
 ];
 
 const DELIVERY_METHODS = [
-    { label: "Self Pickup", value: "self_pickup" },
-    { label: "Volunteer Delivery", value: "volunteer_delivery" },
+    { label: "Self Pickup", value: "pickup" },
+    { label: "Volunteer Delivery", value: "volunteer" },
     { label: "Courier", value: "courier" },
-    { label: "By Post", value: "by_post" },
+    { label: "By Post", value: "post" },
 ];
+
+type SortField = "created_at" | "quantity" | "customer_name" | "total_price";
+type SortOrder = "asc" | "desc";
+
+// Date preset helpers
+function getToday(): { start: string; end: string } {
+    const today = new Date();
+    const str = today.toISOString().slice(0, 10);
+    return { start: str, end: str };
+}
+
+function getThisWeek(): { start: string; end: string } {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const start = new Date(now);
+    start.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1)); // Monday
+    return { start: start.toISOString().slice(0, 10), end: now.toISOString().slice(0, 10) };
+}
+
+function getThisMonth(): { start: string; end: string } {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { start: start.toISOString().slice(0, 10), end: now.toISOString().slice(0, 10) };
+}
 
 export default function OrdersPage() {
     const [orders, setOrders] = useState<Order[]>([]);
@@ -61,11 +92,27 @@ export default function OrdersPage() {
     const [totalPages, setTotalPages] = useState(1);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
+
+    // Filters
     const [statusFilter, setStatusFilter] = useState("all");
     const [search, setSearch] = useState("");
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
     const [searchInput, setSearchInput] = useState("");
+    const [referredByFilter, setReferredByFilter] = useState("all");
+    const [deliveryMethodFilter, setDeliveryMethodFilter] = useState("all");
+    const [datePreset, setDatePreset] = useState<string>("all");
+
+    // Sorting
+    const [sortBy, setSortBy] = useState<SortField>("created_at");
+    const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+
+    // Volunteer list for filter dropdown
+    const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
+
+    // Show/hide advanced filters
+    const [showFilters, setShowFilters] = useState(false);
+
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
     const [deleting, setDeleting] = useState(false);
@@ -73,6 +120,20 @@ export default function OrdersPage() {
     // Bulk state
     const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
     const [bulkProcessing, setBulkProcessing] = useState(false);
+
+    // Fetch volunteer list for filter dropdown
+    useEffect(() => {
+        const fetchVolunteers = async () => {
+            try {
+                const response = await fetch("/api/admin/volunteers?limit=1000");
+                const data = await response.json();
+                setVolunteers(data.volunteers || []);
+            } catch (error) {
+                console.error("Failed to fetch volunteers:", error);
+            }
+        };
+        fetchVolunteers();
+    }, []);
 
     // Debounce search input
     useEffect(() => {
@@ -83,6 +144,63 @@ export default function OrdersPage() {
         return () => clearTimeout(timer);
     }, [searchInput]);
 
+    // Check if any filter is active
+    const hasActiveFilters = statusFilter !== "all" || startDate !== "" || endDate !== "" ||
+        referredByFilter !== "all" || deliveryMethodFilter !== "all" || searchInput !== "";
+
+    const clearAllFilters = () => {
+        setStatusFilter("all");
+        setStartDate("");
+        setEndDate("");
+        setSearchInput("");
+        setSearch("");
+        setReferredByFilter("all");
+        setDeliveryMethodFilter("all");
+        setDatePreset("all");
+        setPage(1);
+    };
+
+    const handleDatePreset = (preset: string) => {
+        setDatePreset(preset);
+        if (preset === "all") {
+            setStartDate("");
+            setEndDate("");
+        } else if (preset === "today") {
+            const { start, end } = getToday();
+            setStartDate(start);
+            setEndDate(end);
+        } else if (preset === "week") {
+            const { start, end } = getThisWeek();
+            setStartDate(start);
+            setEndDate(end);
+        } else if (preset === "month") {
+            const { start, end } = getThisMonth();
+            setStartDate(start);
+            setEndDate(end);
+        } else if (preset === "custom") {
+            // Keep current dates, let user pick
+        }
+        setPage(1);
+    };
+
+    // Toggle sort on a column
+    const handleSort = (field: SortField) => {
+        if (sortBy === field) {
+            setSortOrder(prev => prev === "asc" ? "desc" : "asc");
+        } else {
+            setSortBy(field);
+            setSortOrder(field === "customer_name" ? "asc" : "desc");
+        }
+        setPage(1);
+    };
+
+    const getSortIcon = (field: SortField) => {
+        if (sortBy !== field) return <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />;
+        return sortOrder === "asc"
+            ? <ArrowUp className="h-3.5 w-3.5 text-primary" />
+            : <ArrowDown className="h-3.5 w-3.5 text-primary" />;
+    };
+
     const fetchOrders = useCallback(async () => {
         setLoading(true);
         try {
@@ -90,10 +208,14 @@ export default function OrdersPage() {
                 status: statusFilter,
                 search: search,
                 page: page.toString(),
+                sortBy,
+                sortOrder,
             });
 
             if (startDate) queryParams.append("startDate", startDate);
             if (endDate) queryParams.append("endDate", endDate);
+            if (referredByFilter !== "all") queryParams.append("referredBy", referredByFilter);
+            if (deliveryMethodFilter !== "all") queryParams.append("deliveryMethod", deliveryMethodFilter);
 
             const response = await fetch(`/api/admin/orders?${queryParams}`);
 
@@ -113,7 +235,7 @@ export default function OrdersPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, statusFilter, search, startDate, endDate]);
+    }, [page, statusFilter, search, startDate, endDate, sortBy, sortOrder, referredByFilter, deliveryMethodFilter]);
 
     useEffect(() => {
         fetchOrders();
@@ -285,7 +407,6 @@ export default function OrdersPage() {
             onExecute: async (_ids, value) => {
                 setBulkProcessing(true);
                 try {
-                    // Update each order's delivery method
                     const promises = Array.from(selectedOrders).map(orderId =>
                         fetch(`/api/admin/orders/${orderId}`, {
                             method: "PATCH",
@@ -363,10 +484,22 @@ export default function OrdersPage() {
         }
     };
 
+    const getStatusLabel = (status: string) => {
+        return ORDER_STATUSES.find(s => s.value === status)?.label || status;
+    };
+
     const getDeliveryLabel = (method?: string) => {
         if (!method) return "-";
         return DELIVERY_METHODS.find(d => d.value === method)?.label || method;
     };
+
+    // Count active filters for badge
+    const activeFilterCount = [
+        statusFilter !== "all",
+        startDate !== "" || endDate !== "",
+        referredByFilter !== "all",
+        deliveryMethodFilter !== "all",
+    ].filter(Boolean).length;
 
     return (
         <div className="space-y-6">
@@ -386,45 +519,160 @@ export default function OrdersPage() {
                 </Button>
             </div>
 
-            {/* Filters */}
+            {/* Search + Filter Toggle */}
             <Card className="p-4 rounded-3xl">
-                <div className="flex flex-col md:flex-row gap-4 items-center">
-                    <div className="relative flex-1 w-full">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Search by customer name, phone, or Order ID..."
-                            value={searchInput}
-                            onChange={(e) => setSearchInput(e.target.value)}
-                            className="pl-10"
-                        />
+                <div className="flex flex-col gap-4">
+                    {/* Row 1: Search + Filter Toggle + Clear */}
+                    <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search by name, phone, or Order ID..."
+                                value={searchInput}
+                                onChange={(e) => setSearchInput(e.target.value)}
+                                className="pl-10"
+                            />
+                        </div>
+                        <div className="flex gap-2">
+                            <Button
+                                variant={showFilters ? "default" : "outline"}
+                                size="sm"
+                                className="rounded-xl gap-2"
+                                onClick={() => setShowFilters(!showFilters)}
+                            >
+                                <Filter className="h-4 w-4" />
+                                Filters
+                                {activeFilterCount > 0 && (
+                                    <span className="bg-primary-foreground text-primary text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+                                        {activeFilterCount}
+                                    </span>
+                                )}
+                            </Button>
+                            {hasActiveFilters && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="rounded-xl gap-1 text-muted-foreground hover:text-foreground"
+                                    onClick={clearAllFilters}
+                                >
+                                    <RotateCcw className="h-3.5 w-3.5" />
+                                    Clear
+                                </Button>
+                            )}
+                        </div>
                     </div>
-                    <div className="flex gap-2 w-full md:w-auto">
-                        <Input
-                            type="date"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                            className="w-full md:w-40"
-                            placeholder="Start Date"
-                        />
-                        <Input
-                            type="date"
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                            className="w-full md:w-40"
-                            placeholder="End Date"
-                        />
-                    </div>
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="w-full md:w-48">
-                            <SelectValue placeholder="All Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Status</SelectItem>
-                            {ORDER_STATUSES.map(s => (
-                                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+
+                    {/* Row 2: Expandable Filters */}
+                    {showFilters && (
+                        <div className="flex flex-col gap-4 pt-3 border-t border-border">
+                            {/* Date Range */}
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                                    <CalendarDays className="h-3.5 w-3.5" />
+                                    Date Range
+                                </label>
+                                <div className="flex flex-wrap gap-2">
+                                    {[
+                                        { label: "All Time", value: "all" },
+                                        { label: "Today", value: "today" },
+                                        { label: "This Week", value: "week" },
+                                        { label: "This Month", value: "month" },
+                                        { label: "Custom", value: "custom" },
+                                    ].map((preset) => (
+                                        <Button
+                                            key={preset.value}
+                                            variant={datePreset === preset.value ? "default" : "outline"}
+                                            size="sm"
+                                            className="rounded-xl text-xs h-8"
+                                            onClick={() => handleDatePreset(preset.value)}
+                                        >
+                                            {preset.label}
+                                        </Button>
+                                    ))}
+                                </div>
+                                {datePreset === "custom" && (
+                                    <div className="flex gap-2 mt-2">
+                                        <div className="space-y-1 flex-1">
+                                            <label className="text-xs text-muted-foreground">From</label>
+                                            <Input
+                                                type="date"
+                                                value={startDate}
+                                                onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
+                                                className="h-9"
+                                            />
+                                        </div>
+                                        <div className="space-y-1 flex-1">
+                                            <label className="text-xs text-muted-foreground">To</label>
+                                            <Input
+                                                type="date"
+                                                value={endDate}
+                                                onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
+                                                className="h-9"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Filter Row */}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                {/* Status Filter */}
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-muted-foreground">Status</label>
+                                    <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+                                        <SelectTrigger className="h-9">
+                                            <SelectValue placeholder="All Status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Status</SelectItem>
+                                            {ORDER_STATUSES.map(s => (
+                                                <SelectItem key={s.value} value={s.value}>
+                                                    <span className="flex items-center gap-2">
+                                                        <span className={`h-2 w-2 rounded-full inline-block ${getStatusColor(s.value).split(" ")[0]}`} />
+                                                        {s.label}
+                                                    </span>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Delivery Method Filter */}
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-muted-foreground">Delivery Method</label>
+                                    <Select value={deliveryMethodFilter} onValueChange={(v) => { setDeliveryMethodFilter(v); setPage(1); }}>
+                                        <SelectTrigger className="h-9">
+                                            <SelectValue placeholder="All Methods" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Methods</SelectItem>
+                                            {DELIVERY_METHODS.map(d => (
+                                                <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Referred By Volunteer Filter */}
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-muted-foreground">Referred By</label>
+                                    <Select value={referredByFilter} onValueChange={(v) => { setReferredByFilter(v); setPage(1); }}>
+                                        <SelectTrigger className="h-9">
+                                            <SelectValue placeholder="All Volunteers" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Volunteers</SelectItem>
+                                            {volunteers.map(v => (
+                                                <SelectItem key={v.id} value={v.volunteer_id || v.id}>
+                                                    {v.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </Card>
 
@@ -433,7 +681,18 @@ export default function OrdersPage() {
                 {loading ? (
                     <div className="text-center py-12">Loading orders...</div>
                 ) : !orders || orders.length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground">No orders found</div>
+                    <div className="text-center py-12 text-muted-foreground">
+                        <p>No orders found</p>
+                        {hasActiveFilters && (
+                            <Button
+                                variant="link"
+                                onClick={clearAllFilters}
+                                className="mt-2 text-sm"
+                            >
+                                Clear all filters
+                            </Button>
+                        )}
+                    </div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full">
@@ -446,15 +705,47 @@ export default function OrdersPage() {
                                             aria-label="Select all orders"
                                         />
                                     </th>
-                                    <th className="px-4 py-4 text-left text-sm font-semibold">Customer</th>
+                                    <th
+                                        className="px-4 py-4 text-left text-sm font-semibold cursor-pointer hover:text-primary transition-colors group"
+                                        onClick={() => handleSort("customer_name")}
+                                    >
+                                        <span className="flex items-center gap-1.5">
+                                            Customer
+                                            {getSortIcon("customer_name")}
+                                        </span>
+                                    </th>
                                     <th className="px-4 py-4 text-left text-sm font-semibold">Phone</th>
                                     <th className="px-4 py-4 text-left text-sm font-semibold">Volunteer</th>
-                                    <th className="px-4 py-4 text-left text-sm font-semibold">Qty</th>
-                                    <th className="px-4 py-4 text-left text-sm font-semibold">Total</th>
+                                    <th
+                                        className="px-4 py-4 text-left text-sm font-semibold cursor-pointer hover:text-primary transition-colors group"
+                                        onClick={() => handleSort("quantity")}
+                                    >
+                                        <span className="flex items-center gap-1.5">
+                                            Qty
+                                            {getSortIcon("quantity")}
+                                        </span>
+                                    </th>
+                                    <th
+                                        className="px-4 py-4 text-left text-sm font-semibold cursor-pointer hover:text-primary transition-colors group"
+                                        onClick={() => handleSort("total_price")}
+                                    >
+                                        <span className="flex items-center gap-1.5">
+                                            Total
+                                            {getSortIcon("total_price")}
+                                        </span>
+                                    </th>
                                     <th className="px-4 py-4 text-left text-sm font-semibold">Payment</th>
                                     <th className="px-4 py-4 text-left text-sm font-semibold">Status</th>
                                     <th className="px-4 py-4 text-left text-sm font-semibold">Delivery</th>
-                                    <th className="px-4 py-4 text-left text-sm font-semibold">Date</th>
+                                    <th
+                                        className="px-4 py-4 text-left text-sm font-semibold cursor-pointer hover:text-primary transition-colors group"
+                                        onClick={() => handleSort("created_at")}
+                                    >
+                                        <span className="flex items-center gap-1.5">
+                                            Date
+                                            {getSortIcon("created_at")}
+                                        </span>
+                                    </th>
                                     <th className="px-4 py-4 text-center text-sm font-semibold">Actions</th>
                                 </tr>
                             </thead>
@@ -498,7 +789,7 @@ export default function OrdersPage() {
                                         </td>
                                         <td className="px-4 py-4">
                                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.order_status)}`}>
-                                                {order.order_status === "cant_reach" ? "Can't Reach" : order.order_status === "payment_pending" ? "Payment Pending" : order.order_status}
+                                                {getStatusLabel(order.order_status)}
                                             </span>
                                         </td>
                                         <td className="px-4 py-4">
@@ -507,7 +798,10 @@ export default function OrdersPage() {
                                             </span>
                                         </td>
                                         <td className="px-4 py-4 text-sm text-muted-foreground">
-                                            {new Date(order.created_at).toLocaleDateString()}
+                                            <div>{new Date(order.created_at).toLocaleDateString()}</div>
+                                            <div className="text-xs opacity-70">
+                                                {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </div>
                                         </td>
                                         <td className="px-4 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                                             <DropdownMenu>

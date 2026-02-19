@@ -67,10 +67,22 @@ export async function PUT(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        // Sanitize body: remove fields that shouldn't be in the DB or are strictly for UI
+        const { confirmPassword, ...updateData } = body;
+
+        // If password is provided but empty, remove it so we don't blank it out
+        // (The frontend might send "" if the user didn't touch the password field)
+        if (updateData.password === "") {
+            delete updateData.password;
+        }
+
+        // Also ensure we don't try to update the PKs if they are unchanged or shouldn't be touched
+        // But the user might want to update volunteer_id.
+
         // Try update by volunteer_id
         let { data, error } = await supabase
             .from("volunteers")
-            .update(body)
+            .update(updateData)
             .eq("volunteer_id", id)
             .select()
             .single();
@@ -79,7 +91,7 @@ export async function PUT(
         if (error || !data) {
             const uuidResult = await supabase
                 .from("volunteers")
-                .update(body)
+                .update(updateData)
                 .eq("id", id)
                 .select()
                 .single();
@@ -119,11 +131,22 @@ export async function DELETE(
             .delete()
             .eq("volunteer_id", id);
 
-        // If error (or maybe generic error if not found? standard delete doesn't error on not found usually)
-        // But to be safe, let's try delete by UUID if we are not sure what `id` is.
-        // Actually, deleting by ID matching either column is safer done with an OR logic or check first.
+        // Standard Supabase delete doesn't return error if record not found, only if query failed (e.g. constraints).
+        // But if we use 'eq', it might just affect 0 rows.
 
-        // Let's resolve the ID first.
+        // If error occurred (like FK violation)
+        if (error) {
+            if (error.code === "23503") {
+                return NextResponse.json({ error: "Cannot delete volunteer because they have associated orders or data." }, { status: 400 });
+            }
+            return NextResponse.json({ error: error.message }, { status: 400 });
+        }
+
+        // Check if we actually deleted something?
+        // It's hard to know without 'select' or checking count. 
+        // But the previous implementation had a fallback to ID.
+
+        // Let's Resolve ID first to be precise
         const { data: vol } = await supabase.from("volunteers").select("id").or(`volunteer_id.eq.${id},id.eq.${id}`).single();
 
         if (vol) {
@@ -133,11 +156,14 @@ export async function DELETE(
                 .eq("id", vol.id);
 
             if (deleteError) {
+                if (deleteError.code === "23503") {
+                    return NextResponse.json({ error: "Cannot delete volunteer because they have associated orders or data." }, { status: 400 });
+                }
                 return NextResponse.json({ error: deleteError.message }, { status: 400 });
             }
-        } else {
-            return NextResponse.json({ error: "Volunteer not found" }, { status: 404 });
         }
+        // If vol not found, we can assume it's already gone or invalid ID. 
+        // But asking for 'success' is fine.
 
         return NextResponse.json({ success: true });
     } catch (error) {

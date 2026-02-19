@@ -1063,7 +1063,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                         type="submit"
                         size="lg"
                         className="w-full bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600 rounded-2xl"
-                        disabled={isSubmitting || isProcessingPayment || uploadingScreenshot || verifying || (activePaymentMethod === "qr" && !screenshotPublicUrl)}
+                        disabled={isSubmitting || isProcessingPayment || uploadingScreenshot || (activePaymentMethod === "qr" && !screenshotPublicUrl)}
                     >
                         {isProcessingPayment ? (
                             <>
@@ -1086,6 +1086,13 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                             `Proceed to Payment - ₹${totalPrice}`
                         )}
                     </Button>
+
+                    {verifying && activePaymentMethod === "qr" && (
+                        <p className="text-xs text-center text-blue-600 dark:text-blue-400 flex items-center justify-center gap-1">
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            AI verification in progress — you can submit now
+                        </p>
+                    )}
 
                     <p className="text-xs text-center text-muted-foreground">
                         {activePaymentMethod === "qr"

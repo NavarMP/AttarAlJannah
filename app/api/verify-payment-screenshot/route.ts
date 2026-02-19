@@ -23,8 +23,45 @@ interface VerificationResult {
     message: string;
 }
 
+// Simple in-memory rate limiting to prevent spam
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const MAX_REQUESTS = 5; // 5 requests per minute per IP
+const ipRequestMap = new Map<string, number[]>();
+
 export async function POST(request: NextRequest) {
     try {
+        // Rate limiting check
+        const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+        const now = Date.now();
+
+        // Clean up old entries periodically or just filter on access
+        let requestTimestamps = ipRequestMap.get(ip) || [];
+        requestTimestamps = requestTimestamps.filter(time => now - time < RATE_LIMIT_WINDOW);
+
+        if (requestTimestamps.length >= MAX_REQUESTS) {
+            return NextResponse.json({
+                verified: false,
+                checks: {
+                    is_payment_screenshot: false,
+                    amount_match: null,
+                    is_duplicate: false,
+                },
+                extracted: {
+                    is_payment: false,
+                    app_name: null,
+                    amount: null,
+                    transaction_id: null,
+                    date: null,
+                    status: null,
+                    upi_id: null,
+                },
+                message: "Too many attempts. Please wait a minute before verifying another screenshot.",
+            } as VerificationResult, { status: 429 });
+        }
+
+        requestTimestamps.push(now);
+        ipRequestMap.set(ip, requestTimestamps);
+
         const body = await request.json();
         const { imageUrl, expectedAmount } = body;
 
@@ -55,6 +92,37 @@ export async function POST(request: NextRequest) {
         const base64Image = Buffer.from(imageBuffer).toString("base64");
         const mimeType = imageResponse.headers.get("content-type") || "image/jpeg";
 
+        // Step 1.5: Check if this exact screenshot URL was already used in another order
+        {
+            const supabase = await createClient();
+            const { data: existingByUrl } = await supabase
+                .from("orders")
+                .select("id")
+                .eq("payment_screenshot_url", imageUrl)
+                .limit(1);
+
+            if (existingByUrl && existingByUrl.length > 0) {
+                return NextResponse.json({
+                    verified: false,
+                    checks: {
+                        is_payment_screenshot: true,
+                        amount_match: null,
+                        is_duplicate: true,
+                    },
+                    extracted: {
+                        is_payment: true,
+                        app_name: null,
+                        amount: null,
+                        transaction_id: null,
+                        date: null,
+                        status: null,
+                        upi_id: null,
+                    },
+                    message: "This screenshot has already been used for a previous order.",
+                } as VerificationResult);
+            }
+        }
+
         // Step 2: Analyze with Gemini Vision
         const prompt = `You are a payment screenshot verification system. Analyze this image and determine if it is a genuine UPI/bank payment screenshot (e.g. from Google Pay, PhonePe, Paytm, Amazon Pay, SuperMoney, Cred, or any banking app).
 
@@ -81,7 +149,7 @@ Rules:
         let responseText = "";
         try {
             const response = await genai.models.generateContent({
-                model: "gemini-2.0-flash",
+                model: "gemini-3-flash-preview",
                 contents: [
                     {
                         role: "user",
@@ -103,7 +171,13 @@ Rules:
             console.error("Gemini API Error:", apiError);
 
             // Check for 429/Resource Exhausted
-            if (apiError.status === 429 || apiError.message?.includes("429") || apiError.message?.includes("Quota exceeded")) {
+            if (
+                apiError.status === 429 ||
+                apiError.status === "RESOURCE_EXHAUSTED" ||
+                apiError.message?.includes("429") ||
+                apiError.message?.includes("RESOURCE_EXHAUSTED") ||
+                apiError.message?.includes("Quota exceeded")
+            ) {
                 return NextResponse.json({
                     verified: false,
                     checks: {
