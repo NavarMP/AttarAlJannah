@@ -18,7 +18,7 @@ import { Sparkles } from "lucide-react";
 import { AutoHideContainer } from "@/components/custom/auto-hide-container";
 import { NotificationPermission } from "@/components/custom/NotificationPermission";
 import { CanvasParticles } from "@/components/backgrounds/canvas-particles";
-import { LiveStatsCard } from "@/components/stats/live-stats-card";
+// import { LiveStatsCard } from "@/components/stats/live-stats-card";
 
 gsap.registerPlugin(ScrollTrigger);
 
