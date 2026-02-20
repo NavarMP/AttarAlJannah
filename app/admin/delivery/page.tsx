@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { DeliveryRequest } from "@/types";
+import Link from "next/link";
+import { COURIER_MAP } from "@/lib/services/courier-tracking";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -93,7 +95,7 @@ export default function DeliveryPage() {
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                <TabsList className="grid w-full grid-cols-4 rounded-2xl h-12 p-1">
+                <TabsList className="grid w-full grid-cols-5 rounded-2xl h-12 p-1">
                     <TabsTrigger value="overview" className="rounded-xl gap-2 data-[state=active]:shadow-md">
                         <BarChart3 className="h-4 w-4" />
                         <span className="hidden sm:inline">Overview</span>
@@ -115,6 +117,10 @@ export default function DeliveryPage() {
                         <Settings2 className="h-4 w-4" />
                         <span className="hidden sm:inline">Assign</span>
                     </TabsTrigger>
+                    <TabsTrigger value="tracking" className="rounded-xl gap-2 data-[state=active]:shadow-md">
+                        <Truck className="h-4 w-4" />
+                        <span className="hidden sm:inline">Tracking</span>
+                    </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="overview">
@@ -131,6 +137,10 @@ export default function DeliveryPage() {
 
                 <TabsContent value="assign">
                     <AssignTab />
+                </TabsContent>
+
+                <TabsContent value="tracking">
+                    <TrackingTab />
                 </TabsContent>
             </Tabs>
         </div>
@@ -1236,3 +1246,384 @@ function AssignTab() {
         </div>
     );
 }
+
+// ═════════════════════════════════════════════════════════════════════
+// TAB 5: TRACKING
+// ═════════════════════════════════════════════════════════════════════
+
+interface TrackingOrder {
+    id: string;
+    customer_name: string;
+    order_status: string;
+    delivery_method: string | null;
+    tracking_number: string | null;
+    courier_name: string | null;
+    last_tracking_sync: string | null;
+    created_at: string;
+}
+
+function TrackingTab() {
+    const [orders, setOrders] = useState<TrackingOrder[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [methodFilter, setMethodFilter] = useState("all");
+    const [syncing, setSyncing] = useState(false);
+    const [editingOrder, setEditingOrder] = useState<string | null>(null);
+    const [editTrackingNumber, setEditTrackingNumber] = useState("");
+    const [editCourierName, setEditCourierName] = useState("");
+    const [addingEvent, setAddingEvent] = useState<string | null>(null);
+    const [eventTitle, setEventTitle] = useState("");
+    const [eventStatus, setEventStatus] = useState("in_transit");
+    const [eventLocation, setEventLocation] = useState("");
+
+    const fetchOrders = useCallback(async () => {
+        try {
+            setLoading(true);
+            const res = await fetch("/api/admin/orders");
+            if (!res.ok) throw new Error("Failed to fetch");
+            const data = await res.json();
+            const allOrders = (data.orders || data || []).map((o: any) => ({
+                id: o.id,
+                customer_name: o.customer_name,
+                order_status: o.order_status,
+                delivery_method: o.delivery_method,
+                tracking_number: o.tracking_number,
+                courier_name: o.courier_name,
+                last_tracking_sync: o.last_tracking_sync,
+                created_at: o.created_at,
+            }));
+            setOrders(allOrders);
+        } catch (error) {
+            console.error("Failed to fetch orders:", error);
+            toast.error("Failed to load orders");
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchOrders();
+    }, [fetchOrders]);
+
+    const filteredOrders = orders.filter((o) => {
+        if (methodFilter === "all") return true;
+        if (methodFilter === "with_tracking") return !!o.tracking_number;
+        return o.delivery_method === methodFilter;
+    });
+
+    const handleSaveTracking = async (orderId: string) => {
+        try {
+            const res = await fetch(`/api/admin/orders/${orderId}/tracking`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    tracking_number: editTrackingNumber || null,
+                    courier_name: editCourierName || null,
+                }),
+            });
+            if (!res.ok) throw new Error("Failed to save");
+            toast.success("Tracking info saved");
+            setEditingOrder(null);
+            fetchOrders();
+        } catch {
+            toast.error("Failed to save tracking info");
+        }
+    };
+
+    const handleSync = async () => {
+        setSyncing(true);
+        try {
+            const res = await fetch("/api/admin/tracking/sync", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({}),
+            });
+            if (!res.ok) throw new Error("Sync failed");
+            const data = await res.json();
+            toast.success(`Synced ${data.synced}/${data.total} orders`);
+            fetchOrders();
+        } catch {
+            toast.error("Failed to sync tracking");
+        } finally {
+            setSyncing(false);
+        }
+    };
+
+    const handleAddEvent = async (orderId: string) => {
+        if (!eventTitle.trim()) {
+            toast.error("Title is required");
+            return;
+        }
+        try {
+            const res = await fetch(`/api/admin/orders/${orderId}/tracking`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    status: eventStatus,
+                    title: eventTitle,
+                    location: eventLocation || null,
+                }),
+            });
+            if (!res.ok) throw new Error("Failed to add event");
+            toast.success("Tracking event added");
+            setAddingEvent(null);
+            setEventTitle("");
+            setEventStatus("in_transit");
+            setEventLocation("");
+        } catch {
+            toast.error("Failed to add event");
+        }
+    };
+
+    const courierOptions = Object.entries(COURIER_MAP).map(([key, val]) => ({
+        value: key,
+        label: val.name,
+    }));
+
+    return (
+        <div className="space-y-4">
+            {/* Filters & Actions */}
+            <div className="flex flex-wrap gap-3 items-center justify-between">
+                <div className="flex flex-wrap gap-2">
+                    {[
+                        { label: "All", value: "all" },
+                        { label: "Post", value: "post" },
+                        { label: "Courier", value: "courier" },
+                        { label: "Volunteer", value: "volunteer" },
+                        { label: "With Tracking #", value: "with_tracking" },
+                    ].map((f) => (
+                        <Button
+                            key={f.value}
+                            variant={methodFilter === f.value ? "default" : "outline"}
+                            size="sm"
+                            className="rounded-xl"
+                            onClick={() => setMethodFilter(f.value)}
+                        >
+                            {f.label}
+                        </Button>
+                    ))}
+                </div>
+                <Button
+                    onClick={handleSync}
+                    disabled={syncing}
+                    className="rounded-xl gap-2"
+                    variant="outline"
+                >
+                    {syncing ? (
+                        <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
+                    ) : (
+                        <Truck className="h-4 w-4" />
+                    )}
+                    {syncing ? "Syncing..." : "Sync All Courier Tracking"}
+                </Button>
+            </div>
+
+            {/* Orders Table */}
+            <Card className="rounded-3xl">
+                <CardContent className="pt-6">
+                    {loading ? (
+                        <div className="text-center py-12 text-muted-foreground">Loading orders...</div>
+                    ) : filteredOrders.length === 0 ? (
+                        <div className="text-center py-12 text-muted-foreground">
+                            No orders found for this filter
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b text-left">
+                                        <th className="pb-3 font-medium">Customer</th>
+                                        <th className="pb-3 font-medium">Method</th>
+                                        <th className="pb-3 font-medium">Tracking #</th>
+                                        <th className="pb-3 font-medium">Courier</th>
+                                        <th className="pb-3 font-medium">Status</th>
+                                        <th className="pb-3 font-medium">Last Sync</th>
+                                        <th className="pb-3 font-medium">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y">
+                                    {filteredOrders.map((order) => (
+                                        <tr key={order.id} className="hover:bg-accent/30">
+                                            <td className="py-3">
+                                                <Link
+                                                    href={`/admin/orders/${order.id}`}
+                                                    className="text-primary hover:underline font-medium"
+                                                >
+                                                    {order.customer_name}
+                                                </Link>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {order.id.slice(0, 8)}
+                                                </p>
+                                            </td>
+                                            <td className="py-3">
+                                                <Badge
+                                                    variant="outline"
+                                                    className="rounded-lg text-xs capitalize"
+                                                >
+                                                    {order.delivery_method || "—"}
+                                                </Badge>
+                                            </td>
+                                            <td className="py-3">
+                                                {editingOrder === order.id ? (
+                                                    <Input
+                                                        value={editTrackingNumber}
+                                                        onChange={(e) => setEditTrackingNumber(e.target.value)}
+                                                        placeholder="Enter tracking #"
+                                                        className="rounded-lg h-8 text-xs w-36"
+                                                    />
+                                                ) : (
+                                                    <span className="font-mono text-xs">
+                                                        {order.tracking_number || "—"}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="py-3">
+                                                {editingOrder === order.id ? (
+                                                    <Select value={editCourierName} onValueChange={setEditCourierName}>
+                                                        <SelectTrigger className="h-8 w-32 rounded-lg text-xs">
+                                                            <SelectValue placeholder="Select" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {courierOptions.map((c) => (
+                                                                <SelectItem key={c.value} value={c.value}>
+                                                                    {c.label}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                ) : (
+                                                    <span className="text-xs">
+                                                        {COURIER_MAP[order.courier_name || ""]?.name || order.courier_name || "—"}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="py-3">
+                                                <Badge
+                                                    variant="outline"
+                                                    className="rounded-lg text-xs capitalize"
+                                                >
+                                                    {order.order_status.replace(/_/g, " ")}
+                                                </Badge>
+                                            </td>
+                                            <td className="py-3 text-xs text-muted-foreground">
+                                                {order.last_tracking_sync
+                                                    ? new Date(order.last_tracking_sync).toLocaleString("en-IN", {
+                                                        day: "numeric",
+                                                        month: "short",
+                                                        hour: "2-digit",
+                                                        minute: "2-digit",
+                                                    })
+                                                    : "—"}
+                                            </td>
+                                            <td className="py-3">
+                                                <div className="flex gap-1">
+                                                    {editingOrder === order.id ? (
+                                                        <>
+                                                            <Button
+                                                                size="sm"
+                                                                className="rounded-lg h-7 text-xs"
+                                                                onClick={() => handleSaveTracking(order.id)}
+                                                            >
+                                                                Save
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="rounded-lg h-7 text-xs"
+                                                                onClick={() => setEditingOrder(null)}
+                                                            >
+                                                                Cancel
+                                                            </Button>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="rounded-lg h-7 text-xs"
+                                                                onClick={() => {
+                                                                    setEditingOrder(order.id);
+                                                                    setEditTrackingNumber(order.tracking_number || "");
+                                                                    setEditCourierName(order.courier_name || "");
+                                                                }}
+                                                            >
+                                                                Edit
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="rounded-lg h-7 text-xs"
+                                                                onClick={() => {
+                                                                    if (addingEvent === order.id) {
+                                                                        setAddingEvent(null);
+                                                                    } else {
+                                                                        setAddingEvent(order.id);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                + Event
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                </div>
+
+                                                {/* Inline Event Form */}
+                                                {addingEvent === order.id && (
+                                                    <div className="mt-2 p-3 bg-accent/30 rounded-xl space-y-2">
+                                                        <Input
+                                                            value={eventTitle}
+                                                            onChange={(e) => setEventTitle(e.target.value)}
+                                                            placeholder="Event title"
+                                                            className="rounded-lg h-8 text-xs"
+                                                        />
+                                                        <div className="flex gap-2">
+                                                            <Select value={eventStatus} onValueChange={setEventStatus}>
+                                                                <SelectTrigger className="h-8 rounded-lg text-xs flex-1">
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {["packed", "shipped", "in_transit", "out_for_delivery", "delivered", "cant_reach", "returned"].map((s) => (
+                                                                        <SelectItem key={s} value={s}>
+                                                                            {s.replace(/_/g, " ")}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                            <Input
+                                                                value={eventLocation}
+                                                                onChange={(e) => setEventLocation(e.target.value)}
+                                                                placeholder="Location (optional)"
+                                                                className="rounded-lg h-8 text-xs flex-1"
+                                                            />
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <Button
+                                                                size="sm"
+                                                                className="rounded-lg h-7 text-xs"
+                                                                onClick={() => handleAddEvent(order.id)}
+                                                            >
+                                                                Add Event
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="rounded-lg h-7 text-xs"
+                                                                onClick={() => setAddingEvent(null)}
+                                                            >
+                                                                Cancel
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+

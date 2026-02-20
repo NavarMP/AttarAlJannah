@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getStatusLabel, getCourierDisplayName } from "@/lib/services/courier-tracking";
 
 export const dynamic = "force-dynamic";
 
-// GET - Get order tracking information (public, no auth)
+// GET - Public order tracking (no auth required)
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ orderId: string }> }
@@ -18,27 +18,33 @@ export async function GET(
             );
         }
 
-        const supabase = await createClient();
+        const { createClient } = await import("@supabase/supabase-js");
+        const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
 
-        // Fetch order with volunteer info (if assigned)
+        // Fetch order with delivery volunteer info
         const { data: order, error } = await supabase
             .from("orders")
             .select(`
                 id,
                 customer_name,
-                customer_phone,
                 product_name,
                 quantity,
                 total_price,
                 order_status,
                 payment_status,
                 delivery_method,
-                is_delivery_duty,
+                tracking_number,
+                courier_name,
+                tracking_url,
                 created_at,
                 updated_at,
-                volunteers!orders_volunteer_id_fkey(name, phone, volunteer_id)
+                delivery_volunteer:volunteers!orders_delivery_volunteer_id_fkey(name, phone, volunteer_id)
             `)
             .eq("id", orderId)
+            .is("deleted_at", null)
             .single();
 
         if (error || !order) {
@@ -48,85 +54,114 @@ export async function GET(
             );
         }
 
-        // Get delivery schedule if exists
-        const { data: schedule } = await supabase
-            .from("delivery_schedules")
-            .select("*")
+        // Fetch tracking events
+        const { data: events } = await supabase
+            .from("delivery_tracking_events")
+            .select("status, title, description, location, updated_by, created_at")
             .eq("order_id", orderId)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .single();
+            .order("created_at", { ascending: true });
 
-        // Build tracking timeline
-        const timeline = [
-            {
-                status: "ordered",
+        // Build timeline from tracking events
+        const timeline = (events || []).map((event) => ({
+            status: event.status,
+            label: event.title || getStatusLabel(event.status),
+            description: event.description,
+            location: event.location,
+            updated_by: event.updated_by,
+            timestamp: event.created_at,
+            completed: true,
+        }));
+
+        // If no tracking events exist, build a basic timeline from order data
+        if (timeline.length === 0) {
+            timeline.push({
+                status: "order_placed",
                 label: "Order Placed",
+                description: null,
+                location: null,
+                updated_by: "system",
                 timestamp: order.created_at,
-                completed: true
-            },
-            {
-                status: "payment_verified",
-                label: "Payment Verified",
-                timestamp: order.payment_status === "paid" ? order.updated_at : null,
-                completed: order.payment_status === "paid"
-            }
-        ];
-
-        if (order.is_delivery_duty && order.volunteers) {
-            timeline.push({
-                status: "delivery_assigned",
-                label: "Delivery Volunteer Assigned",
-                timestamp: order.updated_at,
-                completed: true
-            });
-        }
-
-        if (schedule) {
-            timeline.push({
-                status: "scheduled",
-                label: "Delivery Scheduled",
-                timestamp: schedule.created_at,
-                completed: true
+                completed: true,
             });
 
-            if (schedule.started_at) {
+            if (order.payment_status === "paid" || order.payment_status === "verified") {
                 timeline.push({
-                    status: "in_transit",
-                    label: "Out for Delivery",
-                    timestamp: schedule.started_at,
-                    completed: true
+                    status: "payment_verified",
+                    label: "Payment Verified",
+                    description: null,
+                    location: null,
+                    updated_by: "system",
+                    timestamp: order.updated_at,
+                    completed: true,
+                });
+            }
+
+            if (order.order_status === "delivered") {
+                timeline.push({
+                    status: "delivered",
+                    label: "Delivered",
+                    description: null,
+                    location: null,
+                    updated_by: "system",
+                    timestamp: order.updated_at,
+                    completed: true,
                 });
             }
         }
 
-        if (order.order_status === "delivered") {
-            timeline.push({
-                status: "delivered",
-                label: "Delivered",
-                timestamp: schedule?.completed_at || order.updated_at,
-                completed: true
-            });
-        }
+        // Determine current status for display
+        const lastEvent = timeline[timeline.length - 1];
+        const currentStatus = lastEvent?.status || order.order_status;
 
-        // Prepare response with limited customer info for privacy
+        // Privacy-safe customer name
+        const nameParts = order.customer_name.split(" ");
+        const safeName =
+            nameParts.length > 1
+                ? `${nameParts[0]} ${nameParts[nameParts.length - 1][0]}.`
+                : nameParts[0];
+
+        // Build delivery volunteer info (only for volunteer method)
+        const deliveryVolunteer = order.delivery_volunteer;
+        const volunteerInfo =
+            order.delivery_method === "volunteer" && deliveryVolunteer
+                ? {
+                    name: Array.isArray(deliveryVolunteer)
+                        ? deliveryVolunteer[0]?.name
+                        : (deliveryVolunteer as { name: string }).name,
+                    phone: Array.isArray(deliveryVolunteer)
+                        ? deliveryVolunteer[0]?.phone
+                        : (deliveryVolunteer as { phone: string }).phone,
+                    volunteer_id: Array.isArray(deliveryVolunteer)
+                        ? deliveryVolunteer[0]?.volunteer_id
+                        : (deliveryVolunteer as { volunteer_id: string }).volunteer_id,
+                }
+                : null;
+
+        // Build courier info
+        const courierInfo =
+            (order.delivery_method === "post" || order.delivery_method === "courier") &&
+                order.tracking_number
+                ? {
+                    tracking_number: order.tracking_number,
+                    courier_name: order.courier_name,
+                    courier_display_name: order.courier_name
+                        ? getCourierDisplayName(order.courier_name)
+                        : null,
+                    tracking_url: order.tracking_url,
+                }
+                : null;
+
         const trackingInfo = {
             order_id: order.id,
-            customer_name: order.customer_name.split(' ')[0] + " " + order.customer_name.split(' ')[order.customer_name.split(' ').length - 1][0] + ".", // "John D."
+            customer_name: safeName,
             product: order.product_name,
             quantity: order.quantity,
-            status: order.order_status,
+            status: currentStatus,
+            order_status: order.order_status,
+            delivery_method: order.delivery_method,
             timeline,
-            delivery_info: order.is_delivery_duty && order.volunteers ? {
-                volunteer_name: Array.isArray(order.volunteers) ? order.volunteers[0]?.name : (order.volunteers as any).name,
-                volunteer_phone: Array.isArray(order.volunteers) ? order.volunteers[0]?.phone : (order.volunteers as any).phone,
-                volunteer_id: Array.isArray(order.volunteers) ? order.volunteers[0]?.volunteer_id : (order.volunteers as any).volunteer_id
-            } : null,
-            schedule_info: schedule ? {
-                scheduled_date: schedule.scheduled_date,
-                time_slot: schedule.scheduled_time_slot,
-                status: schedule.status
-            } : null
+            volunteer_info: volunteerInfo,
+            courier_info: courierInfo,
         };
 
         return NextResponse.json({ tracking: trackingInfo });

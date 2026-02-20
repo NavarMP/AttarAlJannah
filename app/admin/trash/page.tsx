@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -82,7 +82,7 @@ export default function TrashPage() {
     const [restoring, setRestoring] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
-    const fetchTrash = async () => {
+    const fetchTrash = useCallback(async () => {
         setLoading(true);
         try {
             const res = await fetch(`/api/admin/trash?type=${activeTab}&page=${page}`);
@@ -97,7 +97,7 @@ export default function TrashPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [activeTab, page]);
 
     useEffect(() => {
         setSelectedIds([]);
@@ -106,7 +106,7 @@ export default function TrashPage() {
 
     useEffect(() => {
         fetchTrash();
-    }, [activeTab, page]);
+    }, [fetchTrash]);
 
     const handleRestore = async (ids: string[]) => {
         setRestoring(true);

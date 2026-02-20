@@ -12,6 +12,7 @@ import { OrderBill } from "@/components/order-bill";
 import { ThankYouPoster } from "@/components/thank-you-poster";
 import { useCustomerAuth } from "@/lib/contexts/customer-auth-context";
 import { AssignVolunteerDialog } from "@/components/assign-volunteer-dialog";
+import { TrackingTimeline } from "@/components/tracking-timeline";
 
 interface Order {
     id: string;
@@ -219,6 +220,26 @@ export default function CustomerOrderDetailsPage({ params }: { params: Promise<{
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* Tracking Timeline */}
+                <Card className="glass-strong rounded-3xl">
+                    <CardHeader>
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="flex items-center gap-2">
+                                <MapPin className="h-5 w-5" />
+                                Order Tracking
+                            </CardTitle>
+                            <Link href={`/track/${order.id}`}>
+                                <Button variant="outline" size="sm" className="rounded-xl text-xs">
+                                    Full Tracking Page →
+                                </Button>
+                            </Link>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <TrackingTimeline orderId={order.id} />
+                    </CardContent>
+                </Card>
 
                 {/* Payment Screenshot */}
                 {order.payment_screenshot_url && (

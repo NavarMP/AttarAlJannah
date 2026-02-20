@@ -40,20 +40,19 @@ export function ThankYouPoster({
         img.crossOrigin = "anonymous";
 
         // Select asset based on language
-        const templatePath = language === "en" ? "/assets/thankYou_En.jpg" : "/assets/thankYou_Ml.jpg";
+        const templatePath = language === "en" ? "/assets/thankYou_En.png" : "/assets/thankYou_Ml.png";
 
         img.onload = () => {
             // Draw the template image as background
             ctx.drawImage(img, 0, 0, width, height);
 
             // Configure text styling for customer name
-            ctx.textAlign = "center"; // Alignment relative to placement point
+            ctx.textAlign = "left"; // Alignment relative to placement point
             ctx.textBaseline = "middle";
 
-            // User Requirement: X=600, Y=60 (approx), Size=40pt
-            // 40pt is approx 53.33px. Let's use 54px.
-            const x = 540;
-            const y = 360;
+            // Text Position
+            const x = 110;
+            const y = 480;
             const fontSize = 40;
 
             // Font settings

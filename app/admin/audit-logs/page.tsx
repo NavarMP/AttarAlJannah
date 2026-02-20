@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -60,7 +60,7 @@ export default function AuditLogsPage() {
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
 
-    const fetchLogs = async () => {
+    const fetchLogs = useCallback(async () => {
         setLoading(true);
         try {
             const params = new URLSearchParams({ page: page.toString() });
@@ -80,11 +80,11 @@ export default function AuditLogsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [page, actionFilter, entityFilter, startDate, endDate]);
 
     useEffect(() => {
         fetchLogs();
-    }, [page, actionFilter, entityFilter, startDate, endDate]);
+    }, [fetchLogs]);
 
     if (!hasPermission("super_admin")) {
         return (

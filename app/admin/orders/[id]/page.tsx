@@ -17,6 +17,7 @@ import { ThankYouPoster } from "@/components/thank-you-poster";
 import { AutoHideContainer } from "@/components/custom/auto-hide-container";
 import { DeliveryManagement } from "@/components/admin/delivery-management";
 import { VolunteerAssignment } from "@/components/admin/volunteer-assignment";
+import { TrackingTimeline } from "@/components/tracking-timeline";
 
 interface Order {
     id: string;
@@ -341,8 +342,8 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                             {/* AI Verification Badge */}
                             {order.screenshot_verified !== null && order.screenshot_verified !== undefined && (
                                 <div className={`p-3 rounded-2xl border text-sm ${order.screenshot_verified
-                                        ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800"
-                                        : "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800"
+                                    ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800"
+                                    : "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800"
                                     }`}>
                                     <div className="flex items-center gap-2 font-medium">
                                         <span>{order.screenshot_verified ? "🛡️ AI Verified" : "⚠️ Not Verified"}</span>
@@ -392,6 +393,26 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                 deliveryFee={order.delivery_fee}
                 onRefresh={fetchOrder}
             />
+
+            {/* Tracking Timeline */}
+            <Card className="rounded-3xl">
+                <CardHeader>
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center gap-2">
+                            <Truck className="h-5 w-5" />
+                            Delivery Tracking
+                        </CardTitle>
+                        <Link href={`/track/${order.id}`} target="_blank">
+                            <Button variant="outline" size="sm" className="rounded-xl text-xs">
+                                Public Tracking Page ↗
+                            </Button>
+                        </Link>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <TrackingTimeline orderId={order.id} />
+                </CardContent>
+            </Card>
 
             {/* Order Bill/Invoice */}
             <div>

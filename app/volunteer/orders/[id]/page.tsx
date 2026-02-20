@@ -33,6 +33,21 @@ export default function VolunteerOrderDetailsPage({ params }: { params: Promise<
     const router = useRouter();
     const [order, setOrder] = useState<Order | null>(null);
     const [loading, setLoading] = useState(true);
+    const [trackingEvents, setTrackingEvents] = useState<{ status: string; title: string; created_at: string }[]>([]);
+
+    const fetchTrackingEvents = useCallback(async () => {
+        try {
+            const volunteerId = localStorage.getItem("volunteerId");
+            if (!volunteerId) return;
+            const res = await fetch(`/api/volunteer/orders/${id}/tracking?volunteerId=${volunteerId}`);
+            if (res.ok) {
+                const data = await res.json();
+                setTrackingEvents(data.events || []);
+            }
+        } catch {
+            // non-blocking
+        }
+    }, [id]);
 
     const fetchOrder = useCallback(async () => {
         const volunteerId = localStorage.getItem("volunteerId");
@@ -59,7 +74,8 @@ export default function VolunteerOrderDetailsPage({ params }: { params: Promise<
 
     useEffect(() => {
         fetchOrder();
-    }, [fetchOrder]);
+        fetchTrackingEvents();
+    }, [fetchOrder, fetchTrackingEvents]);
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -140,7 +156,7 @@ export default function VolunteerOrderDetailsPage({ params }: { params: Promise<
                         </CardContent>
                     </Card>
 
-                    {/* Delivery Actions */}
+                    {/* Delivery Actions & Tracking */}
                     {order.volunteer_id && order.is_delivery_duty && (
                         <Card className="glass-strong rounded-3xl md:col-span-2 border-primary/20 bg-primary/5">
                             <CardHeader>
@@ -151,73 +167,129 @@ export default function VolunteerOrderDetailsPage({ params }: { params: Promise<
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <p className="text-sm text-muted-foreground">
-                                    You are assigned to deliver this order.
+                                    You are assigned to deliver this order. Post updates below.
                                 </p>
+
+                                {/* Quick Tracking Update Buttons */}
                                 {order.order_status === 'ordered' && (
-                                    <div className="flex flex-wrap gap-4">
-                                        <Button
-                                            onClick={async () => {
-                                                try {
-                                                    const volunteerId = localStorage.getItem("volunteerId");
-                                                    if (!volunteerId) return;
+                                    <div className="space-y-3">
+                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Quick Updates</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {[
+                                                { status: "picked_up", title: "Picked Up Package", label: "📦 Picked Up", color: "bg-blue-600 hover:bg-blue-700 text-white" },
+                                                { status: "on_the_way", title: "On the Way to Customer", label: "🚗 On the Way", color: "bg-indigo-600 hover:bg-indigo-700 text-white" },
+                                                { status: "arrived_at_area", title: "Arrived at Delivery Area", label: "📍 Arrived at Area", color: "bg-teal-600 hover:bg-teal-700 text-white" },
+                                            ].map((btn) => (
+                                                <Button
+                                                    key={btn.status}
+                                                    size="sm"
+                                                    className={`rounded-xl ${btn.color}`}
+                                                    onClick={async () => {
+                                                        try {
+                                                            const volunteerId = localStorage.getItem("volunteerId");
+                                                            if (!volunteerId) return;
+                                                            const res = await fetch(`/api/volunteer/orders/${order.id}/tracking`, {
+                                                                method: "POST",
+                                                                headers: { "Content-Type": "application/json" },
+                                                                body: JSON.stringify({
+                                                                    volunteerId,
+                                                                    status: btn.status,
+                                                                    title: btn.title,
+                                                                }),
+                                                            });
+                                                            if (res.ok) {
+                                                                toast.success(`Update posted: ${btn.label}`);
+                                                                fetchTrackingEvents();
+                                                            } else {
+                                                                const data = await res.json();
+                                                                toast.error(data.error || "Failed to post update");
+                                                            }
+                                                        } catch {
+                                                            toast.error("Failed to post update");
+                                                        }
+                                                    }}
+                                                >
+                                                    {btn.label}
+                                                </Button>
+                                            ))}
+                                        </div>
 
-                                                    const response = await fetch(`/api/volunteer/orders/${order.id}/status`, {
-                                                        method: "PATCH",
-                                                        headers: { "Content-Type": "application/json" },
-                                                        body: JSON.stringify({
-                                                            volunteerId: volunteerId, // Passing ID instead of UUID for now as API handles lookup
-                                                            newStatus: "delivered"
-                                                        }),
-                                                    });
-
-                                                    if (!response.ok) throw new Error("Failed to update");
-                                                    const data = await response.json();
-
-                                                    toast.success(`Marked as delivered! Commission earned: ₹${data.commission}`);
-                                                    fetchOrder();
-                                                } catch (error) {
-                                                    console.error(error);
-                                                    toast.error("Failed to update status");
-                                                }
-                                            }}
-                                            className="bg-green-600 hover:bg-green-700 rounded-xl flex-1"
-                                        >
-                                            Mark Delivered
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            onClick={async () => {
-                                                try {
-                                                    const volunteerId = localStorage.getItem("volunteerId");
-                                                    if (!volunteerId) return;
-
-                                                    const response = await fetch(`/api/volunteer/orders/${order.id}/status`, {
-                                                        method: "PATCH",
-                                                        headers: { "Content-Type": "application/json" },
-                                                        body: JSON.stringify({
-                                                            volunteerId: volunteerId,
-                                                            newStatus: "cant_reach"
-                                                        }),
-                                                    });
-
-                                                    if (!response.ok) throw new Error("Failed to update");
-
-                                                    toast.success("Marked as Can't Reach");
-                                                    fetchOrder();
-                                                } catch (error) {
-                                                    console.error(error);
-                                                    toast.error("Failed to update status");
-                                                }
-                                            }}
-                                            className="border-yellow-600 text-yellow-600 hover:bg-yellow-50 rounded-xl flex-1"
-                                        >
-                                            Can&apos;t Reach Customer
-                                        </Button>
+                                        <div className="flex flex-wrap gap-3 pt-2 border-t border-border/50">
+                                            <Button
+                                                onClick={async () => {
+                                                    try {
+                                                        const volunteerId = localStorage.getItem("volunteerId");
+                                                        if (!volunteerId) return;
+                                                        const response = await fetch(`/api/volunteer/orders/${order.id}/status`, {
+                                                            method: "PATCH",
+                                                            headers: { "Content-Type": "application/json" },
+                                                            body: JSON.stringify({ volunteerId, newStatus: "delivered" }),
+                                                        });
+                                                        if (!response.ok) throw new Error("Failed to update");
+                                                        const data = await response.json();
+                                                        toast.success(`Marked as delivered! Commission earned: ₹${data.commission?.earned || 0}`);
+                                                        fetchOrder();
+                                                        fetchTrackingEvents();
+                                                    } catch {
+                                                        toast.error("Failed to update status");
+                                                    }
+                                                }}
+                                                className="bg-green-600 hover:bg-green-700 rounded-xl flex-1"
+                                            >
+                                                ✅ Mark Delivered
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                onClick={async () => {
+                                                    try {
+                                                        const volunteerId = localStorage.getItem("volunteerId");
+                                                        if (!volunteerId) return;
+                                                        const response = await fetch(`/api/volunteer/orders/${order.id}/status`, {
+                                                            method: "PATCH",
+                                                            headers: { "Content-Type": "application/json" },
+                                                            body: JSON.stringify({ volunteerId, newStatus: "cant_reach" }),
+                                                        });
+                                                        if (!response.ok) throw new Error("Failed to update");
+                                                        toast.success("Marked as Can't Reach");
+                                                        fetchOrder();
+                                                        fetchTrackingEvents();
+                                                    } catch {
+                                                        toast.error("Failed to update status");
+                                                    }
+                                                }}
+                                                className="border-yellow-600 text-yellow-600 hover:bg-yellow-50 rounded-xl flex-1"
+                                            >
+                                                Can&apos;t Reach Customer
+                                            </Button>
+                                        </div>
                                     </div>
                                 )}
+
                                 {order.order_status === 'delivered' && (
                                     <div className="p-3 bg-green-100 text-green-800 rounded-xl text-center font-medium">
-                                        Delivered Successfully
+                                        ✅ Delivered Successfully
+                                    </div>
+                                )}
+
+                                {/* Mini Tracking Timeline */}
+                                {trackingEvents.length > 0 && (
+                                    <div className="pt-3 border-t border-border/50">
+                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Tracking Updates</p>
+                                        <div className="space-y-2">
+                                            {trackingEvents.slice().reverse().slice(0, 5).map((event, idx) => (
+                                                <div key={idx} className="flex gap-3 items-start">
+                                                    <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${idx === 0 ? "bg-primary" : "bg-muted-foreground/30"}`} />
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-medium truncate">{event.title}</p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {new Date(event.created_at).toLocaleString("en-IN", {
+                                                                day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+                                                            })}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
                             </CardContent>

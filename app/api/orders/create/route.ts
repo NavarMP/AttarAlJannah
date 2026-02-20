@@ -148,6 +148,19 @@ export async function POST(request: NextRequest) {
             // Don't fail the order creation if notification fails
         }
 
+        // Auto-insert tracking event
+        try {
+            await supabase.from("delivery_tracking_events").insert({
+                order_id: orderData.id,
+                status: "order_placed",
+                title: "Order Placed",
+                description: `${quantity}x ${productName}`,
+                updated_by: "system",
+            });
+        } catch (trackingError) {
+            console.error("⚠️ Tracking event error (non-blocking):", trackingError);
+        }
+
         // Auto-assign delivery volunteer based on address (if address provided)
         let assignmentResult = null;
         if (houseBuilding && town && post) {

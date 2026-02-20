@@ -1,0 +1,169 @@
+
+> attar-al-jannah@1.0.0 build
+> next build
+
+   ▲ Next.js 15.5.9
+   - Environments: .env.local
+   - Experiments (use with caution):
+     · serverActions
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 11.1s
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/82) ...
+   Generating static pages (20/82) 
+   Generating static pages (40/82) 
+   Generating static pages (61/82) 
+ ✓ Generating static pages (82/82)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                        Size  First Load JS
+┌ ○ /                                           60.3 kB         275 kB
+├ ○ /_not-found                                    1 kB         103 kB
+├ ○ /admin                                      2.35 kB         157 kB
+├ ○ /admin/analytics                             146 kB         313 kB
+├ ○ /admin/audit-logs                            5.8 kB         199 kB
+├ ○ /admin/customers                            4.25 kB         164 kB
+├ ○ /admin/dashboard                            4.75 kB         124 kB
+├ ○ /admin/delivery                             16.5 kB         170 kB
+├ ○ /admin/feedback                             4.54 kB         164 kB
+├ ƒ /admin/feedback/[id]                        3.95 kB         132 kB
+├ ○ /admin/login                                4.62 kB         186 kB
+├ ○ /admin/notifications                        9.46 kB         162 kB
+├ ○ /admin/orders                               7.46 kB         174 kB
+├ ƒ /admin/orders/[id]                          8.99 kB         350 kB
+├ ○ /admin/promo                                 4.3 kB         185 kB
+├ ƒ /admin/promo/[id]                             610 B         253 kB
+├ ○ /admin/promo/new                              209 B         252 kB
+├ ○ /admin/trash                                8.93 kB         195 kB
+├ ○ /admin/users                                8.65 kB         214 kB
+├ ○ /admin/volunteers                           6.14 kB         169 kB
+├ ƒ /admin/volunteers/[id]                      15.7 kB         197 kB
+├ ƒ /admin/volunteers/[id]/edit                 5.54 kB         237 kB
+├ ○ /admin/volunteers/new                       5.07 kB         236 kB
+├ ƒ /api/admin/analytics/customers                348 B         102 kB
+├ ƒ /api/admin/analytics/delivery                 348 B         102 kB
+├ ƒ /api/admin/analytics/orders                   348 B         102 kB
+├ ƒ /api/admin/analytics/overview                 348 B         102 kB
+├ ƒ /api/admin/analytics/revenue                  348 B         102 kB
+├ ƒ /api/admin/analytics/volunteers               348 B         102 kB
+├ ƒ /api/admin/audit-logs                         348 B         102 kB
+├ ƒ /api/admin/auth/login                         348 B         102 kB
+├ ƒ /api/admin/auth/me                            348 B         102 kB
+├ ƒ /api/admin/customers                          348 B         102 kB
+├ ƒ /api/admin/customers/[id]                     348 B         102 kB
+├ ƒ /api/admin/customers/bulk-delete              348 B         102 kB
+├ ƒ /api/admin/delivery-analytics                 348 B         102 kB
+├ ƒ /api/admin/delivery-requests                  348 B         102 kB
+├ ƒ /api/admin/delivery-zones                     348 B         102 kB
+├ ƒ /api/admin/delivery-zones/[id]                348 B         102 kB
+├ ƒ /api/admin/export                             348 B         102 kB
+├ ƒ /api/admin/notification-recipients            348 B         102 kB
+├ ƒ /api/admin/notification-templates             348 B         102 kB
+├ ƒ /api/admin/notifications/history              348 B         102 kB
+├ ƒ /api/admin/orders                             348 B         102 kB
+├ ƒ /api/admin/orders/[id]                        348 B         102 kB
+├ ƒ /api/admin/orders/[id]/assign-delivery        348 B         102 kB
+├ ƒ /api/admin/orders/[id]/matching-volunteers    348 B         102 kB
+├ ƒ /api/admin/orders/[id]/reassign               348 B         102 kB
+├ ƒ /api/admin/orders/[id]/tracking               348 B         102 kB
+├ ƒ /api/admin/orders/bulk-delete                 348 B         102 kB
+├ ƒ /api/admin/orders/bulk-update                 348 B         102 kB
+├ ƒ /api/admin/orders/delete                      348 B         102 kB
+├ ƒ /api/admin/scheduled-notifications            348 B         102 kB
+├ ƒ /api/admin/scheduled-notifications/process    348 B         102 kB
+├ ƒ /api/admin/send-notification                  348 B         102 kB
+├ ƒ /api/admin/settings                           348 B         102 kB
+├ ƒ /api/admin/stats                              348 B         102 kB
+├ ƒ /api/admin/tracking/sync                      348 B         102 kB
+├ ƒ /api/admin/trash                              348 B         102 kB
+├ ƒ /api/admin/users                              348 B         102 kB
+├ ƒ /api/admin/users/[id]                         348 B         102 kB
+├ ƒ /api/admin/volunteers                         348 B         102 kB
+├ ƒ /api/admin/volunteers/[id]                    348 B         102 kB
+├ ƒ /api/admin/volunteers/[id]/analytics          348 B         102 kB
+├ ƒ /api/admin/volunteers/[id]/orders             348 B         102 kB
+├ ƒ /api/admin/volunteers/approve/[id]            348 B         102 kB
+├ ƒ /api/admin/volunteers/bulk-delete             348 B         102 kB
+├ ƒ /api/admin/volunteers/bulk-update             348 B         102 kB
+├ ƒ /api/admin/volunteers/check-duplicate         348 B         102 kB
+├ ƒ /api/customer/notification-preferences        348 B         102 kB
+├ ƒ /api/customer/orders                          348 B         102 kB
+├ ƒ /api/customer/orders/assign-volunteer         348 B         102 kB
+├ ƒ /api/customer/profile                         348 B         102 kB
+├ ƒ /api/feedback                                 348 B         102 kB
+├ ƒ /api/feedback/[id]                            348 B         102 kB
+├ ƒ /api/feedback/bulk-delete                     348 B         102 kB
+├ ƒ /api/feedback/bulk-update                     348 B         102 kB
+├ ƒ /api/feedback/stats                           348 B         102 kB
+├ ƒ /api/notifications                            348 B         102 kB
+├ ƒ /api/notifications/[id]                       348 B         102 kB
+├ ƒ /api/notifications/mark-all-read              348 B         102 kB
+├ ƒ /api/notifications/preferences                348 B         102 kB
+├ ƒ /api/orders/[id]                              348 B         102 kB
+├ ƒ /api/orders/create                            348 B         102 kB
+├ ƒ /api/orders/delete                            348 B         102 kB
+├ ƒ /api/profile/[volunteerId]                    348 B         102 kB
+├ ƒ /api/public/track/[orderId]                   348 B         102 kB
+├ ƒ /api/razorpay/create-order                    348 B         102 kB
+├ ƒ /api/razorpay/verify                          348 B         102 kB
+├ ƒ /api/razorpay/webhook                         348 B         102 kB
+├ ƒ /api/settings/payment-method                  348 B         102 kB
+├ ƒ /api/stats/live                               348 B         102 kB
+├ ƒ /api/upload/profile-photo                     348 B         102 kB
+├ ƒ /api/validate/volunteer                       348 B         102 kB
+├ ƒ /api/verify-payment-screenshot                348 B         102 kB
+├ ƒ /api/volunteer/auth                           348 B         102 kB
+├ ƒ /api/volunteer/auth/login                     348 B         102 kB
+├ ƒ /api/volunteer/auth/signup                    348 B         102 kB
+├ ƒ /api/volunteer/check-duplicate                348 B         102 kB
+├ ƒ /api/volunteer/delivery-requests              348 B         102 kB
+├ ƒ /api/volunteer/leaderboard                    348 B         102 kB
+├ ƒ /api/volunteer/notification-preferences       348 B         102 kB
+├ ƒ /api/volunteer/orders                         348 B         102 kB
+├ ƒ /api/volunteer/orders/[id]/status             348 B         102 kB
+├ ƒ /api/volunteer/orders/[id]/tracking           348 B         102 kB
+├ ƒ /api/volunteer/profile                        348 B         102 kB
+├ ƒ /api/volunteer/profile/photo                  348 B         102 kB
+├ ƒ /api/volunteer/progress                       348 B         102 kB
+├ ƒ /api/volunteer/stats                          348 B         102 kB
+├ ƒ /api/volunteer/validate                       348 B         102 kB
+├ ƒ /api/volunteer/zones                          348 B         102 kB
+├ ○ /customer                                   2.48 kB         157 kB
+├ ○ /customer/dashboard                          4.5 kB         221 kB
+├ ○ /customer/feedback                          8.52 kB         192 kB
+├ ƒ /customer/feedback/[id]                     5.62 kB         187 kB
+├ ○ /customer/login                             3.35 kB         212 kB
+├ ƒ /customer/orders/[id]                       3.97 kB         401 kB
+├ ○ /customer/settings/notifications            3.48 kB         123 kB
+├ ○ /legal/privacy-policy                         348 B         102 kB
+├ ○ /legal/refund-policy                          348 B         102 kB
+├ ○ /legal/shipping-policy                        348 B         102 kB
+├ ○ /legal/terms-of-service                       348 B         102 kB
+├ ○ /login                                       4.9 kB         177 kB
+├ ○ /order                                      21.4 kB         274 kB
+├ ƒ /profile/[volunteerId]                      9.24 kB         162 kB
+├ ○ /thanks                                     9.17 kB         222 kB
+├ ƒ /track/[orderId]                            4.53 kB         118 kB
+├ ○ /volunteer                                    550 B         103 kB
+├ ○ /volunteer/dashboard                        5.06 kB         125 kB
+├ ○ /volunteer/delivery                         3.91 kB         127 kB
+├ ○ /volunteer/leaderboard                         6 kB         134 kB
+├ ○ /volunteer/login                            3.06 kB         126 kB
+├ ○ /volunteer/orders                           5.13 kB         172 kB
+├ ƒ /volunteer/orders/[id]                      4.13 kB         133 kB
+├ ○ /volunteer/profile                          10.1 kB         248 kB
+├ ○ /volunteer/settings/notifications           3.54 kB         123 kB
+├ ○ /volunteer/signup                           5.54 kB         237 kB
+└ ○ /volunteer/zones                            2.68 kB         122 kB
++ First Load JS shared by all                    102 kB
+  ├ chunks/1255-8befde0980f5cba9.js             45.6 kB
+  ├ chunks/4bd1b696-100b9d70ed4e49c1.js         54.2 kB
+  └ other shared chunks (total)                 2.25 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

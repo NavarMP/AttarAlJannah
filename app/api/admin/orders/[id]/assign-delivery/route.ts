@@ -134,6 +134,21 @@ export async function POST(
             }
         }
 
+        // Auto-insert tracking event for delivery assignment
+        try {
+            const trackingTitle = volunteer
+                ? `Delivery Volunteer Assigned: ${volunteer.name}`
+                : `Delivery Method: ${deliveryMethod}`;
+            await supabase.from("delivery_tracking_events").insert({
+                order_id: orderId,
+                status: volunteer ? "volunteer_assigned" : "method_assigned",
+                title: trackingTitle,
+                updated_by: "system",
+            });
+        } catch (trackingError) {
+            console.error("⚠️ Tracking event error (non-blocking):", trackingError);
+        }
+
         return NextResponse.json({
             success: true,
             message: "Delivery assigned successfully",

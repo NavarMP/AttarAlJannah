@@ -105,6 +105,19 @@ export async function PATCH(
                 // Not critical, order status already updated
             }
 
+            // Auto-insert tracking event
+            try {
+                await supabase.from("delivery_tracking_events").insert({
+                    order_id: orderId,
+                    status: "delivered",
+                    title: "Delivered Successfully",
+                    description: `Delivered by volunteer`,
+                    updated_by: volunteerId,
+                });
+            } catch (trackingError) {
+                console.error("⚠️ Tracking event error (non-blocking):", trackingError);
+            }
+
             return NextResponse.json({
                 success: true,
                 message: "Order marked as delivered successfully",
@@ -114,6 +127,18 @@ export async function PATCH(
                     totalCommission: newTotalCommission,
                 },
             });
+        }
+
+        // Auto-insert tracking event for cant_reach
+        try {
+            await supabase.from("delivery_tracking_events").insert({
+                order_id: orderId,
+                status: "cant_reach",
+                title: "Delivery Attempted — Can't Reach Customer",
+                updated_by: volunteerId,
+            });
+        } catch (trackingError) {
+            console.error("⚠️ Tracking event error (non-blocking):", trackingError);
         }
 
         return NextResponse.json({
