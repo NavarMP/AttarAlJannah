@@ -1,5 +1,0 @@
-1. ok, leaderboard is fixed now. but challenge progress and /admin/volunteers progrees bar are not working.
-2. even though i edit goal of a single volunteer, it's not updating anywhere.
-3. implement notification system:
-- for new orders for admins and volunteers (using their referral)
-- for order status change (confirmed, delivered) for customers
