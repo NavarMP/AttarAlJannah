@@ -1,42 +1,62 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { isAdminEmail } from "@/lib/config/admin";
+import { requireAdmin } from "@/lib/middleware/auth-guard";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 export async function DELETE(
     request: NextRequest,
     props: { params: Promise<{ id: string }> }
 ) {
+    const auth = await requireAdmin("admin");
+    if ("error" in auth) return auth.error;
+
     const params = await props.params;
     try {
-        const supabase = await createClient();
-
-        // Verify admin authentication
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError || !user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        if (!isAdminEmail(user.email)) {
-            return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
-        }
-
         const customerId = params.id;
 
-        // Delete customer from customers table
+        const { createClient } = await import("@supabase/supabase-js");
+        const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+
+        // Get customer details before soft-deleting (for audit log)
+        const { data: customer } = await supabase
+            .from("customers")
+            .select("name, phone")
+            .eq("id", customerId)
+            .single();
+
+        // Soft-delete: set deleted_at instead of removing
         const { error } = await supabase
             .from("customers")
-            .delete()
-            .eq("id", customerId);
+            .update({
+                deleted_at: new Date().toISOString(),
+                deleted_by: auth.admin.email,
+            })
+            .eq("id", customerId)
+            .is("deleted_at", null);  // Only soft-delete if not already deleted
 
         if (error) {
-            console.error("Customer delete error:", error);
+            console.error("Customer soft-delete error:", error);
             return NextResponse.json(
                 { error: "Failed to delete customer" },
                 { status: 500 }
             );
         }
 
-        return NextResponse.json({ success: true, message: "Customer deleted successfully" });
+        await logAuditEvent({
+            admin: auth.admin,
+            action: "delete",
+            entityType: "customer",
+            entityId: customerId,
+            details: { name: customer?.name, phone: customer?.phone },
+            ipAddress: getClientIP(request),
+        });
+
+        return NextResponse.json({
+            success: true,
+            message: "Customer moved to trash. Can be restored within 30 days.",
+        });
     } catch (error) {
         console.error("Server error:", error);
         return NextResponse.json(

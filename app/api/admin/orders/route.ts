@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
                 *,
                 volunteer:volunteers!orders_volunteer_id_fkey(name)
             `, { count: "exact" })
+            .is("deleted_at", null)
             .order(safeSortBy, { ascending });
 
         // Status filter

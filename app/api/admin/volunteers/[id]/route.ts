@@ -1,6 +1,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/middleware/auth-guard";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 export async function GET(
     request: Request,
@@ -23,6 +25,7 @@ export async function GET(
             .from("volunteers")
             .select("*")
             .eq("volunteer_id", id)
+            .is("deleted_at", null)
             .single();
 
         let { data: volunteer, error } = await query;
@@ -33,6 +36,7 @@ export async function GET(
                 .from("volunteers")
                 .select("*")
                 .eq("id", id)
+                .is("deleted_at", null)
                 .single();
 
             const uuidResult = await uuidQuery;
@@ -54,45 +58,36 @@ export async function PUT(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const auth = await requireAdmin("admin");
+    if ("error" in auth) return auth.error;
+
     try {
         const { id } = await params;
         const body = await request.json();
         const supabase = await createClient();
 
-        const {
-            data: { session },
-        } = await supabase.auth.getSession();
-
-        if (!session) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        // Sanitize body: remove fields that shouldn't be in the DB or are strictly for UI
+        // Sanitize body
         const { confirmPassword, ...updateData } = body;
-
-        // If password is provided but empty, remove it so we don't blank it out
-        // (The frontend might send "" if the user didn't touch the password field)
         if (updateData.password === "") {
             delete updateData.password;
         }
-
-        // Also ensure we don't try to update the PKs if they are unchanged or shouldn't be touched
-        // But the user might want to update volunteer_id.
 
         // Try update by volunteer_id
         let { data, error } = await supabase
             .from("volunteers")
             .update(updateData)
             .eq("volunteer_id", id)
+            .is("deleted_at", null)
             .select()
             .single();
 
-        // Fallback to update by UUID if not found/error
+        // Fallback to update by UUID
         if (error || !data) {
             const uuidResult = await supabase
                 .from("volunteers")
                 .update(updateData)
                 .eq("id", id)
+                .is("deleted_at", null)
                 .select()
                 .single();
             data = uuidResult.data;
@@ -102,6 +97,15 @@ export async function PUT(
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 400 });
         }
+
+        await logAuditEvent({
+            admin: auth.admin,
+            action: "update",
+            entityType: "volunteer",
+            entityId: data?.id || id,
+            details: { changes: Object.keys(updateData) },
+            ipAddress: getClientIP(request),
+        });
 
         return NextResponse.json(data);
     } catch (error) {
@@ -113,59 +117,56 @@ export async function DELETE(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const auth = await requireAdmin("admin");
+    if ("error" in auth) return auth.error;
+
     try {
         const { id } = await params;
-        const supabase = await createClient();
 
-        const {
-            data: { session },
-        } = await supabase.auth.getSession();
+        const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+        const supabase = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
 
-        if (!session) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        // Find the volunteer first
+        const { data: vol } = await supabase
+            .from("volunteers")
+            .select("id, name, phone, volunteer_id")
+            .or(`volunteer_id.eq.${id},id.eq.${id}`)
+            .is("deleted_at", null)
+            .single();
+
+        if (!vol) {
+            return NextResponse.json({ error: "Volunteer not found" }, { status: 404 });
         }
 
-        // Try delete by volunteer_id
-        let { error } = await supabase
+        // Soft-delete
+        const { error } = await supabase
             .from("volunteers")
-            .delete()
-            .eq("volunteer_id", id);
+            .update({
+                deleted_at: new Date().toISOString(),
+                deleted_by: auth.admin.email,
+            })
+            .eq("id", vol.id);
 
-        // Standard Supabase delete doesn't return error if record not found, only if query failed (e.g. constraints).
-        // But if we use 'eq', it might just affect 0 rows.
-
-        // If error occurred (like FK violation)
         if (error) {
-            if (error.code === "23503") {
-                return NextResponse.json({ error: "Cannot delete volunteer because they have associated orders or data." }, { status: 400 });
-            }
             return NextResponse.json({ error: error.message }, { status: 400 });
         }
 
-        // Check if we actually deleted something?
-        // It's hard to know without 'select' or checking count. 
-        // But the previous implementation had a fallback to ID.
+        await logAuditEvent({
+            admin: auth.admin,
+            action: "delete",
+            entityType: "volunteer",
+            entityId: vol.id,
+            details: { name: vol.name, phone: vol.phone, volunteer_id: vol.volunteer_id },
+            ipAddress: getClientIP(request),
+        });
 
-        // Let's Resolve ID first to be precise
-        const { data: vol } = await supabase.from("volunteers").select("id").or(`volunteer_id.eq.${id},id.eq.${id}`).single();
-
-        if (vol) {
-            const { error: deleteError } = await supabase
-                .from("volunteers")
-                .delete()
-                .eq("id", vol.id);
-
-            if (deleteError) {
-                if (deleteError.code === "23503") {
-                    return NextResponse.json({ error: "Cannot delete volunteer because they have associated orders or data." }, { status: 400 });
-                }
-                return NextResponse.json({ error: deleteError.message }, { status: 400 });
-            }
-        }
-        // If vol not found, we can assume it's already gone or invalid ID. 
-        // But asking for 'success' is fine.
-
-        return NextResponse.json({ success: true });
+        return NextResponse.json({
+            success: true,
+            message: "Volunteer moved to trash. Can be restored within 30 days.",
+        });
     } catch (error) {
         return NextResponse.json({ error: "Internal Error" }, { status: 500 });
     }

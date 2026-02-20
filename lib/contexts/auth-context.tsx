@@ -2,13 +2,14 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { isAdminEmail } from "@/lib/config/admin";
+import { isAdminEmail, AdminRole } from "@/lib/config/admin";
 
 interface User {
     id: string;
     email: string;
     name: string;
     role: string;
+    adminRole?: AdminRole;  // Granular role from admin_users table
 }
 
 interface AuthContextType {
@@ -16,7 +17,14 @@ interface AuthContextType {
     loading: boolean;
     signIn: (email: string, password: string) => Promise<void>;
     signOut: () => Promise<void>;
+    hasPermission: (requiredRole: AdminRole) => boolean;
 }
+
+const ROLE_HIERARCHY: Record<string, number> = {
+    viewer: 1,
+    admin: 2,
+    super_admin: 3,
+};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -25,24 +33,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(true);
     const supabase = createClient();
 
-    // ... existing code ...
+    const fetchAdminRole = async (email: string): Promise<{ name: string; role: AdminRole } | null> => {
+        try {
+            const res = await fetch(`/api/admin/auth/me?email=${encodeURIComponent(email)}`);
+            if (res.ok) {
+                const data = await res.json();
+                return { name: data.name, role: data.role };
+            }
+        } catch {
+            // Fallback gracefully
+        }
+        return null;
+    };
 
     useEffect(() => {
-        // Check for existing Supabase session
         const checkSession = async () => {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
 
                 if (session?.user) {
                     if (isAdminEmail(session.user.email)) {
+                        const adminInfo = await fetchAdminRole(session.user.email!);
                         setUser({
                             id: session.user.id,
                             email: session.user.email!,
-                            name: 'Admin',
+                            name: adminInfo?.name || 'Admin',
                             role: 'admin',
+                            adminRole: adminInfo?.role || 'admin',
                         });
                     } else {
-                        // Not an admin
                         setUser(null);
                     }
                 }
@@ -55,15 +74,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         checkSession();
 
-        // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_IN' && session?.user) {
                 if (isAdminEmail(session.user.email)) {
+                    const adminInfo = await fetchAdminRole(session.user.email!);
                     setUser({
                         id: session.user.id,
                         email: session.user.email!,
-                        name: 'Admin',
+                        name: adminInfo?.name || 'Admin',
                         role: 'admin',
+                        adminRole: adminInfo?.role || 'admin',
                     });
                 }
             } else if (event === 'SIGNED_OUT') {
@@ -95,8 +115,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
     };
 
+    const hasPermission = (requiredRole: AdminRole): boolean => {
+        if (!user?.adminRole) return false;
+        const userLevel = ROLE_HIERARCHY[user.adminRole] || 0;
+        const requiredLevel = ROLE_HIERARCHY[requiredRole] || 0;
+        return userLevel >= requiredLevel;
+    };
+
     return (
-        <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
+        <AuthContext.Provider value={{ user, loading, signIn, signOut, hasPermission }}>
             {children}
         </AuthContext.Provider>
     );

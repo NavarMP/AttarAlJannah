@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/contexts/auth-context";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { LogOut, LayoutDashboard, Package, Menu, X, Users, Award, MessageSquare, Bell, Truck, BarChart3, Video } from "lucide-react";
+import { LogOut, LayoutDashboard, Package, Menu, X, Users, Award, MessageSquare, Bell, Truck, BarChart3, Video, Shield, ScrollText, Trash2 } from "lucide-react";
 import { ThemeToggle } from "@/components/custom/theme-toggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import Link from "next/link";
@@ -16,7 +16,7 @@ export default function AdminLayout({
 }: {
     children: React.ReactNode;
 }) {
-    const { user, loading, signOut } = useAuth();
+    const { user, loading, signOut, hasPermission } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -171,12 +171,50 @@ export default function AdminLayout({
                             Analytics
                         </Button>
                     </Link>
+
+                    {/* Security & Admin Section */}
+                    <div className="pt-4 pb-1">
+                        <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Security</p>
+                    </div>
+                    {hasPermission("super_admin") && (
+                        <>
+                            <Link href="/admin/users">
+                                <Button
+                                    variant="ghost"
+                                    className={`w-full justify-start rounded-xl ${pathname.startsWith("/admin/users") ? "bg-primary/10 text-primary" : ""}`}
+                                >
+                                    <Shield className="mr-2 h-5 w-5" />
+                                    Admin Users
+                                </Button>
+                            </Link>
+                            <Link href="/admin/audit-logs">
+                                <Button
+                                    variant="ghost"
+                                    className={`w-full justify-start rounded-xl ${pathname.startsWith("/admin/audit-logs") ? "bg-primary/10 text-primary" : ""}`}
+                                >
+                                    <ScrollText className="mr-2 h-5 w-5" />
+                                    Audit Logs
+                                </Button>
+                            </Link>
+                        </>
+                    )}
+                    <Link href="/admin/trash">
+                        <Button
+                            variant="ghost"
+                            className={`w-full justify-start rounded-xl ${pathname.startsWith("/admin/trash") ? "bg-primary/10 text-primary" : ""}`}
+                        >
+                            <Trash2 className="mr-2 h-5 w-5" />
+                            Trash
+                        </Button>
+                    </Link>
                 </nav>
 
                 <div className="p-4 border-t border-border space-y-2">
                     <div className="px-3 py-2 rounded-xl bg-primary/10">
                         <p className="text-sm font-medium text-foreground truncate">{user.email}</p>
-                        <p className="text-xs text-muted-foreground">Administrator</p>
+                        <p className="text-xs text-muted-foreground capitalize">
+                            {user.adminRole?.replace("_", " ") || "Administrator"}
+                        </p>
                     </div>
                     <Button
                         variant="outline"

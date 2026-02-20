@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
         const { data: customers, error: customersError } = await supabase
             .from("customers")
             .select("*")
+            .is("deleted_at", null)
             .order("created_at", { ascending: false });
 
         if (customersError) throw customersError;
@@ -20,7 +21,8 @@ export async function GET(request: NextRequest) {
         // 2. Fetch all orders to calculate stats and get details
         const { data: orders, error: ordersError } = await supabase
             .from("orders")
-            .select("customer_phone, customer_name, created_at");
+            .select("customer_phone, customer_name, created_at")
+            .is("deleted_at", null);
 
         if (ordersError) throw ordersError;
 

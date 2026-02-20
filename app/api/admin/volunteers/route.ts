@@ -16,10 +16,11 @@ export async function GET(request: NextRequest) {
         // Determine if we need in-memory sorting (for computed fields)
         const isMemorySort = sort === "bottles" || sort === "goal" || sort === "progress";
 
-        // Build query for volunteers
+        // Build query for volunteers (exclude soft-deleted)
         let query = supabase
             .from("volunteers")
-            .select("*", { count: "exact" });
+            .select("*", { count: "exact" })
+            .is("deleted_at", null);
 
         // Apply DB-level sorting if applicable
         if (!isMemorySort) {
