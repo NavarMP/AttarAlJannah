@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, Clock, CheckCircle, DollarSign, CreditCard, QrCode, Pencil, Save } from "lucide-react";
+import { Package, CheckCircle, DollarSign, CreditCard, QrCode, Pencil, Save } from "lucide-react";
 import { MetricToggle } from "@/components/custom/metric-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

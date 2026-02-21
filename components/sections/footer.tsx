@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Phone, Mail, MapPin } from "lucide-react";
-import { FaInstagram, FaYoutube, FaWhatsapp } from "react-icons/fa";
+import { FaInstagram, FaYoutube, FaWhatsapp, FaFacebook } from "react-icons/fa";
 
 export function Footer() {
     const currentYear = new Date().getFullYear();
@@ -28,7 +28,8 @@ export function Footer() {
         social: [
             { name: 'Instagram', icon: FaInstagram, url: 'https://instagram.com/minhajul_janna_/' },
             { name: 'Youtube', icon: FaYoutube, url: 'https://youtube.com/@minhajuljanna' },
-            { name: 'WhatsApp', icon: FaWhatsapp, url: 'https://whatsapp.com/channel/0029VaxowK2DzgTE7cdK4G11' }
+            { name: 'WhatsApp', icon: FaWhatsapp, url: 'https://whatsapp.com/channel/0029VaxowK2DzgTE7cdK4G11' },
+            { name: 'Facebook', icon: FaFacebook, url: 'https://facebook.com/minhajuljanna' }
         ]
     };
 

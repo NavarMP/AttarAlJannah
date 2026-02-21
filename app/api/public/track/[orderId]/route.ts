@@ -41,31 +41,59 @@ export async function GET(
                 delivery_volunteer:volunteers!orders_delivery_volunteer_id_fkey(name, phone, volunteer_id)
             `;
 
-        // Try exact UUID match first
-        let { data: order, error } = await supabase
-            .from("orders")
-            .select(selectFields)
-            .eq("id", orderId)
-            .is("deleted_at", null)
-            .single();
+        // Try exact UUID match first if it's a full UUID (36 chars)
+        let order;
+        let fetchError = null;
 
-        // If not found and orderId looks like a short prefix, try prefix match
-        if ((error || !order) && orderId.length < 36) {
+        if (orderId.length === 36) {
+            const { data: exactOrder, error: exactError } = await supabase
+                .from("orders")
+                .select(selectFields)
+                .eq("id", orderId)
+                .is("deleted_at", null)
+                .single();
+
+            order = exactOrder;
+            fetchError = exactError;
+        }
+
+        // If not found or not a full UUID, we need to search but we can't do ilike on UUID easily.
+        // But actually PostgREST supports ilike on UUIDs by implicitly casting to text in newer versions.
+        // Let's make sure the orderId prefix is lowercase for UUID matching, as UUIDs are stored lowercase.
+        // If not found or not a full UUID, construct a UUID range block
+        if (!order && orderId.length > 0 && orderId.length < 36) {
+            let start = orderId.toLowerCase();
+            let end = orderId.toLowerCase();
+
+            // Pad the prefix into valid min/max UUIDs corresponding to the prefix
+            while (start.length < 36) {
+                if (start.length === 8 || start.length === 13 || start.length === 18 || start.length === 23) {
+                    start += '-';
+                    end += '-';
+                } else {
+                    start += '0';
+                    end += 'f';
+                }
+            }
+
             const { data: prefixOrder, error: prefixError } = await supabase
                 .from("orders")
                 .select(selectFields)
-                .ilike("id", `${orderId}%`)
+                .gte("id", start)
+                .lte("id", end)
                 .is("deleted_at", null)
                 .limit(1)
-                .single();
+                .maybeSingle();
 
             if (!prefixError && prefixOrder) {
                 order = prefixOrder;
-                error = null;
+                fetchError = null;
+            } else {
+                fetchError = prefixError || new Error("Not found");
             }
         }
 
-        if (error || !order) {
+        if (fetchError || !order) {
             return NextResponse.json(
                 { error: "Order not found" },
                 { status: 404 }

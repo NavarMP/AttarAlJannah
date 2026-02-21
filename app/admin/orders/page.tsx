@@ -3,10 +3,20 @@
 export const dynamic = "force-dynamic";
 import { useEffect, useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MetricToggle } from "@/components/custom/metric-toggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle
+} from "@/components/ui/alert-dialog";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -19,12 +29,22 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
     Search, Trash2, MoreVertical, Eye, FileDown, Printer,
-    Phone, MessageSquare, Truck, Package, Download, Copy,
-    ArrowUpDown, ArrowUp, ArrowDown, CalendarDays, Filter, X, RotateCcw
+    Phone, MessageSquare, Truck, Package, Download, Copy, DollarSign,
+    ArrowUpDown, ArrowUp, ArrowDown, CalendarDays, Filter, X, RotateCcw, CheckCircle
 } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BulkActionBar, BulkAction } from "@/components/admin/bulk-action-bar";
+
+interface Stats {
+    totalBottles: number;
+    totalOrders: number;
+    orderedBottles: number;
+    orderedOrders: number;
+    deliveredBottles: number;
+    deliveredOrders: number;
+    totalRevenue: number;
+}
 
 interface Order {
     id: string;
@@ -86,12 +106,51 @@ function getThisMonth(): { start: string; end: string } {
     return { start: start.toISOString().slice(0, 10), end: now.toISOString().slice(0, 10) };
 }
 
+// Stat Card with individual toggle
+function StatCard({ title, icon, bottles, orders }: { title: string; icon: React.ReactNode; bottles: number; orders: number }) {
+    const [showBottles, setShowBottles] = useState(true);
+
+    return (
+        <Card className="rounded-3xl">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                    {title}
+                </CardTitle>
+                {icon}
+            </CardHeader>
+            <CardContent className="space-y-3">
+                <div className="text-3xl font-bold">
+                    {showBottles ? bottles : orders}
+                </div>
+                <MetricToggle
+                    onToggle={setShowBottles}
+                    defaultShowBottles={showBottles}
+                    className="scale-75 origin-left"
+                />
+            </CardContent>
+        </Card>
+    );
+}
+
 export default function OrdersPage() {
+    const [stats, setStats] = useState<Stats | null>(null);
     const [orders, setOrders] = useState<Order[]>([]);
     const [totalCount, setTotalCount] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
+
+    const fetchStats = async () => {
+        try {
+            const response = await fetch("/api/admin/stats");
+            const data = await response.json();
+            setStats(data.stats);
+        } catch (error) {
+            console.error("Failed to fetch stats:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // Filters
     const [statusFilter, setStatusFilter] = useState("all");
@@ -236,6 +295,10 @@ export default function OrdersPage() {
             setLoading(false);
         }
     }, [page, statusFilter, search, startDate, endDate, sortBy, sortOrder, referredByFilter, deliveryMethodFilter]);
+
+    useEffect(() => {
+        fetchStats();
+    }, []);
 
     useEffect(() => {
         fetchOrders();
@@ -517,6 +580,47 @@ export default function OrdersPage() {
                     <Download className="h-4 w-4" />
                     Export All
                 </Button>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <StatCard
+                    title="Total"
+                    icon={<Package className="h-5 w-5 text-primary" />}
+                    bottles={stats?.totalBottles || 0}
+                    orders={stats?.totalOrders || 0}
+                />
+
+                <Card className="rounded-3xl">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                            Delivered
+                        </CardTitle>
+                        <CheckCircle className="h-5 w-5 text-green-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-2">
+                            <div className="text-3xl font-bold">
+                                {stats?.deliveredBottles || 0}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                                {stats?.deliveredOrders || 0} orders
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="rounded-3xl">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                            Revenue
+                        </CardTitle>
+                        <DollarSign className="h-5 w-5 text-primary" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-3xl font-bold">₹{stats?.totalRevenue?.toFixed(2) || 0}</div>
+                    </CardContent>
+                </Card>
             </div>
 
             {/* Search + Filter Toggle */}
