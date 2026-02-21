@@ -42,6 +42,8 @@ interface Order {
     payment_status: string;
     order_status: string;
     created_at: string;
+    screenshot_verified?: boolean | null;
+    screenshot_verification_details?: Record<string, unknown> | null;
     volunteer?: {
         name: string;
         volunteer_id: string; // The readable ID (e.g. VOL-123)
@@ -154,12 +156,35 @@ function ThanksContent() {
                                     </p>
                                     {order.payment_method === "qr" ? (
                                         <>
-                                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 text-sm font-medium">
-                                                ⏳ Payment Verification Pending
-                                            </div>
-                                            <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
-                                                We&apos;ve received your screenshot. Your order will be confirmed once the payment is verified by our team.
-                                            </p>
+                                            {order.screenshot_verified === true ? (
+                                                <div className="space-y-2">
+                                                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 text-sm font-medium">
+                                                        <CheckCircle2 className="w-4 h-4" />
+                                                        Payment Verified
+                                                    </div>
+                                                    <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+                                                        Our AI has successfully verified your payment screenshot. Order pending manual review. We'll notify you once it's confirmed.
+                                                    </p>
+                                                </div>
+                                            ) : order.screenshot_verified === false ? (
+                                                <div className="space-y-2">
+                                                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 text-sm font-medium">
+                                                        ⏳ Manual Verification Required
+                                                    </div>
+                                                    <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+                                                        Our AI couldn&apos;t automatically verify the screenshot. Don&apos;t worry, your order is secured and will be confirmed once reviewed manually by our team.
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-2">
+                                                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 text-sm font-medium">
+                                                        ⏳ Payment Verification Pending
+                                                    </div>
+                                                    <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+                                                        We&apos;ve received your screenshot. Your order will be confirmed once the payment is verified by our team.
+                                                    </p>
+                                                </div>
+                                            )}
                                         </>
                                     ) : (
                                         <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
