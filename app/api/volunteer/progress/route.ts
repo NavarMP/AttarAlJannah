@@ -41,8 +41,8 @@ export async function GET(request: NextRequest) {
             .eq("volunteer_id", volunteerId); // Using volunteer_id column in orders (FK)
 
         // Filter confirmed/delivered orders
-        const confirmedOrders = orders?.filter(o => o.order_status === "confirmed" || o.order_status === "delivered") || [];
-        const pendingOrders = orders?.filter(o => o.order_status === "pending") || [];
+        const confirmedOrders = orders?.filter(o => o.order_status === "ordered" || o.order_status === "delivered") || [];
+        const pendingOrders = orders?.filter(o => o.order_status === "pending" || o.order_status === "payment_pending") || [];
 
         // Calculate confirmed bottles and orders
         const confirmedBottles = confirmedOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);

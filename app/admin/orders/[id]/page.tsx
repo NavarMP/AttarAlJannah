@@ -43,6 +43,7 @@ interface Order {
     delivery_fee?: number;
     created_at: string;
     volunteers?: { name: string } | null;
+    payment_upi_id?: string | null;
 }
 
 export default function OrderDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -57,6 +58,10 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
     const [volunteerIdInput, setVolunteerIdInput] = useState("");
     const [deliveryMethod, setDeliveryMethod] = useState("volunteer");
     const [assigningDelivery, setAssigningDelivery] = useState(false);
+    const [isEditingDate, setIsEditingDate] = useState(false);
+    const [newDate, setNewDate] = useState("");
+    const [isEditingUpi, setIsEditingUpi] = useState(false);
+    const [newUpi, setNewUpi] = useState("");
     const [deliveryRequests, setDeliveryRequests] = useState<any[]>([]);
 
     const fetchOrder = useCallback(async () => {
@@ -110,6 +115,51 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
         } catch (error) {
             console.error("Failed to update order:", error);
             toast.error("Failed to update order");
+        } finally {
+            setUpdating(false);
+        }
+    };
+
+    const handleUpdateDate = async () => {
+        if (!newDate) return;
+        setUpdating(true);
+        try {
+            const response = await fetch(`/api/admin/orders/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ created_at: new Date(newDate).toISOString() }),
+            });
+
+            if (!response.ok) throw new Error("Failed to update date");
+
+            toast.success("Order date updated successfully");
+            setIsEditingDate(false);
+            fetchOrder();
+        } catch (error) {
+            console.error("Failed to update date:", error);
+            toast.error("Failed to update date");
+        } finally {
+            setUpdating(false);
+        }
+    };
+
+    const handleUpdateUpi = async () => {
+        setUpdating(true);
+        try {
+            const response = await fetch(`/api/admin/orders/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ payment_upi_id: newUpi || null }),
+            });
+
+            if (!response.ok) throw new Error("Failed to update UPI ID");
+
+            toast.success("UPI ID updated successfully");
+            setIsEditingUpi(false);
+            fetchOrder();
+        } catch (error) {
+            console.error("Failed to update UPI ID:", error);
+            toast.error("Failed to update UPI ID");
         } finally {
             setUpdating(false);
         }
@@ -303,11 +353,113 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                             <p className="text-sm text-muted-foreground">Payment Method</p>
                             <p className="font-medium capitalize">{order.payment_method}</p>
                         </div>
-                        <div>
-                            <p className="text-sm text-muted-foreground">Order Date</p>
-                            <p className="font-medium">
-                                {new Date(order.created_at).toLocaleString()}
-                            </p>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-muted-foreground">Order Date</p>
+                                {isEditingDate ? (
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <Input
+                                            type="datetime-local"
+                                            value={newDate}
+                                            onChange={(e) => setNewDate(e.target.value)}
+                                            className="h-8 text-sm"
+                                        />
+                                        <Button
+                                            size="sm"
+                                            onClick={handleUpdateDate}
+                                            disabled={updating}
+                                        >
+                                            Save
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => {
+                                                setIsEditingDate(false);
+                                                setNewDate("");
+                                            }}
+                                        >
+                                            Cancel
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <p className="font-medium">
+                                            {new Date(order.created_at).toLocaleString()}
+                                        </p>
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                            onClick={() => {
+                                                const d = new Date(order.created_at);
+                                                // Format to YYYY-MM-DDThh:mm for input type datetime-local
+                                                d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+                                                setNewDate(d.toISOString().slice(0, 16));
+                                                setIsEditingDate(true);
+                                            }}
+                                        >
+                                            <Pencil className="h-3 w-3" />
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                            <div>
+                                <p className="text-sm text-muted-foreground">Paid To (UPI ID)</p>
+                                {isEditingUpi ? (
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <Input
+                                            type="text"
+                                            value={newUpi}
+                                            onChange={(e) => setNewUpi(e.target.value)}
+                                            placeholder="Enter UPI ID"
+                                            className="h-8 text-sm max-w-[200px]"
+                                        />
+                                        <Button
+                                            size="sm"
+                                            onClick={handleUpdateUpi}
+                                            disabled={updating}
+                                        >
+                                            Save
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => {
+                                                setIsEditingUpi(false);
+                                                setNewUpi("");
+                                            }}
+                                        >
+                                            Cancel
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        {order.payment_upi_id ? (
+                                            <p className="font-medium font-mono text-sm bg-muted/50 w-fit px-2 py-0.5 rounded">
+                                                {order.payment_upi_id}
+                                            </p>
+                                        ) : (
+                                            <p className="text-sm italic text-muted-foreground">
+                                                Not recorded
+                                            </p>
+                                        )}
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                            onClick={() => {
+                                                setNewUpi(order.payment_upi_id || "");
+                                                setIsEditingUpi(true);
+                                            }}
+                                        >
+                                            <Pencil className="h-3 w-3" />
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         {order.volunteers && (
                             <div className="pt-2 border-t border-border/50">

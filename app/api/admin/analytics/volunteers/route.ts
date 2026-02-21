@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
             .select("volunteer_id, order_status, quantity, total_price, created_at")
             .gte("created_at", startDate.toISOString())
             .lte("created_at", endDate.toISOString())
-            .eq("order_status", "delivered");
+            .in("order_status", ["ordered", "delivered"]);
 
         if (!volunteers || !orders) {
             return NextResponse.json({

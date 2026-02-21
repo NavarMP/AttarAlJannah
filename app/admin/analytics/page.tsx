@@ -18,6 +18,7 @@ import { CustomerLifetimeValue } from "./components/widgets/CustomerLifetimeValu
 import { TopCustomersTable } from "./components/widgets/TopCustomersTable";
 import { PerformanceDistributionChart } from "./components/widgets/PerformanceDistributionChart";
 import { RevenueByZoneChart } from "./components/widgets/RevenueByZoneChart";
+import { RevenueByAccountChart } from "./components/widgets/RevenueByAccountChart";
 import { EnhancedLeaderboard } from "@/components/volunteer/enhanced-leaderboard";
 import {
     TrendingUp,
@@ -521,7 +522,10 @@ export default function AnalyticsPage() {
                                         color="amber"
                                     />
                                 </div>
-                                <RevenueByZoneChart data={revenueData.revenueByZone || []} />
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <RevenueByZoneChart data={revenueData.revenueByZone || []} />
+                                    <RevenueByAccountChart data={revenueData.byAccount || []} />
+                                </div>
                             </div>
                         ) : null}
                     </TabsContent>

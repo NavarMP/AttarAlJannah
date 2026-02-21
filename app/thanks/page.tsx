@@ -163,7 +163,7 @@ function ThanksContent() {
                                                         Payment Verified
                                                     </div>
                                                     <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
-                                                        Our AI has successfully verified your payment screenshot. Order pending manual review. We'll notify you once it's confirmed.
+                                                        Our AI has successfully verified your payment screenshot. Order pending manual review. We&apos;ll notify you once it&apos;s confirmed.
                                                     </p>
                                                 </div>
                                             ) : order.screenshot_verified === false ? (

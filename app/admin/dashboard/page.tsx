@@ -17,6 +17,8 @@ interface Stats {
     pendingOrders: number;
     deliveredBottles: number;
     deliveredOrders: number;
+    orderedBottles: number;
+    orderedOrders: number;
     totalRevenue: number;
 }
 

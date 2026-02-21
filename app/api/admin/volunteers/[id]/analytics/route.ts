@@ -46,13 +46,13 @@ export async function GET(
 
         // Calculate analytics
         const totalOrders = orders.length;
-        const deliveredOrders = orders.filter((o) => o.status === "delivered");
-        const pendingOrders = orders.filter((o) => o.status === "pending" || o.status === "shipped");
-        const cancelledOrders = orders.filter((o) => o.status === "cancelled");
+        const deliveredOrders = orders.filter((o) => o.order_status === "ordered" || o.order_status === "delivered");
+        const pendingOrders = orders.filter((o) => o.order_status === "payment_pending" || o.order_status === "pending");
+        const cancelledOrders = orders.filter((o) => o.order_status === "cancelled" || o.order_status === "cant_reach");
 
-        // Calculate bottles and revenue (only for delivered orders)
-        const totalBottlesSold = deliveredOrders.reduce((sum, order) => sum + (order.total_quantity || 0), 0);
-        const totalRevenue = deliveredOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
+        // Calculate bottles and revenue (only for confirmed/delivered orders)
+        const totalBottlesSold = deliveredOrders.reduce((sum, order) => sum + (order.quantity || 0), 0);
+        const totalRevenue = deliveredOrders.reduce((sum, order) => sum + (order.total_price || 0), 0);
 
         // Calculate commission (20% of revenue)
         const commission = totalRevenue * 0.20;
@@ -78,11 +78,11 @@ export async function GET(
         // Get goal progress
         const { data: goalData } = await supabase
             .from("challenge_progress")
-            .select("target, current")
+            .select("goal, confirmed_orders")
             .eq("volunteer_id", volunteer.id) // using UUID for challenge_progress
             .single();
 
-        const goalTarget = goalData?.target || 0;
+        const goalTarget = goalData?.goal || 20;
         const goalCurrent = totalBottlesSold; // Use calculated total bottles
         const goalProgress = goalTarget > 0 ? Math.round((goalCurrent / goalTarget) * 100) : 0;
 
@@ -136,8 +136,8 @@ function generateTimeline(orders: any[]) {
         // Find orders for this day
         const dayOrders = orders.filter(o => o.created_at.startsWith(dateStr));
         const dayRevenue = dayOrders
-            .filter(o => o.status === "delivered")
-            .reduce((sum, o) => sum + (o.total_amount || 0), 0);
+            .filter(o => o.order_status === "ordered" || o.order_status === "delivered")
+            .reduce((sum, o) => sum + (o.total_price || 0), 0);
 
         timeline.push({
             date: dateStr,

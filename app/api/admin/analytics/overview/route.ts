@@ -46,15 +46,15 @@ export async function GET(request: NextRequest) {
             .lt("created_at", prevEndDate.toISOString());
 
         // Calculate metrics using NET PROFIT (₹200 per bottle)
-        const deliveredOrders = currentOrders?.filter(o => o.order_status === "delivered") || [];
-        const bottlesSold = deliveredOrders.reduce((sum, order) => sum + (order.quantity || 0), 0);
+        const orderedOrders = currentOrders?.filter(o => o.order_status === "ordered") || [];
+        const bottlesSold = orderedOrders.reduce((sum, order) => sum + (order.quantity || 0), 0);
         const totalRevenue = bottlesSold * NET_PROFIT_PER_BOTTLE; // Net profit, not gross
         const activeOrders = currentOrders?.filter(o => o.order_status === "ordered").length || 0;
         const totalOrders = currentOrders?.length || 0;
 
         // Previous period metrics
-        const prevDeliveredOrders = previousOrders?.filter(o => o.order_status === "delivered") || [];
-        const prevBottles = prevDeliveredOrders.reduce((sum, order) => sum + (order.quantity || 0), 0);
+        const prevOrderedOrders = previousOrders?.filter(o => o.order_status === "ordered") || [];
+        const prevBottles = prevOrderedOrders.reduce((sum, order) => sum + (order.quantity || 0), 0);
         const prevRevenue = prevBottles * NET_PROFIT_PER_BOTTLE;
         const prevActiveOrders = previousOrders?.filter(o => o.order_status === "ordered").length || 0;
 
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
 
         // Calculate volunteer performance (simplified: avg deliveries per volunteer)
         const totalVolunteers = volunteers?.length || 1;
-        const deliveriesPerVolunteer = deliveredOrders.length / totalVolunteers;
+        const deliveriesPerVolunteer = orderedOrders.length / totalVolunteers;
         const volunteerPerformance = Math.min(Math.round((deliveriesPerVolunteer / 10) * 100), 100); // Assumes 10 deliveries = 100%
 
         // Customer satisfaction from feedback
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
         const totalDeliveries = currentOrders?.filter(o =>
             o.order_status === "delivered" || o.order_status === "cancelled"
         ).length || 1;
-        const successfulDeliveries = deliveredOrders.length;
+        const successfulDeliveries = orderedOrders.length;
         const deliverySuccessRate = Math.round((successfulDeliveries / totalDeliveries) * 100);
 
         // Average Order Value
@@ -124,11 +124,11 @@ export async function GET(request: NextRequest) {
             .lte("created_at", lastMonthEnd.toISOString());
 
         const thisMonthRevenue = thisMonthOrders
-            ?.filter(o => o.order_status === "delivered")
+            ?.filter(o => o.order_status === "ordered")
             .reduce((sum, o) => sum + Number(o.total_price), 0) || 0;
 
         const lastMonthRevenue = lastMonthOrders
-            ?.filter(o => o.order_status === "delivered")
+            ?.filter(o => o.order_status === "ordered")
             .reduce((sum, o) => sum + Number(o.total_price), 0) || 1;
 
         const monthlyGrowth = Math.round(((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100);

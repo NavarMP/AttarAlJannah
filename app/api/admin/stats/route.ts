@@ -32,7 +32,7 @@ export async function GET() {
         const deliveredOrdersCount = deliveredOrders.length;
 
         // Get total revenue from delivered orders
-        const totalRevenue = deliveredOrders.reduce((sum, order) => sum + Number(order.total_price), 0);
+        const totalRevenue = orderedOrders.reduce((sum, order) => sum + Number(order.total_price), 0);
 
         // Get recent orders
         const { data: recentOrders } = await adminSupabase

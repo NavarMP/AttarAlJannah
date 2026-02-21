@@ -26,11 +26,11 @@ export async function GET(request: NextRequest) {
         const startDate = new Date(start);
         const endDate = new Date(end);
 
-        // Fetch delivered orders for the period
+        // Fetch ordered orders for the period
         const { data: orders } = await supabase
             .from("orders")
-            .select("quantity, total_price, created_at, zone_id, volunteer_id, volunteers(name), delivery_zones(name)")
-            .eq("order_status", "delivered")
+            .select("quantity, total_price, created_at, zone_id, volunteer_id, payment_upi_id, volunteers(name), delivery_zones(name)")
+            .eq("order_status", "ordered")
             .gte("created_at", startDate.toISOString())
             .lte("created_at", endDate.toISOString())
             .order("created_at", { ascending: true });
@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
                 timeline: [],
                 byZone: [],
                 byVolunteer: [],
+                byAccount: [],
                 metrics: {
                     totalGrossRevenue: 0,
                     totalNetProfit: 0,
@@ -146,6 +147,37 @@ export async function GET(request: NextRequest) {
             .sort((a, b) => b.netProfit - a.netProfit)
             .slice(0, 10);
 
+        // Revenue by Account (UPI ID)
+        const accountMap: {
+            [key: string]: {
+                name: string;
+                bottles: number;
+                grossRevenue: number;
+                netProfit: number;
+            }
+        } = {};
+
+        orders.forEach(order => {
+            const accountId = order.payment_upi_id || "Unassigned/Old";
+            const bottles = order.quantity || 0;
+
+            if (!accountMap[accountId]) {
+                accountMap[accountId] = {
+                    name: accountId,
+                    bottles: 0,
+                    grossRevenue: 0,
+                    netProfit: 0,
+                };
+            }
+
+            accountMap[accountId].bottles += bottles;
+            accountMap[accountId].grossRevenue += bottles * BOTTLE_PRICE;
+            accountMap[accountId].netProfit += bottles * NET_PROFIT_PER_BOTTLE;
+        });
+
+        const byAccount = Object.values(accountMap)
+            .sort((a, b) => b.netProfit - a.netProfit);
+
         // Calculate overall metrics
         const bottlesSold = orders.reduce((sum, order) => sum + (order.quantity || 0), 0);
         const totalGrossRevenue = bottlesSold * BOTTLE_PRICE;
@@ -156,6 +188,7 @@ export async function GET(request: NextRequest) {
             timeline,
             byZone,
             byVolunteer,
+            byAccount,
             metrics: {
                 totalGrossRevenue,
                 totalNetProfit,

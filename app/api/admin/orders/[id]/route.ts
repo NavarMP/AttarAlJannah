@@ -46,10 +46,10 @@ export async function PATCH(
     try {
         const { id } = await params;
         const body = await request.json();
-        const { order_status, delivery_method, volunteer_id, is_delivery_duty } = body;
+        const { order_status, delivery_method, volunteer_id, is_delivery_duty, created_at, payment_upi_id } = body;
 
         // Allow updates if at least one meaningful field is present
-        if (!order_status && !delivery_method && !volunteer_id && is_delivery_duty === undefined) {
+        if (!order_status && !delivery_method && !volunteer_id && is_delivery_duty === undefined && !created_at && payment_upi_id === undefined) {
             return NextResponse.json({ error: "No fields to update provided" }, { status: 400 });
         }
 
@@ -72,6 +72,8 @@ export async function PATCH(
         if (delivery_method) updateData.delivery_method = delivery_method;
         if (volunteer_id) updateData.volunteer_id = volunteer_id;
         if (is_delivery_duty !== undefined) updateData.is_delivery_duty = is_delivery_duty;
+        if (created_at) updateData.created_at = created_at;
+        if (payment_upi_id !== undefined) updateData.payment_upi_id = payment_upi_id;
 
         console.log("=== Order Update ===");
         console.log("Order ID:", id);

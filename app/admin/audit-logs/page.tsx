@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/lib/contexts/auth-context";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -229,9 +229,8 @@ export default function AuditLogsPage() {
                             </TableHeader>
                             <TableBody>
                                 {logs.map((log) => (
-                                    <>
+                                    <React.Fragment key={log.id}>
                                         <TableRow
-                                            key={log.id}
                                             className="cursor-pointer hover:bg-muted/50"
                                             onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
                                         >
@@ -256,12 +255,12 @@ export default function AuditLogsPage() {
                                                         log.actor_role === 'customer' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' : ''
                                                         }`}
                                                 >
-                                                    {log.actor_role.replace('_', ' ')}
+                                                    {(log.actor_role || '').replace('_', ' ')}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>
                                                 <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${ACTION_COLORS[log.action] || "bg-gray-100 text-gray-800"}`}>
-                                                    {log.action.replace(/_/g, " ")}
+                                                    {(log.action || '').replace(/_/g, " ")}
                                                 </span>
                                             </TableCell>
                                             <TableCell>
@@ -289,7 +288,7 @@ export default function AuditLogsPage() {
                                                 </TableCell>
                                             </TableRow>
                                         )}
-                                    </>
+                                    </React.Fragment>
                                 ))}
                             </TableBody>
                         </Table>

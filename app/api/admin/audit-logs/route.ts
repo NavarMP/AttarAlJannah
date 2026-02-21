@@ -58,8 +58,42 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
+        const logsData = data || [];
+
+        // --- Fallback logic to append missing actor_name and actor_role ---
+        // (audit_logs table presently lacks these columns in some DB instances)
+        const uniqueEmails = [...new Set(logsData.map(l => l.admin_email || l.actor_email).filter(Boolean))];
+        const actorMap = new Map();
+
+        if (uniqueEmails.length > 0) {
+            const [
+                { data: admins },
+                { data: volunteers },
+                { data: customers }
+            ] = await Promise.all([
+                supabase.from('admin_users').select('email, name, role').in('email', uniqueEmails),
+                supabase.from('volunteers').select('email, name').in('email', uniqueEmails),
+                supabase.from('customers').select('email, name').in('email', uniqueEmails)
+            ]);
+
+            (admins || []).forEach(a => actorMap.set(a.email, { name: a.name, role: a.role }));
+            (volunteers || []).forEach(v => actorMap.set(v.email, { name: v.name, role: 'volunteer' }));
+            (customers || []).forEach(c => actorMap.set(c.email, { name: c.name, role: 'customer' }));
+        }
+
+        const enrichedLogs = logsData.map(log => {
+            const emailToLookup = log.admin_email || log.actor_email;
+            const fallback = actorMap.get(emailToLookup) || { name: 'Unknown', role: 'unknown' };
+            return {
+                ...log,
+                actor_email: emailToLookup, // Ensure UI receives actor_email
+                actor_name: log.actor_name || fallback.name,
+                actor_role: log.actor_role || fallback.role,
+            };
+        });
+
         return NextResponse.json({
-            logs: data || [],
+            logs: enrichedLogs,
             totalCount: count || 0,
             page,
             pageSize,

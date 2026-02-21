@@ -45,6 +45,22 @@ export async function POST(request: NextRequest) {
 
         const supabase = await createClient();
 
+        // Fetch active UPI ID from settings
+        console.log("⚙️ Fetching active UPI ID from settings...");
+        let activeUpiId = null;
+        try {
+            const { data: upiSetting } = await supabase
+                .from("site_settings")
+                .select("value")
+                .eq("key", "upi_id")
+                .single();
+            if (upiSetting && upiSetting.value) {
+                activeUpiId = upiSetting.value;
+            }
+        } catch (settingsErr) {
+            console.error("⚠️ Failed to fetch active UPI ID:", settingsErr);
+        }
+
         // If referredBy is provided, look up the volunteer's UUID from their volunteer_id (string)
         let referredByUuid: string | null = null;
         if (referredBy) {
@@ -104,6 +120,7 @@ export async function POST(request: NextRequest) {
                 payment_status: isQrPayment ? "pending" : "pending",
                 order_status: "payment_pending", // QR: stays until admin verifies; Razorpay: promoted after verify
                 volunteer_id: referredByUuid,
+                payment_upi_id: activeUpiId, // Track which account receives the payment
             })
             .select()
             .single();
