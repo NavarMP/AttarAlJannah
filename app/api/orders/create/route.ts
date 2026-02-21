@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { autoAssignDeliveryVolunteer } from "@/lib/services/volunteer-assignment";
 import { logAuditEvent, getClientIP } from "@/lib/services/audit";
+import { sendCustomOrderConfirmation } from "@/lib/services/nodemailer-service";
 
 export async function POST(request: NextRequest) {
     try {
@@ -87,7 +88,10 @@ export async function POST(request: NextRequest) {
             .upsert({
                 phone: customerPhone,
                 name: customerName,
-                address: customerAddress // Update address on new order
+                address: customerAddress, // Update address on new order
+                email: customerEmail, // Persist email for future reference and admin resends
+                deleted_at: null, // Revive the customer if they were previously soft-deleted
+                deleted_by: null
             }, { onConflict: "phone" })
             .select()
             .single();
@@ -155,6 +159,30 @@ export async function POST(request: NextRequest) {
         }
 
         console.log("✅ Order created successfully:", orderData.id);
+
+        // Send unique stylish order confirmation email via Nodemailer
+        if (customerEmail) {
+            console.log(`📧 Sending automated Nodemailer confirmation to: ${customerEmail}`);
+            // Fire and forget - don't block the HTTP response
+            sendCustomOrderConfirmation({
+                to: customerEmail,
+                customerName,
+                orderId: orderData.id,
+                productName,
+                quantity,
+                totalPrice,
+                address: {
+                    houseBuilding,
+                    town,
+                    post,
+                    city,
+                    district,
+                    state,
+                    pincode
+                },
+                paymentMethod
+            }).catch(e => console.error("⚠️ Background email task failed:", e));
+        }
 
         await logAuditEvent({
             actor: {

@@ -364,7 +364,7 @@ export default function VolunteersPage() {
                             <>
                                 <div className="text-lg font-bold truncate">{stats.topPerformer.name}</div>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                    {stats.topPerformer.confirmed_bottles} bottles sold
+                                    {stats.topPerformer.confirmed_bottles} bottles ordered
                                 </p>
                             </>
                         ) : (

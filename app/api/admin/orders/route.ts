@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
         // New: additional filters
         const referredBy = searchParams.get("referredBy");
         const deliveryMethod = searchParams.get("deliveryMethod");
+        const paymentMethod = searchParams.get("paymentMethod");
 
         // Use service role client to bypass RLS for admin queries
         const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
@@ -70,6 +71,11 @@ export async function GET(request: NextRequest) {
         // Delivery method filter
         if (deliveryMethod && deliveryMethod !== "all") {
             query = query.eq("delivery_method", deliveryMethod);
+        }
+
+        // Payment method filter
+        if (paymentMethod && paymentMethod !== "all") {
+            query = query.eq("payment_method", paymentMethod);
         }
 
         if (search) {

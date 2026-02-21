@@ -53,6 +53,26 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Clean up the customer record if this was their last active order
+        if (order.customer_id) {
+            const { count: remainingOrders, error: countError } = await adminSupabase
+                .from("orders")
+                .select("*", { count: "exact", head: true })
+                .eq("customer_id", order.customer_id)
+                .is("deleted_at", null);
+
+            if (!countError && remainingOrders === 0) {
+                console.log(`🧹 Cascading soft-delete to customer: ${order.customer_id}`);
+                await adminSupabase
+                    .from("customers")
+                    .update({
+                        deleted_at: new Date().toISOString(),
+                        deleted_by: auth.admin.email,
+                    })
+                    .eq("id", order.customer_id);
+            }
+        }
+
         await logAuditEvent({
             actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
             action: "delete",

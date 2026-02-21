@@ -30,11 +30,12 @@ import {
 import {
     Search, Trash2, MoreVertical, Eye, FileDown, Printer,
     Phone, MessageSquare, Truck, Package, Download, Copy, DollarSign,
-    ArrowUpDown, ArrowUp, ArrowDown, CalendarDays, Filter, X, RotateCcw, CheckCircle
+    ArrowUpDown, ArrowUp, ArrowDown, CalendarDays, Filter, X, RotateCcw, CheckCircle, Pencil
 } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BulkActionBar, BulkAction } from "@/components/admin/bulk-action-bar";
+import { EditOrderDialog } from "@/components/admin/edit-order-dialog";
 
 interface Stats {
     totalBottles: number;
@@ -80,6 +81,12 @@ const DELIVERY_METHODS = [
     { label: "Volunteer Delivery", value: "volunteer" },
     { label: "Courier", value: "courier" },
     { label: "By Post", value: "post" },
+];
+
+const PAYMENT_METHODS = [
+    { label: "Online (Razorpay)", value: "razorpay" },
+    { label: "UPI", value: "qr" },
+    { label: "Held by volunteer", value: "volunteer_cash" },
 ];
 
 type SortField = "created_at" | "quantity" | "customer_name" | "total_price";
@@ -160,6 +167,7 @@ export default function OrdersPage() {
     const [searchInput, setSearchInput] = useState("");
     const [referredByFilter, setReferredByFilter] = useState("all");
     const [deliveryMethodFilter, setDeliveryMethodFilter] = useState("all");
+    const [paymentMethodFilter, setPaymentMethodFilter] = useState("all");
     const [datePreset, setDatePreset] = useState<string>("all");
 
     // Sorting
@@ -205,7 +213,7 @@ export default function OrdersPage() {
 
     // Check if any filter is active
     const hasActiveFilters = statusFilter !== "all" || startDate !== "" || endDate !== "" ||
-        referredByFilter !== "all" || deliveryMethodFilter !== "all" || searchInput !== "";
+        referredByFilter !== "all" || deliveryMethodFilter !== "all" || paymentMethodFilter !== "all" || searchInput !== "";
 
     const clearAllFilters = () => {
         setStatusFilter("all");
@@ -215,6 +223,7 @@ export default function OrdersPage() {
         setSearch("");
         setReferredByFilter("all");
         setDeliveryMethodFilter("all");
+        setPaymentMethodFilter("all");
         setDatePreset("all");
         setPage(1);
     };
@@ -275,6 +284,7 @@ export default function OrdersPage() {
             if (endDate) queryParams.append("endDate", endDate);
             if (referredByFilter !== "all") queryParams.append("referredBy", referredByFilter);
             if (deliveryMethodFilter !== "all") queryParams.append("deliveryMethod", deliveryMethodFilter);
+            if (paymentMethodFilter !== "all") queryParams.append("paymentMethod", paymentMethodFilter);
 
             const response = await fetch(`/api/admin/orders?${queryParams}`);
 
@@ -294,7 +304,7 @@ export default function OrdersPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, statusFilter, search, startDate, endDate, sortBy, sortOrder, referredByFilter, deliveryMethodFilter]);
+    }, [page, statusFilter, search, startDate, endDate, sortBy, sortOrder, referredByFilter, deliveryMethodFilter, paymentMethodFilter]);
 
     useEffect(() => {
         fetchStats();
@@ -434,6 +444,35 @@ export default function OrdersPage() {
 
     const bulkActions: BulkAction[] = [
         {
+            label: "Mark Cash Received",
+            icon: <DollarSign className="h-4 w-4" />,
+            onExecute: async () => {
+                setBulkProcessing(true);
+                try {
+                    const response = await fetch("/api/admin/orders/bulk-update", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            orderIds: Array.from(selectedOrders),
+                            status: "ordered",
+                        }),
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        toast.success(`Cash collected! Updated ${selectedOrders.size} order(s)`);
+                        setSelectedOrders(new Set());
+                        fetchOrders();
+                    } else {
+                        toast.error(data.error || "Failed to mark cash as received");
+                    }
+                } catch (error) {
+                    toast.error("An error occurred");
+                } finally {
+                    setBulkProcessing(false);
+                }
+            },
+        },
+        {
             label: "Change Status",
             icon: <Package className="h-4 w-4" />,
             options: ORDER_STATUSES.map(s => ({ label: s.label, value: s.value })),
@@ -562,6 +601,7 @@ export default function OrdersPage() {
         startDate !== "" || endDate !== "",
         referredByFilter !== "all",
         deliveryMethodFilter !== "all",
+        paymentMethodFilter !== "all",
     ].filter(Boolean).length;
 
     return (
@@ -719,7 +759,7 @@ export default function OrdersPage() {
                             </div>
 
                             {/* Filter Row */}
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                                 {/* Status Filter */}
                                 <div className="space-y-1">
                                     <label className="text-xs font-medium text-muted-foreground">Status</label>
@@ -770,6 +810,22 @@ export default function OrdersPage() {
                                                 <SelectItem key={v.id} value={v.volunteer_id || v.id}>
                                                     {v.name}
                                                 </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Payment Method Filter */}
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-muted-foreground">Payment Method</label>
+                                    <Select value={paymentMethodFilter} onValueChange={(v) => { setPaymentMethodFilter(v); setPage(1); }}>
+                                        <SelectTrigger className="h-9">
+                                            <SelectValue placeholder="All Methods" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Methods</SelectItem>
+                                            {PAYMENT_METHODS.map(p => (
+                                                <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
@@ -919,6 +975,22 @@ export default function OrdersPage() {
                                                         <Eye className="mr-2 h-4 w-4" />
                                                         View Details
                                                     </DropdownMenuItem>
+                                                    <EditOrderDialog
+                                                        orderId={order.id}
+                                                        onSuccess={fetchOrders}
+                                                        trigger={
+                                                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                                                <Pencil className="mr-2 h-4 w-4" />
+                                                                Edit Order
+                                                            </DropdownMenuItem>
+                                                        }
+                                                    />
+                                                    {order.payment_method === 'volunteer_cash' && order.order_status === 'payment_pending' && (
+                                                        <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'ordered')}>
+                                                            <DollarSign className="mr-2 h-4 w-4 text-emerald-500" />
+                                                            Mark Cash Received
+                                                        </DropdownMenuItem>
+                                                    )}
 
                                                     <DropdownMenuSeparator />
 

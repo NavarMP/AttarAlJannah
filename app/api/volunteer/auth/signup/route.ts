@@ -25,11 +25,14 @@ export async function POST(request: NextRequest) {
 
         const body = await request.json();
         const {
-            name, email, phone, volunteer_id, password,
+            name, email, volunteer_id, password,
             profile_photo, // Profile photo URL
             // Address fields
             houseBuilding, town, pincode, post, city, district, state, locationLink
         } = body;
+
+        // Format phone: remove spaces
+        const phone = body.phone ? body.phone.replace(/\s+/g, "") : undefined;
 
         // Validation
         if (!password || !volunteer_id || !phone || !name) {

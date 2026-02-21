@@ -16,10 +16,11 @@ export async function GET(request: NextRequest) {
         console.log("Fetching orders for phone:", phone);
 
         // Normalize phone number - try multiple formats
+        const basePhone = phone.replace(/\D/g, '').slice(-10); // Last 10 digits only
         const phoneVariations = [
             phone,                              // As provided
-            phone.replace('+91', ''),          // Without country code
-            phone.replace(/\D/g, '').slice(-10) // Last 10 digits only
+            basePhone,                          // Without country code
+            `+91${basePhone}`                   // With country code
         ];
 
         console.log("Trying phone variations:", phoneVariations);
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
         if (orderId) {
             const { data: order, error } = await supabase
                 .from("orders")
-                .select("*, volunteers(name)")
+                .select("*, volunteers!orders_volunteer_id_fkey(name)")
                 .eq("id", orderId)
                 .in("customer_phone", phoneVariations)
                 .single();
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
         // Otherwise fetch all orders for the customer
         const { data: orders, error } = await supabase
             .from("orders")
-            .select("*, volunteers(name)")
+            .select("*, volunteers!orders_volunteer_id_fkey(name)")
             .in("customer_phone", phoneVariations)
             .order("created_at", { ascending: false });
 

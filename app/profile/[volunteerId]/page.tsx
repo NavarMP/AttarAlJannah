@@ -36,14 +36,20 @@ async function getVolunteerData(volunteerId: string) {
         return null;
     }
 
-    // 2. Fetch stats
+    // 2. Fetch goal and calculate dynamic order stats
     const { data: progress } = await supabase
         .from("challenge_progress")
-        .select("goal, confirmed_orders")
+        .select("goal")
         .eq("volunteer_id", volunteer.id)
-        .single();
+        .maybeSingle();
 
-    const totalBottles = progress?.confirmed_orders || 0;
+    const { data: orders } = await supabase
+        .from("orders")
+        .select("quantity, order_status")
+        .eq("volunteer_id", volunteer.id);
+
+    const confirmedOrders = orders?.filter(o => o.order_status === "ordered" || o.order_status === "delivered") || [];
+    const totalBottles = confirmedOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
     const goal = progress?.goal || 20;
     const goalProgress = Math.min(100, Math.round((totalBottles / goal) * 100));
 
@@ -76,7 +82,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
     return {
         title: `${volunteer.name} - Volunteer Profile | Attar Al Jannah`,
-        description: `Check out ${volunteer.name}'s achievements as a volunteer at Attar Al Jannah. They have sold ${volunteer.stats.totalBottles} bottles!`,
+        description: `Check out ${volunteer.name}'s achievements as a volunteer at Attar Al Jannah. They have ordered ${volunteer.stats.totalBottles} bottles!`,
         openGraph: {
             title: `${volunteer.name} - Volunteer Profile`,
             description: `Help ${volunteer.name} reach their goal! Current progress: ${volunteer.stats.goalProgress}%`,
@@ -153,11 +159,11 @@ export default async function PublicProfilePage({ params }: Props) {
                                 </div>
                             </div>
 
-                            {/* Primary Stat: Bottles Sold */}
+                            {/* Primary Stat: Bottles Ordered */}
                             <div className="grid grid-cols-2 gap-4 py-4 border-t border-b border-border/50">
                                 <div className="text-center space-y-1">
                                     <p className="text-sm text-muted-foreground uppercase tracking-wider font-medium">
-                                        Bottles Sold
+                                        Bottles Ordered
                                     </p>
                                     <p className="text-3xl font-bold text-primary flex items-center justify-center gap-2">
                                         <Award className="h-5 w-5 text-gold-500" />
@@ -190,7 +196,7 @@ export default async function PublicProfilePage({ params }: Props) {
                                 </div>
                                 <Progress value={stats.goalProgress} className="h-3 bg-secondary/50" indicatorClassName="bg-gradient-to-r from-primary to-gold-400" />
                                 <p className="text-center text-xs text-muted-foreground pt-2">
-                                    {stats.totalBottles} / {stats.goal} bottles sold
+                                    {stats.totalBottles} / {stats.goal} bottles ordered
                                 </p>
                             </div>
                         </CardContent>
@@ -220,7 +226,7 @@ export default async function PublicProfilePage({ params }: Props) {
                         <ShareButton
                             data={{
                                 title: `Support ${name} on Attar Al Jannah`,
-                                text: `Check out ${name}'s volunteer profile! They've sold ${stats.totalBottles} bottles so far.`,
+                                text: `Check out ${name}'s volunteer profile! They've ordered ${stats.totalBottles} bottles so far.`,
                                 url: shareUrl,
                             }}
                             variant="outline"

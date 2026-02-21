@@ -13,7 +13,8 @@ export async function GET(
             .from("orders")
             .select(`
                 *,
-                volunteers:volunteers!volunteer_id(name, volunteer_id)
+                volunteers:volunteers!volunteer_id(name, volunteer_id),
+                customers:customers!customer_id(email)
             `)
             .eq("id", id)
             .single();
@@ -23,10 +24,11 @@ export async function GET(
             return NextResponse.json({ error: "Order not found" }, { status: 404 });
         }
 
-        // Flatten the volunteer data for easier access
+        // Flatten the volunteer and customer data for easier access
         const orderWithVolunteerId = {
             ...data,
-            delivery_volunteer_id: data.volunteers?.volunteer_id || null
+            delivery_volunteer_id: data.volunteers?.volunteer_id || null,
+            customer_email: data.customers?.email || null
         };
 
         return NextResponse.json(orderWithVolunteerId);
@@ -46,10 +48,15 @@ export async function PATCH(
     try {
         const { id } = await params;
         const body = await request.json();
-        const { order_status, delivery_method, volunteer_id, is_delivery_duty, created_at, payment_upi_id } = body;
+        const {
+            order_status, delivery_method, volunteer_id,
+            is_delivery_duty, created_at, payment_upi_id,
+            customer_name, customer_phone, whatsapp_number, customer_email,
+            customer_address, product_name, quantity, total_price
+        } = body;
 
         // Allow updates if at least one meaningful field is present
-        if (!order_status && !delivery_method && !volunteer_id && is_delivery_duty === undefined && !created_at && payment_upi_id === undefined) {
+        if (!order_status && !delivery_method && !volunteer_id && is_delivery_duty === undefined && !created_at && payment_upi_id === undefined && !customer_name && !customer_phone && !whatsapp_number && customer_email === undefined && !customer_address && !product_name && quantity === undefined && total_price === undefined) {
             return NextResponse.json({ error: "No fields to update provided" }, { status: 400 });
         }
 
@@ -75,6 +82,15 @@ export async function PATCH(
         if (created_at) updateData.created_at = created_at;
         if (payment_upi_id !== undefined) updateData.payment_upi_id = payment_upi_id;
 
+        // Deep properties
+        if (customer_name !== undefined) updateData.customer_name = customer_name;
+        if (customer_phone !== undefined) updateData.customer_phone = customer_phone;
+        if (whatsapp_number !== undefined) updateData.whatsapp_number = whatsapp_number;
+        if (customer_address !== undefined) updateData.customer_address = customer_address;
+        if (product_name !== undefined) updateData.product_name = product_name;
+        if (quantity !== undefined) updateData.quantity = quantity;
+        if (total_price !== undefined) updateData.total_price = total_price;
+
         console.log("=== Order Update ===");
         console.log("Order ID:", id);
         console.log("Update Payload:", updateData);
@@ -90,6 +106,26 @@ export async function PATCH(
         if (error) {
             console.error("Order update error:", error);
             return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
+        // Parallel update: if we received deep properties, update the underlying customers table directly 
+        // to maintain synchronicity (specifically for email which is only structurally bound to customers)
+        if (currentOrder.customer_id && (customer_email !== undefined || customer_name !== undefined || customer_phone !== undefined)) {
+            const customerPatch: any = {};
+            if (customer_email !== undefined) customerPatch.email = customer_email;
+            if (customer_name !== undefined) customerPatch.name = customer_name;
+            if (customer_phone !== undefined) customerPatch.phone = customer_phone;
+
+            if (Object.keys(customerPatch).length > 0) {
+                const { error: customerError } = await supabase
+                    .from("customers")
+                    .update(customerPatch)
+                    .eq("id", currentOrder.customer_id);
+
+                if (customerError) {
+                    console.error("Failed to sync customer changes for order update:", customerError);
+                }
+            }
         }
 
         console.log("✓ Order updated successfully");

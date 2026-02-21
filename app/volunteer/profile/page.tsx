@@ -287,7 +287,7 @@ export default function VolunteerProfilePage() {
                         <ShareButton
                             data={{
                                 title: `Support ${profileData.name} on Attar Al Jannah`,
-                                text: `Check out ${profileData.name}'s volunteer profile! They've sold ${stats.totalBottles} bottles so far.`,
+                                text: `Check out ${profileData.name}'s volunteer profile! They've ordered ${stats.totalBottles} bottles so far.`,
                                 url: shareUrl,
                             }}
                             variant="outline"
@@ -398,7 +398,7 @@ export default function VolunteerProfilePage() {
                                         <Package className="w-5 h-5 text-primary" />
                                     </div>
                                     <div>
-                                        <p className="text-sm text-muted-foreground">Bottles Sold</p>
+                                        <p className="text-sm text-muted-foreground">Bottles Ordered</p>
                                         <p className="text-2xl font-bold">{stats.totalBottles}</p>
                                     </div>
                                 </div>
@@ -455,7 +455,7 @@ export default function VolunteerProfilePage() {
                         <CardHeader>
                             <CardTitle className="text-lg">Goal Progress</CardTitle>
                             <CardDescription>
-                                {stats.totalBottles} / {stats.goal} bottles sold
+                                {stats.totalBottles} / {stats.goal} bottles ordered
                             </CardDescription>
                         </CardHeader>
                         <CardContent>

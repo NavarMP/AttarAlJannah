@@ -13,11 +13,19 @@ export async function GET(request: NextRequest) {
 
         const supabase = await createClient();
 
-        // Fetch user from customers table
+        // Normalize phone number permutations to handle country codes
+        const basePhone = phone.replace(/\D/g, '').slice(-10);
+        const phoneVariations = [
+            phone,
+            basePhone,
+            `+91${basePhone}`
+        ];
+
+        // Fetch user from customers table checking any of the variations
         const { data: customer, error } = await supabase
             .from("customers")
             .select("*")
-            .eq("phone", phone)
+            .in("phone", phoneVariations)
             .single();
 
         if (error) {
@@ -27,13 +35,20 @@ export async function GET(request: NextRequest) {
             throw error;
         }
 
+        // Calculate true order count dynamically from orders table
+        const { count: totalOrders } = await supabase
+            .from("orders")
+            .select("*", { count: "exact", head: true })
+            .in("customer_phone", phoneVariations)
+            .is("deleted_at", null);
+
         const profile = {
             id: customer.id,
             phone: customer.phone,
             name: customer.name,
             email: null,
             default_address: customer.address,
-            total_orders: customer.total_orders || 0,
+            total_orders: totalOrders || 0,
             last_order_at: customer.last_order_at || null
         };
 

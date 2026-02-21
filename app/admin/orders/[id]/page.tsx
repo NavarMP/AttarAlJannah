@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Phone, MessageCircle, Image as ImageIcon, Trash2, Pencil, MapPin, Truck } from "lucide-react";
+import { ArrowLeft, Phone, MessageCircle, Image as ImageIcon, Trash2, Pencil, MapPin, Truck, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import Image from "next/image";
@@ -18,6 +18,7 @@ import { AutoHideContainer } from "@/components/custom/auto-hide-container";
 import { DeliveryManagement } from "@/components/admin/delivery-management";
 import { VolunteerAssignment } from "@/components/admin/volunteer-assignment";
 import { TrackingTimeline } from "@/components/tracking-timeline";
+import { EditOrderDialog } from "@/components/admin/edit-order-dialog";
 
 interface Order {
     id: string;
@@ -62,7 +63,25 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
     const [newDate, setNewDate] = useState("");
     const [isEditingUpi, setIsEditingUpi] = useState(false);
     const [newUpi, setNewUpi] = useState("");
+    const [historicalUpis, setHistoricalUpis] = useState<string[]>([]);
     const [deliveryRequests, setDeliveryRequests] = useState<any[]>([]);
+    const [resendingEmail, setResendingEmail] = useState(false);
+
+    // Fetch UPI IDs for autocomplete
+    useEffect(() => {
+        const fetchUpis = async () => {
+            try {
+                const res = await fetch("/api/admin/upi-ids");
+                if (res.ok) {
+                    const data = await res.json();
+                    setHistoricalUpis(data.upiIds || []);
+                }
+            } catch (error) {
+                console.error("Failed to fetch historical UPI IDs:", error);
+            }
+        };
+        fetchUpis();
+    }, []);
 
     const fetchOrder = useCallback(async () => {
         try {
@@ -165,6 +184,11 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
         }
     };
 
+    const isValidUpi = (upi: string) => {
+        if (!upi || upi.trim() === "") return true; // Allowed to clear it
+        return /^[\w.\-_]{2,256}@[a-zA-Z]{2,64}$/.test(upi);
+    };
+
     const handleDelete = async () => {
         if (!order) return;
 
@@ -225,6 +249,30 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
         }
     };
 
+    const handleResendEmail = async () => {
+        if (!order?.customer_email) return;
+
+        setResendingEmail(true);
+        try {
+            const response = await fetch(`/api/admin/orders/${id}/resend-email`, {
+                method: "POST",
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "Failed to resend email");
+            }
+
+            toast.success(data.message || "Email resent successfully");
+        } catch (error: any) {
+            console.error("Resend email error:", error);
+            toast.error(error.message || "An error occurred while resending the email");
+        } finally {
+            setResendingEmail(false);
+        }
+    };
+
     if (loading) {
         return <div className="text-center py-12">Loading order details...</div>;
     }
@@ -249,16 +297,19 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
 
             {/* Floating Action Buttons - Auto-hide on scroll */}
             <AutoHideContainer className="fixed top-20 right-6 z-40 flex flex-col gap-2 md:static md:absolute md:right-0 md:top-1 md:flex-row md:ml-auto">
-                {/* {order.order_status === 'ordered' && (
-                    <Button
-                        variant="outline"
-                        className="rounded-xl"
-                        onClick={() => router.push(`/order?edit=${order.id}`)}
-                    >
-                        <Pencil className="w-4 h-4 mr-2" />
-                        <span className="hidden md:inline">Edit Order</span>
-                    </Button>
-                )} */}
+                <EditOrderDialog
+                    orderId={order.id}
+                    onSuccess={fetchOrder}
+                    trigger={
+                        <Button
+                            variant="outline"
+                            className="rounded-xl"
+                        >
+                            <Pencil className="w-4 h-4 mr-2" />
+                            <span className="hidden md:inline">Edit Order</span>
+                        </Button>
+                    }
+                />
                 <Button
                     variant="destructive"
                     className="rounded-xl"
@@ -296,7 +347,7 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                             <div className="flex items-center gap-2">
                                 <p className="font-medium">{order.whatsapp_number}</p>
                                 <a
-                                    href={`https://wa.me/91${order.whatsapp_number}`}
+                                    href={`https://wa.me/${order.whatsapp_number}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                 >
@@ -306,12 +357,28 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                                 </a>
                             </div>
                         </div>
-                        {order.customer_email && (
-                            <div>
-                                <p className="text-sm text-muted-foreground">Email</p>
-                                <p className="font-medium">{order.customer_email}</p>
+                        <div>
+                            <p className="text-sm text-muted-foreground">Email</p>
+                            <div className="flex items-center gap-2">
+                                {order.customer_email ? (
+                                    <>
+                                        <p className="font-medium">{order.customer_email}</p>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="rounded-xl ml-2 h-7 px-2"
+                                            onClick={handleResendEmail}
+                                            disabled={resendingEmail}
+                                        >
+                                            <Mail className="h-3 w-3 mr-1" />
+                                            {resendingEmail ? "Sending..." : "Resend confirmation"}
+                                        </Button>
+                                    </>
+                                ) : (
+                                    <p className="text-sm italic text-muted-foreground">(Not provided)</p>
+                                )}
                             </div>
-                        )}
+                        </div>
                         <div>
                             <p className="text-sm text-muted-foreground">Address</p>
                             <p className="font-medium">{order.customer_address}</p>
@@ -409,31 +476,42 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                             <div>
                                 <p className="text-sm text-muted-foreground">Paid To (UPI ID)</p>
                                 {isEditingUpi ? (
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <Input
-                                            type="text"
-                                            value={newUpi}
-                                            onChange={(e) => setNewUpi(e.target.value)}
-                                            placeholder="Enter UPI ID"
-                                            className="h-8 text-sm max-w-[200px]"
-                                        />
-                                        <Button
-                                            size="sm"
-                                            onClick={handleUpdateUpi}
-                                            disabled={updating}
-                                        >
-                                            Save
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => {
-                                                setIsEditingUpi(false);
-                                                setNewUpi("");
-                                            }}
-                                        >
-                                            Cancel
-                                        </Button>
+                                    <div className="flex flex-col gap-1 mt-1">
+                                        <div className="flex items-center gap-2">
+                                            <Input
+                                                type="text"
+                                                value={newUpi}
+                                                onChange={(e) => setNewUpi(e.target.value)}
+                                                placeholder="Enter UPI ID"
+                                                className={`h-8 text-sm max-w-[200px] ${!isValidUpi(newUpi) && newUpi !== "" ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                                                list="upi-suggestions"
+                                            />
+                                            <datalist id="upi-suggestions">
+                                                {historicalUpis.map(upi => (
+                                                    <option key={upi} value={upi} />
+                                                ))}
+                                            </datalist>
+                                            <Button
+                                                size="sm"
+                                                onClick={handleUpdateUpi}
+                                                disabled={updating || (!isValidUpi(newUpi) && newUpi !== "")}
+                                            >
+                                                Save
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => {
+                                                    setIsEditingUpi(false);
+                                                    setNewUpi("");
+                                                }}
+                                            >
+                                                Cancel
+                                            </Button>
+                                        </div>
+                                        {!isValidUpi(newUpi) && newUpi !== "" && (
+                                            <span className="text-xs text-red-500 font-medium">Please enter a valid UPI ID (e.g., name@bank)</span>
+                                        )}
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-2">

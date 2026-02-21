@@ -41,7 +41,8 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
     const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
     // Payment method state
-    const [activePaymentMethod, setActivePaymentMethod] = useState<"qr" | "razorpay">("qr");
+    const [globalPaymentMethod, setGlobalPaymentMethod] = useState<"qr" | "razorpay">("qr");
+    const [activePaymentMethod, setActivePaymentMethod] = useState<"qr" | "razorpay" | "volunteer_cash">("qr");
     const [paymentMethodLoading, setPaymentMethodLoading] = useState(true);
 
     // QR screenshot state
@@ -94,11 +95,14 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
             try {
                 const response = await fetch("/api/settings/payment-method");
                 const data = await response.json();
-                setActivePaymentMethod(data.paymentMethod === "razorpay" ? "razorpay" : "qr");
+                const fetchedMethod = data.paymentMethod === "razorpay" ? "razorpay" : "qr";
+                setGlobalPaymentMethod(fetchedMethod);
+                setActivePaymentMethod(fetchedMethod);
                 setUpiId(data.upiId || "");
                 setMerchantName(data.merchantName || "Attar Al Jannah");
             } catch (error) {
                 console.error("Failed to fetch payment method:", error);
+                setGlobalPaymentMethod("qr");
                 setActivePaymentMethod("qr");
             } finally {
                 setPaymentMethodLoading(false);
@@ -396,6 +400,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
             setVolunteerValidationError("");
             setIsVolunteerValidated(false);
             setIsValidatingVolunteer(false); // Clear validating state
+            if (activePaymentMethod === "volunteer_cash") setActivePaymentMethod(globalPaymentMethod);
             return;
         }
 
@@ -415,11 +420,13 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                 setVolunteerName("");
                 setIsVolunteerValidated(false);
                 setVolunteerValidationError("Invalid volunteer ID");
+                if (activePaymentMethod === "volunteer_cash") setActivePaymentMethod(globalPaymentMethod);
             }
         } catch (error) {
             setVolunteerName("");
             setIsVolunteerValidated(false);
             setVolunteerValidationError("Failed to validate volunteer ID");
+            if (activePaymentMethod === "volunteer_cash") setActivePaymentMethod(globalPaymentMethod);
         } finally {
             setIsValidatingVolunteer(false);
         }
@@ -535,9 +542,9 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
 
             console.log("✅ Order created:", order.id, "Payment method:", activePaymentMethod);
 
-            // QR Payment: Order is done — redirect to thanks page
-            if (activePaymentMethod === "qr") {
-                toast.success("Order submitted! Payment is being verified.");
+            // QR Payment or Volunteer Cash: Order is done — redirect to thanks page
+            if (activePaymentMethod === "qr" || activePaymentMethod === "volunteer_cash") {
+                toast.success(activePaymentMethod === "volunteer_cash" ? "Order submitted! Cash will be collected by volunteer." : "Order submitted! Payment is being verified.");
                 localStorage.removeItem('orderFormData');
                 await new Promise(resolve => setTimeout(resolve, 500));
                 window.location.href = `/thanks?orderId=${order.id}`;
@@ -732,6 +739,9 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                     {/* Email (Optional) */}
                     <div className="space-y-2">
                         <Label htmlFor="customerEmail">Email</Label>
+                        <span className="text-xs text-muted-foreground ml-2">
+                            (Let&apos;s keep you posted! Enter your email for order updates.)
+                        </span>
                         <Input
                             id="customerEmail"
                             type="email"
@@ -832,16 +842,49 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                         </p>
                     </div>
 
+                    {/* Payment Mode Selection (Only if volunteer is active) */}
+                    {(volunteerId || (isVolunteerValidated && volunteerName)) && (
+                        <div className="space-y-3 pt-4 border-t">
+                            <Label className="text-base font-semibold">Payment Option</Label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <label className={`flex items-start gap-3 p-4 border rounded-2xl cursor-pointer transition-all ${activePaymentMethod !== "volunteer_cash" ? "border-primary bg-primary/5 shadow-sm" : "hover:bg-accent"}`}>
+                                    <input
+                                        type="radio"
+                                        className="w-4 h-4 text-primary mt-0.5"
+                                        checked={activePaymentMethod !== "volunteer_cash"}
+                                        onChange={() => setActivePaymentMethod(globalPaymentMethod)}
+                                    />
+                                    <div>
+                                        <p className="font-medium">Pay Online / UPI</p>
+                                        <p className="text-xs text-muted-foreground mt-0.5">Pay directly using PhonePe, GPay, etc.</p>
+                                    </div>
+                                </label>
+                                <label className={`flex items-start gap-3 p-4 border rounded-2xl cursor-pointer transition-all ${activePaymentMethod === "volunteer_cash" ? "border-primary bg-primary/5 shadow-sm" : "hover:bg-accent"}`}>
+                                    <input
+                                        type="radio"
+                                        className="w-4 h-4 text-primary mt-0.5"
+                                        checked={activePaymentMethod === "volunteer_cash"}
+                                        onChange={() => setActivePaymentMethod("volunteer_cash")}
+                                    />
+                                    <div>
+                                        <p className="font-medium">Cash to Volunteer</p>
+                                        <p className="text-xs text-muted-foreground mt-0.5">Hand over cash to {volunteerName || "the volunteer"}.</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    )}
+
                     {/* QR Payment Section */}
                     {activePaymentMethod === "qr" && (
                         <div className="space-y-4 mt-2">
                             <div className="border-t pt-4">
                                 <h3 className="font-semibold text-lg flex items-center gap-2 mb-3">
                                     <QrCode className="h-5 w-5 text-primary" />
-                                    Pay via UPI
+                                    Pay Online/UPI
                                 </h3>
                                 <p className="text-sm text-muted-foreground mb-4">
-                                    Scan the QR code below to pay <span className="font-bold text-foreground">₹{totalPrice}</span>, then upload the payment screenshot.
+                                    Scan the QR code below or click on the link to pay <span className="font-bold text-foreground">₹{totalPrice}</span>, then upload the payment screenshot.
                                 </p>
 
                                 {/* QR Code Image (Dynamic) */}
@@ -1082,6 +1125,8 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                             </>
                         ) : activePaymentMethod === "qr" ? (
                             `Submit Order - ₹${totalPrice}`
+                        ) : activePaymentMethod === "volunteer_cash" ? (
+                            `Confirm Cash Order - ₹${totalPrice}`
                         ) : (
                             `Proceed to Payment - ₹${totalPrice}`
                         )}
@@ -1097,7 +1142,9 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                     <p className="text-xs text-center text-muted-foreground">
                         {activePaymentMethod === "qr"
                             ? "* Your order will be confirmed after payment verification"
-                            : "* Secure payment powered by Razorpay"
+                            : activePaymentMethod === "volunteer_cash"
+                                ? "* You will pay the cash directly to the volunteer"
+                                : "* Secure payment powered by Razorpay"
                         }
                     </p>
                 </CardContent>

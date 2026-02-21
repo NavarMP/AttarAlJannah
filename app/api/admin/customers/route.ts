@@ -9,11 +9,10 @@ export async function GET(request: NextRequest) {
         const searchParams = request.nextUrl.searchParams;
         const search = searchParams.get("search")?.toLowerCase() || "";
 
-        // 1. Fetch all customers from customers table
-        const { data: customers, error: customersError } = await supabase
+        // 1. Fetch all customers from customers table to also keep track of deleted ones
+        const { data: allCustomersData, error: customersError } = await supabase
             .from("customers")
             .select("*")
-            .is("deleted_at", null)
             .order("created_at", { ascending: false });
 
         if (customersError) throw customersError;
@@ -27,9 +26,13 @@ export async function GET(request: NextRequest) {
         if (ordersError) throw ordersError;
 
         // 3. Aggregate stats and Find Guest Customers
-        // Create a map of existing customers by phone for easy lookup
+        // Split customers into active and deleted
+        const customers = allCustomersData?.filter(c => !c.deleted_at) || [];
+        const deletedPhoneSet = new Set((allCustomersData || []).filter(c => c.deleted_at).map(c => c.phone));
+
+        // Create a map of existing active customers by phone for easy lookup
         const customerMap = new Map();
-        customers?.forEach(c => customerMap.set(c.phone, c));
+        customers.forEach(c => customerMap.set(c.phone, c));
 
         // Group orders by phone
         const ordersByPhone = new Map<string, any[]>();
@@ -80,7 +83,7 @@ export async function GET(request: NextRequest) {
 
         // B. Process Guest Customers (in Orders but not in Users)
         for (const [phone, userOrders] of ordersByPhone.entries()) {
-            if (!customerMap.has(phone)) {
+            if (!customerMap.has(phone) && !deletedPhoneSet.has(phone)) {
                 // This is a guest
                 const totalOrders = userOrders.length;
                 // Get latest order for details
