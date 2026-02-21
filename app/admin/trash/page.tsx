@@ -44,35 +44,54 @@ import {
     ChevronLeft,
     ChevronRight,
     Clock,
+    MessageSquare,
+    Image as ImageIcon,
 } from "lucide-react";
 
 interface TrashItem {
+    // Common
     id: string;
-    name?: string;
+    deleted_at: string;
+    deleted_by: string;
+    created_at: string;
+
+    // orders
     customer_name?: string;
-    phone?: string;
     customer_phone?: string;
     product_name?: string;
     volunteer_id?: string;
     quantity?: number;
     total_price?: number;
     order_status?: string;
+
+    // volunteers & customers
+    name?: string;
+    phone?: string;
     total_orders?: number;
     total_sales?: number;
-    deleted_at: string;
-    deleted_by: string;
-    created_at: string;
+
+    // feedback
+    category?: string;
+    status?: string;
+    rating_overall?: number;
+
+    // promo_content
+    title?: string;
+    type?: string;
+    is_active?: boolean;
 }
 
 const TAB_CONFIG = {
     orders: { label: "Orders", icon: Package },
     volunteers: { label: "Volunteers", icon: Award },
     customers: { label: "Customers", icon: Users },
+    feedback: { label: "Feedback", icon: MessageSquare },
+    promo_content: { label: "Promo", icon: ImageIcon },
 };
 
 export default function TrashPage() {
     const { hasPermission } = useAuth();
-    const [activeTab, setActiveTab] = useState<"orders" | "volunteers" | "customers">("orders");
+    const [activeTab, setActiveTab] = useState<"orders" | "volunteers" | "customers" | "feedback" | "promo_content">("orders");
     const [items, setItems] = useState<TrashItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
@@ -170,11 +189,14 @@ export default function TrashPage() {
     };
 
     const getDisplayName = (item: TrashItem) => {
-        return item.name || item.customer_name || item.product_name || item.volunteer_id || "Unknown";
+        if (activeTab === "orders") return `${item.product_name} (${item.customer_name})`;
+        if (activeTab === "promo_content") return item.title;
+        return item.name || "Unknown";
     };
 
     const getDisplayPhone = (item: TrashItem) => {
-        return item.phone || item.customer_phone || "—";
+        if (activeTab === "promo_content") return item.type || "N/A";
+        return item.phone || item.customer_phone || "N/A";
     };
 
     const daysUntilPurge = (deletedAt: string) => {
@@ -309,17 +331,15 @@ export default function TrashPage() {
                                             onCheckedChange={toggleSelectAll}
                                         />
                                     </TableHead>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Phone</TableHead>
+                                    <TableHead>Details</TableHead>
                                     <TableHead>Deleted By</TableHead>
                                     <TableHead>Deleted At</TableHead>
-                                    <TableHead>Expires In</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {items.map((item) => {
-                                    const daysLeft = daysUntilPurge(item.deleted_at);
+                                    const daysRemaining = daysUntilPurge(item.deleted_at);
                                     return (
                                         <TableRow key={item.id}>
                                             <TableCell>
@@ -328,16 +348,33 @@ export default function TrashPage() {
                                                     onCheckedChange={() => toggleSelect(item.id)}
                                                 />
                                             </TableCell>
-                                            <TableCell className="font-medium">
-                                                {getDisplayName(item)}
-                                                {item.quantity && (
-                                                    <span className="text-muted-foreground text-xs ml-2">
-                                                        ({item.quantity} × ₹{item.total_price})
-                                                    </span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="text-muted-foreground">
-                                                {getDisplayPhone(item)}
+                                            <TableCell>
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div className="font-medium text-lg leading-tight">
+                                                        {getDisplayName(item)}
+                                                    </div>
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={daysRemaining <= 3 ? "text-destructive border-destructive" : "text-muted-foreground"}
+                                                    >
+                                                        <Clock className="w-3 h-3 mr-1" />
+                                                        {daysRemaining}d left
+                                                    </Badge>
+                                                </div>
+
+                                                <div className="text-sm text-muted-foreground flex items-center justify-between mb-2">
+                                                    <span>{getDisplayPhone(item)}</span>
+                                                    {activeTab === "orders" && (
+                                                        <span className="font-medium text-foreground">
+                                                            RM {(item.total_price || 0).toFixed(2)}
+                                                        </span>
+                                                    )}
+                                                    {activeTab === "feedback" && (
+                                                        <span className="font-medium text-foreground capitalize">
+                                                            {item.category || "General"}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </TableCell>
                                             <TableCell className="text-sm">
                                                 {item.deleted_by?.split("@")[0] || "Unknown"}
@@ -349,14 +386,6 @@ export default function TrashPage() {
                                                     hour: "2-digit",
                                                     minute: "2-digit",
                                                 })}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge
-                                                    variant={daysLeft <= 7 ? "destructive" : "outline"}
-                                                    className="text-xs"
-                                                >
-                                                    {daysLeft} days
-                                                </Badge>
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex gap-1 justify-end">

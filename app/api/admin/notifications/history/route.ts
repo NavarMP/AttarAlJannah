@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/middleware/auth-guard";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +77,9 @@ export async function GET(request: NextRequest) {
 
 // POST - Resend notification
 export async function POST(request: NextRequest) {
+    const auth = await requireAdmin("admin");
+    if ("error" in auth) return auth.error;
+
     try {
         const body = await request.json();
         const { notificationId } = body;
@@ -132,6 +137,15 @@ export async function POST(request: NextRequest) {
                 { status: 500 }
             );
         }
+
+        await logAuditEvent({
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
+            action: "resend",
+            entityType: "notification",
+            entityId: newNotification.id,
+            details: { original_id: notificationId, title: original.title },
+            ipAddress: getClientIP(request),
+        });
 
         return NextResponse.json({
             success: true,

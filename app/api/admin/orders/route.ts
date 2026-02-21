@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { isAdminEmail } from "@/lib/config/admin";
+import { requireAdmin } from "@/lib/middleware/auth-guard";
 
 export async function GET(request: NextRequest) {
+    const auth = await requireAdmin("viewer");
+    if ("error" in auth) return auth.error;
+
     try {
         const searchParams = request.nextUrl.searchParams;
         const status = searchParams.get("status");
@@ -19,21 +21,6 @@ export async function GET(request: NextRequest) {
         // New: additional filters
         const referredBy = searchParams.get("referredBy");
         const deliveryMethod = searchParams.get("deliveryMethod");
-
-        const supabase = await createClient();
-
-        // Verify user is admin
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (!user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        if (!isAdminEmail(user.email)) {
-            return NextResponse.json({
-                error: `Forbidden - Admin access required`
-            }, { status: 403 });
-        }
 
         // Use service role client to bypass RLS for admin queries
         const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");

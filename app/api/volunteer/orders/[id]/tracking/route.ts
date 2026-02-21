@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 // POST - Volunteer adds a delivery tracking update
 export async function POST(
@@ -68,6 +69,20 @@ export async function POST(
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
+
+        await logAuditEvent({
+            actor: {
+                id: volunteer.id,
+                email: volunteerId,
+                name: volunteer.name,
+                role: "volunteer"
+            },
+            action: "create",
+            entityType: "tracking_event",
+            entityId: data.id,
+            details: { order_id: orderId, status, title },
+            ipAddress: getClientIP(request),
+        });
 
         return NextResponse.json({ event: data }, { status: 201 });
     } catch (error) {

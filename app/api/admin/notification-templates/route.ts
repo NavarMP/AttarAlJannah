@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/middleware/auth-guard";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +45,9 @@ export async function GET(request: NextRequest) {
 
 // POST - Create custom template
 export async function POST(request: NextRequest) {
+    const auth = await requireAdmin("admin");
+    if ("error" in auth) return auth.error;
+
     try {
         const body = await request.json();
         const {
@@ -64,15 +69,6 @@ export async function POST(request: NextRequest) {
 
         const supabase = await createClient();
 
-        // Get current user (admin) ID
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            return NextResponse.json(
-                { error: "Unauthorized" },
-                { status: 401 }
-            );
-        }
-
         const { data: template, error } = await supabase
             .from("notification_templates")
             .insert({
@@ -84,7 +80,7 @@ export async function POST(request: NextRequest) {
                 priority,
                 variables,
                 is_system: false,
-                created_by: user.id,
+                created_by: auth.admin.id,
             })
             .select()
             .single();
@@ -96,6 +92,15 @@ export async function POST(request: NextRequest) {
                 { status: 500 }
             );
         }
+
+        await logAuditEvent({
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
+            action: "create",
+            entityType: "notification_template",
+            entityId: template.id,
+            details: { name: template.name, category: template.category },
+            ipAddress: getClientIP(request),
+        });
 
         return NextResponse.json({ template });
     } catch (error) {
@@ -109,6 +114,9 @@ export async function POST(request: NextRequest) {
 
 // DELETE - Delete custom template
 export async function DELETE(request: NextRequest) {
+    const auth = await requireAdmin("admin");
+    if ("error" in auth) return auth.error;
+
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get("id");
@@ -122,10 +130,10 @@ export async function DELETE(request: NextRequest) {
 
         const supabase = await createClient();
 
-        // Check if template is system template
+        // Check if template is system template and fetch details for audit
         const { data: template, error: fetchError } = await supabase
             .from("notification_templates")
-            .select("is_system")
+            .select("is_system, name, category")
             .eq("id", id)
             .single();
 
@@ -155,6 +163,15 @@ export async function DELETE(request: NextRequest) {
                 { status: 500 }
             );
         }
+
+        await logAuditEvent({
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
+            action: "delete",
+            entityType: "notification_template",
+            entityId: id,
+            details: { name: template.name, category: template.category },
+            ipAddress: getClientIP(request),
+        });
 
         return NextResponse.json({ success: true });
     } catch (error) {

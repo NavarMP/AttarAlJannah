@@ -42,8 +42,10 @@ export async function GET(
 
         // Check Admin
         if (user) {
-            const { isAdminEmail } = await import("@/lib/config/admin");
-            if (isAdminEmail(user.email)) {
+            const { requireAdmin } = await import("@/lib/middleware/auth-guard");
+            const adminCheck = await requireAdmin("viewer");
+
+            if (!("error" in adminCheck)) {
                 console.log("[Feedback Detail] Authorized as Admin");
                 isAuthorized = true;
             }
@@ -93,22 +95,14 @@ export async function PATCH(
     request: NextRequest,
     context: { params: Promise<{ id: string }> }
 ) {
+    const { requireAdmin } = await import("@/lib/middleware/auth-guard");
+    const auth = await requireAdmin("admin");
+    if ("error" in auth) return auth.error;
+
     try {
         const { id } = await context.params;
         const supabase = await createClient();
         const body = await request.json();
-
-        // Verify user is admin
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (!user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        const ADMIN_EMAIL = "admin@attaraljannah.com";
-        if (user.email !== ADMIN_EMAIL) {
-            return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
-        }
 
         const { status, priority, admin_notes, admin_reply, tags } = body;
 
@@ -133,6 +127,16 @@ export async function PATCH(
             return NextResponse.json({ error: error?.message || "Feedback not found" }, { status: error ? 500 : 404 });
         }
 
+        const { logAuditEvent, getClientIP } = await import("@/lib/services/audit");
+        await logAuditEvent({
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
+            action: "update",
+            entityType: "feedback",
+            entityId: id,
+            details: { changes: Object.keys(updates) },
+            ipAddress: getClientIP(request),
+        });
+
         return NextResponse.json({ feedback, message: "Feedback updated successfully" });
     } catch (error: any) {
         console.error("Feedback update error:", error);
@@ -145,32 +149,42 @@ export async function DELETE(
     request: NextRequest,
     context: { params: Promise<{ id: string }> }
 ) {
+    const { requireAdmin } = await import("@/lib/middleware/auth-guard");
+    const auth = await requireAdmin("admin");
+    if ("error" in auth) return auth.error;
+
     try {
         const { id } = await context.params;
-        const supabase = await createClient();
 
-        // Verify user is admin
-        const { data: { user } } = await supabase.auth.getUser();
+        const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+        const adminSupabase = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
 
-        if (!user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        const { isAdminEmail } = await import("@/lib/config/admin");
-        if (!isAdminEmail(user.email)) {
-            return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
-        }
-
-        // Delete feedback
-        const { error } = await supabase
+        // Soft delete feedback
+        const { error } = await adminSupabase
             .from("feedback")
-            .delete()
+            .update({
+                deleted_at: new Date().toISOString(),
+                deleted_by: auth.admin.email,
+            })
             .eq("id", id);
 
         if (error) {
             console.error("Error deleting feedback:", error);
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
+
+        const { logAuditEvent, getClientIP } = await import("@/lib/services/audit");
+        await logAuditEvent({
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
+            action: "delete",
+            entityType: "feedback",
+            entityId: id,
+            details: { action: "soft_delete" },
+            ipAddress: getClientIP(request),
+        });
 
         return NextResponse.json({ success: true, message: "Feedback deleted successfully" });
     } catch (error: any) {

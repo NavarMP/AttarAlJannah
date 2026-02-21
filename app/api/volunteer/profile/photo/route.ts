@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 export async function POST(request: NextRequest) {
     try {
@@ -40,6 +41,20 @@ export async function POST(request: NextRequest) {
                 { status: 500 }
             );
         }
+
+        await logAuditEvent({
+            actor: {
+                id: user.id,
+                email: user.email || "unknown",
+                name: updatedVolunteer.name || "Volunteer",
+                role: "volunteer"
+            },
+            action: "update",
+            entityType: "volunteer_profile",
+            entityId: updatedVolunteer.id,
+            details: { action: "upload_photo", photoUrl: updatedVolunteer.profile_photo },
+            ipAddress: getClientIP(request),
+        });
 
         return NextResponse.json({
             success: true,
@@ -100,6 +115,18 @@ export async function DELETE(request: NextRequest) {
                     .remove([`profiles/${pathMatch[1]}`]);
             }
         }
+
+        await logAuditEvent({
+            actor: {
+                id: user.id,
+                email: user.email || "unknown",
+                role: "volunteer"
+            },
+            action: "delete",
+            entityType: "volunteer_profile",
+            details: { action: "delete_photo" },
+            ipAddress: getClientIP(request),
+        });
 
         return NextResponse.json({
             success: true,

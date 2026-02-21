@@ -51,7 +51,7 @@ export async function PUT(
         }
 
         await logAuditEvent({
-            admin: auth.admin,
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
             action: "update",
             entityType: "admin_user",
             entityId: id,
@@ -104,7 +104,7 @@ export async function DELETE(
         }
 
         await logAuditEvent({
-            admin: auth.admin,
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
             action: "delete",
             entityType: "admin_user",
             entityId: id,

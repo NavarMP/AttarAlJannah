@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/middleware/auth-guard";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -8,16 +9,23 @@ export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const auth = await requireAdmin("admin");
+    if ("error" in auth) return auth.error;
+
     try {
         const { id: orderId } = await params;
         const body = await request.json();
         const { volunteerId, deliveryMethod, removeAssignment } = body;
 
-        const supabase = await createClient();
+        const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+        const adminSupabase = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
 
         // Handle removal of delivery assignment
         if (removeAssignment) {
-            const { error: updateError } = await supabase
+            const { error: updateError } = await adminSupabase
                 .from("orders")
                 .update({
                     volunteer_id: null,
@@ -33,6 +41,15 @@ export async function POST(
                     { status: 500 }
                 );
             }
+
+            await logAuditEvent({
+                actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
+                action: "update",
+                entityType: "order",
+                entityId: orderId,
+                details: { action: "remove_delivery_assignment" },
+                ipAddress: getClientIP(request),
+            });
 
             return NextResponse.json({
                 success: true,
@@ -60,7 +77,7 @@ export async function POST(
 
         // Look up volunteer UUID from volunteer_id string only if it's a volunteer delivery
         if (deliveryMethod === "volunteer") {
-            const { data: volData, error: volunteerError } = await supabase
+            const { data: volData, error: volunteerError } = await adminSupabase
                 .from("volunteers")
                 .select("id, name, volunteer_id, phone")
                 .ilike("volunteer_id", volunteerId)
@@ -76,7 +93,7 @@ export async function POST(
         }
 
         // Check order exists
-        const { data: order, error: orderError } = await supabase
+        const { data: order, error: orderError } = await adminSupabase
             .from("orders")
             .select("id, order_status, volunteer_id, is_delivery_duty")
             .eq("id", orderId)
@@ -90,7 +107,7 @@ export async function POST(
         }
 
         // Update order with delivery volunteer and method
-        const { error: updateError } = await supabase
+        const { error: updateError } = await adminSupabase
             .from("orders")
             .update({
                 volunteer_id: volunteer ? volunteer.id : null,
@@ -110,7 +127,7 @@ export async function POST(
         // Create an auto-approved delivery request only for volunteer delivery
         const now = new Date().toISOString();
         if (volunteer) {
-            const { error: requestError } = await supabase
+            const { error: requestError } = await adminSupabase
                 .from("delivery_requests")
                 .insert({
                     order_id: orderId,
@@ -139,7 +156,7 @@ export async function POST(
             const trackingTitle = volunteer
                 ? `Delivery Volunteer Assigned: ${volunteer.name}`
                 : `Delivery Method: ${deliveryMethod}`;
-            await supabase.from("delivery_tracking_events").insert({
+            await adminSupabase.from("delivery_tracking_events").insert({
                 order_id: orderId,
                 status: volunteer ? "volunteer_assigned" : "method_assigned",
                 title: trackingTitle,

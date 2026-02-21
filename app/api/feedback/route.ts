@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 // GET /api/feedback - List all feedback (admin only)
 export async function GET(request: NextRequest) {
@@ -30,12 +31,18 @@ export async function GET(request: NextRequest) {
         let isAdmin = false;
 
         if (user) {
-            // Check if user is admin via email (hardcoded config)
-            const { isAdminEmail } = await import("@/lib/config/admin");
-            if (isAdminEmail(user.email)) {
+            // Check if user is admin in admin_users table
+            const { data: adminUser } = await adminSupabase
+                .from("admin_users")
+                .select("role")
+                .eq("email", user.email)
+                .eq("is_active", true)
+                .single();
+
+            if (adminUser) {
                 isAdmin = true;
             } else {
-                // Fallback: Check if user is admin in the users table
+                // Fallback: Check if user is admin in the generic users table
                 const { data: userDetails, error: userError } = await supabase
                     .from("users")
                     .select("user_role")
@@ -266,6 +273,20 @@ export async function POST(request: NextRequest) {
 
             await supabase.from("notifications").insert(notifications);
         }
+
+        await logAuditEvent({
+            actor: {
+                id: user_id || "anonymous",
+                email: email,
+                name: is_anonymous ? "Anonymous" : name,
+                role: user_role as any
+            },
+            action: "create",
+            entityType: "feedback",
+            entityId: feedback.id,
+            details: { category, subject },
+            ipAddress: getClientIP(request),
+        });
 
         return NextResponse.json({
             feedback,

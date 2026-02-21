@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/middleware/auth-guard";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +48,9 @@ export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const auth = await requireAdmin("admin");
+    if ("error" in auth) return auth.error;
+
     try {
         const { id } = await params;
         const body = await request.json();
@@ -73,6 +78,15 @@ export async function PATCH(
             throw error;
         }
 
+        await logAuditEvent({
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
+            action: "update",
+            entityType: "delivery_zone",
+            entityId: zone.id,
+            details: { changes: Object.keys(updateData) },
+            ipAddress: getClientIP(request),
+        });
+
         return NextResponse.json({ zone, message: "Zone updated successfully" });
     } catch (error) {
         console.error("Zone update API error:", error);
@@ -88,6 +102,9 @@ export async function DELETE(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const auth = await requireAdmin("admin");
+    if ("error" in auth) return auth.error;
+
     try {
         const { id } = await params;
         const supabase = await createClient();
@@ -101,6 +118,14 @@ export async function DELETE(
             console.error("Zone deletion error:", error);
             throw error;
         }
+
+        await logAuditEvent({
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
+            action: "delete",
+            entityType: "delivery_zone",
+            entityId: id,
+            ipAddress: getClientIP(request),
+        });
 
         return NextResponse.json({ message: "Zone deleted successfully" });
     } catch (error) {

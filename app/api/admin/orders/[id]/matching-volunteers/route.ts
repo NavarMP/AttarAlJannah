@@ -1,27 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/middleware/auth-guard";
 import { findMatchingVolunteers } from "@/lib/services/volunteer-assignment";
 
 export async function GET(
     request: NextRequest,
     context: { params: Promise<{ id: string }> }
 ) {
+    const auth = await requireAdmin("viewer");
+    if ("error" in auth) return auth.error;
+
     try {
         const params = await context.params;
-        const supabase = await createClient();
 
-        // Verify user is admin
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-        if (authError || !user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        // Use shared admin validation
-        const { isAdminEmail } = await import("@/lib/config/admin");
-        if (!isAdminEmail(user.email)) {
-            return NextResponse.json({ error: "Admin access required" }, { status: 403 });
-        }
+        const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+        const supabase = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
 
         // Get order details
         const { data: order, error: orderError } = await supabase

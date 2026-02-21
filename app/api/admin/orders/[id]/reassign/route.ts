@@ -1,32 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/middleware/auth-guard";
 import { reassignDeliveryVolunteer } from "@/lib/services/volunteer-assignment";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 export async function POST(
     request: NextRequest,
     context: { params: Promise<{ id: string }> }
 ) {
+    const auth = await requireAdmin("admin");
+    if ("error" in auth) return auth.error;
+
     try {
         const params = await context.params;
-        const supabase = await createClient();
         const body = await request.json();
         const { volunteerId } = body;
 
-        // Verify user is admin
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError || !user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
 
-        const { data: volunteer, error: volError } = await supabase
-            .from("volunteers")
-            .select("role")
-            .eq("auth_id", user.id)
-            .single();
-
-        if (volError || volunteer?.role !== "admin") {
-            return NextResponse.json({ error: "Admin access required" }, { status: 403 });
-        }
 
         // Reassign the order
         const result = await reassignDeliveryVolunteer(params.id, volunteerId || null);
@@ -37,6 +26,15 @@ export async function POST(
                 { status: 500 }
             );
         }
+
+        await logAuditEvent({
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
+            action: "update",
+            entityType: "order",
+            entityId: params.id,
+            details: { action: "reassign_volunteer", volunteerId },
+            ipAddress: getClientIP(request),
+        });
 
         return NextResponse.json({
             success: true,

@@ -1,33 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { isAdminEmail } from "@/lib/config/admin";
+import { requireAdmin } from "@/lib/middleware/auth-guard";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 export async function POST(request: NextRequest) {
+    const auth = await requireAdmin("admin");
+    if ("error" in auth) return auth.error;
+
     try {
-        const supabase = await createClient();
-
-        // Verify admin authentication
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (!user) {
-            return NextResponse.json(
-                { error: "Unauthorized" },
-                { status: 401 }
-            );
-        }
-
-        // Verify user is admin (check email whitelist)
-        console.log("🔍 Checking admin auth - User email:", user.email);
-
-        if (!isAdminEmail(user.email)) {
-            console.log("❌ Admin check failed - email not in whitelist:", user.email);
-            return NextResponse.json(
-                { error: "Forbidden - Admin access required" },
-                { status: 403 }
-            );
-        }
-
-        console.log("✅ Admin verified successfully");
+        const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+        const adminSupabase = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
 
         // Get volunteer ID from URL path
         const url = new URL(request.url);
@@ -45,7 +29,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Find volunteer
-        const { data: volunteer, error: fetchError } = await supabase
+        const { data: volunteer, error: fetchError } = await adminSupabase
             .from("volunteers")
             .select("id, auth_id, name, volunteer_id, status")
             .eq("id", volunteerId)
@@ -67,7 +51,7 @@ export async function POST(request: NextRequest) {
 
         if (action === "approve") {
             // Update status to active
-            const { error: updateError } = await supabase
+            const { error: updateError } = await adminSupabase
                 .from("volunteers")
                 .update({ status: "active" })
                 .eq("id", volunteerId);
@@ -79,6 +63,15 @@ export async function POST(request: NextRequest) {
                     { status: 500 }
                 );
             }
+
+            await logAuditEvent({
+                actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
+                action: "approve",
+                entityType: "volunteer",
+                entityId: volunteerId,
+                details: { name: volunteer.name, volunteer_id: volunteer.volunteer_id },
+                ipAddress: getClientIP(request),
+            });
 
             return NextResponse.json({
                 success: true,
@@ -92,25 +85,6 @@ export async function POST(request: NextRequest) {
             });
 
         } else if (action === "reject") {
-            // Need service role to delete auth user
-            const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-            if (!serviceRoleKey || !supabaseUrl) {
-                return NextResponse.json(
-                    { error: "Server configuration error" },
-                    { status: 500 }
-                );
-            }
-
-            const { createClient: createSupabaseClient } = require("@supabase/supabase-js");
-            const adminSupabase = createSupabaseClient(supabaseUrl, serviceRoleKey, {
-                auth: {
-                    autoRefreshToken: false,
-                    persistSession: false
-                }
-            });
-
             // Delete challenge progress first (foreign key constraint)
             await adminSupabase
                 .from("challenge_progress")
@@ -135,6 +109,15 @@ export async function POST(request: NextRequest) {
             if (volunteer.auth_id) {
                 await adminSupabase.auth.admin.deleteUser(volunteer.auth_id);
             }
+
+            await logAuditEvent({
+                actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
+                action: "reject",
+                entityType: "volunteer",
+                entityId: volunteerId,
+                details: { name: volunteer.name, reason: reason || "No reason provided" },
+                ipAddress: getClientIP(request),
+            });
 
             return NextResponse.json({
                 success: true,

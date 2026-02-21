@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/middleware/auth-guard";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +41,9 @@ export async function GET(request: NextRequest) {
 
 // POST - Create new delivery zone
 export async function POST(request: NextRequest) {
+    const auth = await requireAdmin("admin");
+    if ("error" in auth) return auth.error;
+
     try {
         const body = await request.json();
         const {
@@ -86,6 +91,15 @@ export async function POST(request: NextRequest) {
             console.error("Zone creation error:", error);
             throw error;
         }
+
+        await logAuditEvent({
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
+            action: "create",
+            entityType: "delivery_zone",
+            entityId: zone.id,
+            details: { name: zone.name, district: zone.district },
+            ipAddress: getClientIP(request),
+        });
 
         return NextResponse.json({ zone, message: "Zone created successfully" });
     } catch (error) {

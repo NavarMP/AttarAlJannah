@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/middleware/auth-guard";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +68,9 @@ export async function GET(request: NextRequest) {
 
 // PATCH - Approve or reject delivery request
 export async function PATCH(request: NextRequest) {
+    const auth = await requireAdmin("admin");
+    if ("error" in auth) return auth.error;
+
     try {
         const body = await request.json();
         const { requestId, action, notes } = body;
@@ -175,7 +180,6 @@ export async function PATCH(request: NextRequest) {
                 // Not critical, continue
             }
 
-            // Trigger notifications for approval
             try {
                 const { NotificationService } = await import("@/lib/services/notification-service");
 
@@ -196,6 +200,15 @@ export async function PATCH(request: NextRequest) {
             } catch (notifError) {
                 console.error("⚠️ Notification error (non-blocking):", notifError);
             }
+
+            await logAuditEvent({
+                actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
+                action: "update",
+                entityType: "delivery_request",
+                entityId: requestId,
+                details: { status: "approved" },
+                ipAddress: getClientIP(request),
+            });
 
             return NextResponse.json({
                 success: true,
@@ -220,7 +233,6 @@ export async function PATCH(request: NextRequest) {
                 );
             }
 
-            // Trigger notification for rejection
             try {
                 const { NotificationService } = await import("@/lib/services/notification-service");
                 await NotificationService.notifyDeliveryRequestUpdate(
@@ -232,6 +244,15 @@ export async function PATCH(request: NextRequest) {
             } catch (notifError) {
                 console.error("⚠️ Notification error (non-blocking):", notifError);
             }
+
+            await logAuditEvent({
+                actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
+                action: "update",
+                entityType: "delivery_request",
+                entityId: requestId,
+                details: { status: "rejected" },
+                ipAddress: getClientIP(request),
+            });
 
             return NextResponse.json({
                 success: true,

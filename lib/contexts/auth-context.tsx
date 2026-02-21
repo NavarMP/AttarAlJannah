@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { isAdminEmail, AdminRole } from "@/lib/config/admin";
+import { AdminRole } from "@/lib/config/admin";
 
 interface User {
     id: string;
@@ -52,14 +52,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const { data: { session } } = await supabase.auth.getSession();
 
                 if (session?.user) {
-                    if (isAdminEmail(session.user.email)) {
-                        const adminInfo = await fetchAdminRole(session.user.email!);
+                    const adminInfo = await fetchAdminRole(session.user.email!);
+                    if (adminInfo) {
                         setUser({
                             id: session.user.id,
                             email: session.user.email!,
-                            name: adminInfo?.name || 'Admin',
+                            name: adminInfo.name || 'Admin',
                             role: 'admin',
-                            adminRole: adminInfo?.role || 'admin',
+                            adminRole: adminInfo.role || 'admin',
                         });
                     } else {
                         setUser(null);
@@ -76,14 +76,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_IN' && session?.user) {
-                if (isAdminEmail(session.user.email)) {
-                    const adminInfo = await fetchAdminRole(session.user.email!);
+                const adminInfo = await fetchAdminRole(session.user.email!);
+                if (adminInfo) {
                     setUser({
                         id: session.user.id,
                         email: session.user.email!,
-                        name: adminInfo?.name || 'Admin',
+                        name: adminInfo.name || 'Admin',
                         role: 'admin',
-                        adminRole: adminInfo?.role || 'admin',
+                        adminRole: adminInfo.role || 'admin',
                     });
                 }
             } else if (event === 'SIGNED_OUT') {

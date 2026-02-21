@@ -24,10 +24,7 @@ export async function GET(
             process.env.SUPABASE_SERVICE_ROLE_KEY!
         );
 
-        // Fetch order with delivery volunteer info
-        const { data: order, error } = await supabase
-            .from("orders")
-            .select(`
+        const selectFields = `
                 id,
                 customer_name,
                 product_name,
@@ -42,10 +39,31 @@ export async function GET(
                 created_at,
                 updated_at,
                 delivery_volunteer:volunteers!orders_delivery_volunteer_id_fkey(name, phone, volunteer_id)
-            `)
+            `;
+
+        // Try exact UUID match first
+        let { data: order, error } = await supabase
+            .from("orders")
+            .select(selectFields)
             .eq("id", orderId)
             .is("deleted_at", null)
             .single();
+
+        // If not found and orderId looks like a short prefix, try prefix match
+        if ((error || !order) && orderId.length < 36) {
+            const { data: prefixOrder, error: prefixError } = await supabase
+                .from("orders")
+                .select(selectFields)
+                .ilike("id", `${orderId}%`)
+                .is("deleted_at", null)
+                .limit(1)
+                .single();
+
+            if (!prefixError && prefixOrder) {
+                order = prefixOrder;
+                error = null;
+            }
+        }
 
         if (error || !order) {
             return NextResponse.json(

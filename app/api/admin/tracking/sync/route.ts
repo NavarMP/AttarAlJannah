@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/middleware/auth-guard";
 import { fetchCourierTracking, COURIER_MAP } from "@/lib/services/courier-tracking";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 // POST - Sync tracking for orders with tracking numbers via TrackingMore API
 export async function POST(request: NextRequest) {
@@ -112,6 +113,18 @@ export async function POST(request: NextRequest) {
                 errorCount++;
             }
         }
+
+        await logAuditEvent({
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
+            action: "sync",
+            entityType: "tracking",
+            details: {
+                synced_count: syncedCount,
+                error_count: errorCount,
+                total: orders.length,
+            },
+            ipAddress: getClientIP(request),
+        });
 
         return NextResponse.json({
             success: true,

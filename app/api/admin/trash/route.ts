@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/middleware/auth-guard";
 import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
-const VALID_ENTITY_TYPES = ["orders", "volunteers", "customers"];
+const VALID_ENTITY_TYPES = ["orders", "volunteers", "customers", "feedback", "promo_content"];
 
 // GET - List soft-deleted items from trash
 export async function GET(request: NextRequest) {
@@ -35,6 +35,10 @@ export async function GET(request: NextRequest) {
             selectFields = "id, name, phone, volunteer_id, total_sales, deleted_at, deleted_by, created_at";
         } else if (entityType === "customers") {
             selectFields = "id, name, phone, total_orders, deleted_at, deleted_by, created_at";
+        } else if (entityType === "feedback") {
+            selectFields = "id, name, phone, category, status, rating_overall, deleted_at, deleted_by, created_at";
+        } else if (entityType === "promo_content") {
+            selectFields = "id, title, type, is_active, deleted_at, deleted_by, created_at";
         }
 
         const { data, error, count } = await supabase
@@ -93,7 +97,7 @@ export async function POST(request: NextRequest) {
         }
 
         await logAuditEvent({
-            admin: auth.admin,
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
             action: "restore",
             entityType: entityType.replace(/s$/, ""),
             entityId: ids.join(","),
@@ -164,7 +168,7 @@ export async function DELETE(request: NextRequest) {
         }
 
         await logAuditEvent({
-            admin: auth.admin,
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
             action: "permanent_delete",
             entityType: entityType.replace(/s$/, ""),
             entityId: ids.join(","),

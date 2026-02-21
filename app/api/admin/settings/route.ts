@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/middleware/auth-guard";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 // GET: Fetch all site settings
 export async function GET() {
@@ -30,6 +32,9 @@ export async function GET() {
 
 // PATCH: Update a setting
 export async function PATCH(request: NextRequest) {
+    const auth = await requireAdmin("admin");
+    if ("error" in auth) return auth.error;
+
     try {
         const body = await request.json();
         const { key, value } = body;
@@ -59,6 +64,15 @@ export async function PATCH(request: NextRequest) {
             console.error("Settings update error:", error);
             return NextResponse.json({ error: "Failed to update setting" }, { status: 500 });
         }
+
+        await logAuditEvent({
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
+            action: "update",
+            entityType: "settings",
+            entityId: key,
+            details: { previous_value: 'unknown', new_value: value },
+            ipAddress: getClientIP(request),
+        });
 
         return NextResponse.json({ success: true, key, value });
     } catch (error) {

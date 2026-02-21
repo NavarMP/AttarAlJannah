@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NotificationService } from "@/lib/services/notification-service";
+import { requireAdmin } from "@/lib/middleware/auth-guard";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
+    const auth = await requireAdmin("admin");
+    if ("error" in auth) return auth.error;
+
     try {
         const body = await request.json();
         const {
@@ -177,6 +182,19 @@ export async function POST(request: NextRequest) {
             default:
                 return NextResponse.json({ error: "Invalid target type" }, { status: 400 });
         }
+
+        await logAuditEvent({
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
+            action: "send_manual",
+            entityType: "notification",
+            details: {
+                title,
+                target_type: targetType,
+                recipient_count: recipientIds.length,
+                target_role: targetRole,
+            },
+            ipAddress: getClientIP(request),
+        });
 
         return NextResponse.json({
             success: true,

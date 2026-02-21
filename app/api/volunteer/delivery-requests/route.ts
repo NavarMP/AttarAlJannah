@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -93,6 +94,20 @@ export async function POST(request: NextRequest) {
                 { status: 500 }
             );
         }
+
+        await logAuditEvent({
+            actor: {
+                id: volunteer.id,
+                email: volunteerId,
+                name: volunteer.name,
+                role: "volunteer"
+            },
+            action: "create",
+            entityType: "delivery_request",
+            entityId: deliveryRequest.id,
+            details: { order_id: orderId },
+            ipAddress: getClientIP(request),
+        });
 
         return NextResponse.json({
             success: true,

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/middleware/auth-guard";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 export async function POST(request: NextRequest) {
+    const auth = await requireAdmin("admin");
+    if ("error" in auth) return auth.error;
+
     try {
         const { orderId } = await request.json();
 
@@ -12,10 +16,14 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const supabase = await createClient();
+        const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+        const adminSupabase = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
 
         // Check if order exists
-        const { data: order, error: fetchError } = await supabase
+        const { data: order, error: fetchError } = await adminSupabase
             .from("orders")
             .select("*")
             .eq("id", orderId)
@@ -28,10 +36,13 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Delete the order (admin can delete any order regardless of status)
-        const { error: deleteError } = await supabase
+        // Soft delete the order (admin can delete any order regardless of status)
+        const { error: deleteError } = await adminSupabase
             .from("orders")
-            .delete()
+            .update({
+                deleted_at: new Date().toISOString(),
+                deleted_by: auth.admin.email,
+            })
             .eq("id", orderId);
 
         if (deleteError) {
@@ -42,8 +53,21 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        await logAuditEvent({
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
+            action: "delete",
+            entityType: "order",
+            entityId: orderId,
+            details: {
+                customer_name: order.customer_name,
+                quantity: order.quantity,
+                total_price: order.total_price
+            },
+            ipAddress: getClientIP(request),
+        });
+
         return NextResponse.json(
-            { message: "Order deleted successfully" },
+            { message: "Order moved to trash successfully" },
             { status: 200 }
         );
     } catch (error) {

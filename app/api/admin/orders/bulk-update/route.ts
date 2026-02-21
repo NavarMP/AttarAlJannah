@@ -1,33 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { isAdminEmail } from "@/lib/config/admin";
+import { requireAdmin } from "@/lib/middleware/auth-guard";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 export async function POST(request: NextRequest) {
+    const auth = await requireAdmin("admin");
+    if ("error" in auth) return auth.error;
+
     try {
-        const supabase = await createClient();
         const { orderIds, status } = await request.json();
-
-        // Verify user is admin
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (!user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        if (!isAdminEmail(user.email)) {
-            return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
-        }
 
         if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
             return NextResponse.json({ error: "Invalid order IDs" }, { status: 400 });
         }
 
-        if (!status || !["pending", "confirmed", "delivered"].includes(status)) {
+        if (!status || !["pending", "confirmed", "delivered", "ordered", "cant_reach", "cancelled"].includes(status)) {
             return NextResponse.json({ error: "Invalid status" }, { status: 400 });
         }
 
+        const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+        const adminSupabase = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+
         // Update orders
-        const { error, count } = await supabase
+        const { error, count } = await adminSupabase
             .from("orders")
             .update({ order_status: status })
             .in("id", orderIds);
@@ -36,6 +33,15 @@ export async function POST(request: NextRequest) {
             console.error("Error bulk updating orders:", error);
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
+
+        await logAuditEvent({
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
+            action: "bulk_update",
+            entityType: "order",
+            entityId: orderIds.join(","),
+            details: { count: orderIds.length, newStatus: status },
+            ipAddress: getClientIP(request),
+        });
 
         return NextResponse.json({
             success: true,

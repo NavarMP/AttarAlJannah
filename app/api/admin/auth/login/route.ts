@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { isAdminEmail } from "@/lib/config/admin";
 import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 export async function POST(request: NextRequest) {
@@ -59,7 +58,7 @@ export async function POST(request: NextRequest) {
 
         // Log the login
         await logAuditEvent({
-            admin: adminUser,
+            actor: { id: adminUser.id, email: adminUser.email, name: adminUser.name, role: adminUser.role as any },
             action: "login",
             entityType: "auth",
             details: { method: "email_password" },

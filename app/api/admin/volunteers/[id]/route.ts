@@ -66,8 +66,8 @@ export async function PUT(
         const body = await request.json();
         const supabase = await createClient();
 
-        // Sanitize body
-        const { confirmPassword, ...updateData } = body;
+        // Sanitize body — remove fields that don't belong in volunteers table
+        const { confirmPassword, goal, ...updateData } = body;
         if (updateData.password === "") {
             delete updateData.password;
         }
@@ -98,12 +98,33 @@ export async function PUT(
             return NextResponse.json({ error: error.message }, { status: 400 });
         }
 
+        // Update goal in challenge_progress table if provided
+        if (goal !== undefined && goal !== null && typeof goal === "number" && data) {
+            const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+            const adminSupabase = createSupabaseClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                process.env.SUPABASE_SERVICE_ROLE_KEY!
+            );
+
+            // Upsert: update if exists, insert if not
+            const { error: goalError } = await adminSupabase
+                .from("challenge_progress")
+                .upsert(
+                    { volunteer_id: data.id, goal: goal },
+                    { onConflict: "volunteer_id" }
+                );
+
+            if (goalError) {
+                console.error("Failed to update goal in challenge_progress:", goalError);
+            }
+        }
+
         await logAuditEvent({
-            admin: auth.admin,
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
             action: "update",
             entityType: "volunteer",
             entityId: data?.id || id,
-            details: { changes: Object.keys(updateData) },
+            details: { changes: Object.keys(updateData).concat(goal !== undefined ? ["goal"] : []) },
             ipAddress: getClientIP(request),
         });
 
@@ -155,7 +176,7 @@ export async function DELETE(
         }
 
         await logAuditEvent({
-            admin: auth.admin,
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
             action: "delete",
             entityType: "volunteer",
             entityId: vol.id,

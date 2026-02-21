@@ -104,7 +104,7 @@ export async function DELETE(request: NextRequest) {
 
                 if (adminUser) {
                     await logAuditEvent({
-                        admin: adminUser,
+                        actor: { id: adminUser.id, email: adminUser.email, name: adminUser.name, role: adminUser.role as any },
                         action: "delete",
                         entityType: "order",
                         entityId: orderId,

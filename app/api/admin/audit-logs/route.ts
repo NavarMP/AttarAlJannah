@@ -8,7 +8,8 @@ export async function GET(request: NextRequest) {
 
     try {
         const searchParams = request.nextUrl.searchParams;
-        const adminEmail = searchParams.get("adminEmail");
+        const actorEmail = searchParams.get("actorEmail");
+        const actorRole = searchParams.get("actorRole");
         const action = searchParams.get("action");
         const entityType = searchParams.get("entityType");
         const startDate = searchParams.get("startDate");
@@ -27,8 +28,11 @@ export async function GET(request: NextRequest) {
             .select("*", { count: "exact" })
             .order("created_at", { ascending: false });
 
-        if (adminEmail) {
-            query = query.eq("admin_email", adminEmail);
+        if (actorEmail) {
+            query = query.eq("actor_email", actorEmail);
+        }
+        if (actorRole) {
+            query = query.eq("actor_role", actorRole);
         }
         if (action) {
             query = query.eq("action", action);

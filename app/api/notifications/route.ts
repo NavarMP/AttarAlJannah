@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { isAdminEmail } from "@/lib/config/admin";
 
 // GET /api/notifications - List notifications for current user
 export async function GET(request: NextRequest) {
@@ -113,17 +112,10 @@ export async function POST(request: NextRequest) {
         const supabase = await createClient();
         const body = await request.json();
 
-        // Verify user is admin
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (!user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        const ADMIN_EMAIL = "admin@attaraljannah.com";
-        if (user.email !== ADMIN_EMAIL) {
-            return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
-        }
+        // Verify user is admin using the robust auth-guard
+        const { requireAdmin } = await import("@/lib/middleware/auth-guard");
+        const auth = await requireAdmin("admin");
+        if ("error" in auth) return auth.error;
 
         // Validate required fields
         const { user_id, user_role, type, title, message, action_url, metadata } = body;

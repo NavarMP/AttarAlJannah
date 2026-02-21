@@ -99,7 +99,7 @@ export async function POST(
         }
 
         await logAuditEvent({
-            admin: auth.admin,
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
             action: "create",
             entityType: "tracking_event",
             entityId: id,
@@ -163,7 +163,7 @@ export async function PUT(
         }
 
         await logAuditEvent({
-            admin: auth.admin,
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
             action: "update",
             entityType: "order",
             entityId: id,

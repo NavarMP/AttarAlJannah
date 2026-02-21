@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -100,6 +101,18 @@ export async function PATCH(request: NextRequest) {
                 { status: 500 }
             );
         }
+
+        await logAuditEvent({
+            actor: {
+                id: user.id,
+                email: user.email || "unknown",
+                role: "volunteer"
+            },
+            action: "update",
+            entityType: "notification_preferences",
+            details: { preferences },
+            ipAddress: getClientIP(request),
+        });
 
         return NextResponse.json({
             success: true,

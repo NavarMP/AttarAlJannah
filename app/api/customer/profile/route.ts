@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 export async function GET(request: NextRequest) {
     try {
@@ -73,6 +74,20 @@ export async function POST(request: NextRequest) {
             .single();
 
         if (error) throw error;
+
+        await logAuditEvent({
+            actor: {
+                id: customer.id,
+                email: customer.phone,
+                name: customer.name,
+                role: "customer"
+            },
+            action: "update",
+            entityType: "customer_profile",
+            entityId: customer.id,
+            details: { name, phone },
+            ipAddress: getClientIP(request),
+        });
 
         return NextResponse.json({
             id: customer.id,

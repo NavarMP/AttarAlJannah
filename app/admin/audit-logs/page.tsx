@@ -25,7 +25,10 @@ import { ScrollText, ShieldAlert, Loader2, ChevronLeft, ChevronRight, Search } f
 
 interface AuditLog {
     id: string;
-    admin_email: string;
+    actor_id: string;
+    actor_email: string;
+    actor_name: string;
+    actor_role: string;
     action: string;
     entity_type: string;
     entity_id: string | null;
@@ -42,8 +45,12 @@ const ACTION_COLORS: Record<string, string> = {
     restore: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
     permanent_delete: "bg-red-200 text-red-900 dark:bg-red-950 dark:text-red-100",
     login: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
+    register: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
     deactivate: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
     bulk_update: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+    sync: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+    send_manual: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
+    resend: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
 };
 
 export default function AuditLogsPage() {
@@ -57,6 +64,7 @@ export default function AuditLogsPage() {
     // Filters
     const [actionFilter, setActionFilter] = useState("all");
     const [entityFilter, setEntityFilter] = useState("all");
+    const [actorRoleFilter, setActorRoleFilter] = useState("all");
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
 
@@ -66,6 +74,7 @@ export default function AuditLogsPage() {
             const params = new URLSearchParams({ page: page.toString() });
             if (actionFilter !== "all") params.set("action", actionFilter);
             if (entityFilter !== "all") params.set("entityType", entityFilter);
+            if (actorRoleFilter !== "all") params.set("actorRole", actorRoleFilter);
             if (startDate) params.set("startDate", startDate);
             if (endDate) params.set("endDate", endDate);
 
@@ -80,7 +89,7 @@ export default function AuditLogsPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, actionFilter, entityFilter, startDate, endDate]);
+    }, [page, actionFilter, entityFilter, actorRoleFilter, startDate, endDate]);
 
     useEffect(() => {
         fetchLogs();
@@ -108,7 +117,7 @@ export default function AuditLogsPage() {
                     Audit Logs
                 </h1>
                 <p className="text-muted-foreground mt-1">
-                    Track all admin actions — who did what and when
+                    Track all system actions — who did what and when
                 </p>
             </div>
 
@@ -130,6 +139,8 @@ export default function AuditLogsPage() {
                                     <SelectItem value="bulk_delete">Bulk Delete</SelectItem>
                                     <SelectItem value="restore">Restore</SelectItem>
                                     <SelectItem value="login">Login</SelectItem>
+                                    <SelectItem value="register">Register</SelectItem>
+                                    <SelectItem value="sync">Sync</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -142,9 +153,35 @@ export default function AuditLogsPage() {
                                 <SelectItem value="all">All Entities</SelectItem>
                                 <SelectItem value="order">Order</SelectItem>
                                 <SelectItem value="volunteer">Volunteer</SelectItem>
+                                <SelectItem value="volunteer_profile">Volunteer Profile</SelectItem>
                                 <SelectItem value="customer">Customer</SelectItem>
+                                <SelectItem value="customer_profile">Customer Profile</SelectItem>
+                                <SelectItem value="feedback">Feedback</SelectItem>
+                                <SelectItem value="promo_content">Promo Content</SelectItem>
+                                <SelectItem value="delivery">Delivery</SelectItem>
+                                <SelectItem value="delivery_zone">Delivery Zone</SelectItem>
+                                <SelectItem value="delivery_request">Delivery Request</SelectItem>
                                 <SelectItem value="admin_user">Admin User</SelectItem>
                                 <SelectItem value="auth">Auth</SelectItem>
+                                <SelectItem value="notification">Notification</SelectItem>
+                                <SelectItem value="notification_template">Notification Template</SelectItem>
+                                <SelectItem value="notification_preferences">Notification Preferences</SelectItem>
+                                <SelectItem value="settings">Settings</SelectItem>
+                                <SelectItem value="tracking">Tracking Sync</SelectItem>
+                                <SelectItem value="tracking_event">Tracking Event</SelectItem>
+                            </SelectContent>
+                        </Select>
+
+                        <Select value={actorRoleFilter} onValueChange={(v) => { setActorRoleFilter(v); setPage(1); }}>
+                            <SelectTrigger className="w-[130px]">
+                                <SelectValue placeholder="Role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Roles</SelectItem>
+                                <SelectItem value="super_admin">Super Admin</SelectItem>
+                                <SelectItem value="admin">Admin</SelectItem>
+                                <SelectItem value="volunteer">Volunteer</SelectItem>
+                                <SelectItem value="customer">Customer</SelectItem>
                             </SelectContent>
                         </Select>
 
@@ -183,7 +220,8 @@ export default function AuditLogsPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Time</TableHead>
-                                    <TableHead>Admin</TableHead>
+                                    <TableHead>Actor</TableHead>
+                                    <TableHead>Role</TableHead>
                                     <TableHead>Action</TableHead>
                                     <TableHead>Entity</TableHead>
                                     <TableHead>Details</TableHead>
@@ -206,7 +244,20 @@ export default function AuditLogsPage() {
                                                 })}
                                             </TableCell>
                                             <TableCell className="font-medium text-sm">
-                                                {log.admin_email.split("@")[0]}
+                                                <div className="flex flex-col">
+                                                    <span>{log.actor_name || "Unknown"}</span>
+                                                    <span className="text-xs text-muted-foreground font-normal">{log.actor_email}</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge
+                                                    variant={log.actor_role === 'super_admin' ? 'default' : log.actor_role === 'admin' ? 'secondary' : 'outline'}
+                                                    className={`text-[10px] capitalize ${log.actor_role === 'volunteer' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' :
+                                                        log.actor_role === 'customer' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' : ''
+                                                        }`}
+                                                >
+                                                    {log.actor_role.replace('_', ' ')}
+                                                </Badge>
                                             </TableCell>
                                             <TableCell>
                                                 <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${ACTION_COLORS[log.action] || "bg-gray-100 text-gray-800"}`}>
@@ -226,7 +277,7 @@ export default function AuditLogsPage() {
                                         </TableRow>
                                         {expandedId === log.id && log.details && (
                                             <TableRow key={`${log.id}-details`}>
-                                                <TableCell colSpan={5} className="bg-muted/30">
+                                                <TableCell colSpan={6} className="bg-muted/30">
                                                     <pre className="text-xs overflow-x-auto p-2 rounded bg-muted">
                                                         {JSON.stringify(log.details, null, 2)}
                                                     </pre>

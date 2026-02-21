@@ -1,32 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { isAdminEmail } from "@/lib/config/admin";
+import { requireAdmin } from "@/lib/middleware/auth-guard";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 export async function POST(request: NextRequest) {
+    const auth = await requireAdmin("admin");
+    if ("error" in auth) return auth.error;
+
     try {
-        const supabase = await createClient();
-
-        // Verify admin authentication
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        // Check if user is admin via email
-        if (!isAdminEmail(user.email)) {
-            return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
-        }
-
         const { orderIds } = await request.json();
 
         if (!Array.isArray(orderIds) || orderIds.length === 0) {
             return NextResponse.json({ error: "No order IDs provided" }, { status: 400 });
         }
 
-        // Delete orders from database
-        const { data, error } = await supabase
+        const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+        const adminSupabase = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+
+        // Soft delete orders from database
+        const { data, error } = await adminSupabase
             .from("orders")
-            .delete()
+            .update({
+                deleted_at: new Date().toISOString(),
+                deleted_by: auth.admin.email,
+            })
             .in("id", orderIds)
             .select();
 
@@ -38,10 +37,19 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        await logAuditEvent({
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
+            action: "bulk_delete",
+            entityType: "order",
+            entityId: orderIds.join(","),
+            details: { count: orderIds.length },
+            ipAddress: getClientIP(request),
+        });
+
         return NextResponse.json({
             success: true,
             deletedCount: data?.length || 0,
-            message: `Successfully deleted ${data?.length || 0} order(s) from database`,
+            message: `Successfully moved ${data?.length || 0} order(s) to trash`,
         });
     } catch (error) {
         console.error("Server error:", error);

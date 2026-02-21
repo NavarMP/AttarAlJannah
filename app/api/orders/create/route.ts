@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { autoAssignDeliveryVolunteer } from "@/lib/services/volunteer-assignment";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 export async function POST(request: NextRequest) {
     try {
@@ -137,6 +138,20 @@ export async function POST(request: NextRequest) {
         }
 
         console.log("✅ Order created successfully:", orderData.id);
+
+        await logAuditEvent({
+            actor: {
+                id: customerId || "anonymous",
+                email: customerPhone, // Use phone as identifier since email might be missing
+                name: customerName,
+                role: "customer"
+            },
+            action: "create",
+            entityType: "order",
+            entityId: orderData.id,
+            details: { product_name: productName, quantity, total_price: totalPrice },
+            ipAddress: getClientIP(request),
+        });
 
         // Trigger notification for order creation
         try {

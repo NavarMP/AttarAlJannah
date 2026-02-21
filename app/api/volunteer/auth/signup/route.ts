@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 export async function POST(request: NextRequest) {
     try {
@@ -168,6 +169,20 @@ export async function POST(request: NextRequest) {
             console.error("Progress creation error:", progressError);
             // Non-fatal, can be created later
         }
+
+        await logAuditEvent({
+            actor: {
+                id: authUser.user.id,
+                email: authEmail,
+                name: newVolunteer.name,
+                role: "volunteer"
+            },
+            action: "register",
+            entityType: "volunteer_profile",
+            entityId: newVolunteer.id,
+            details: { volunteer_id: newVolunteer.volunteer_id },
+            ipAddress: getClientIP(request),
+        });
 
         return NextResponse.json({
             success: true,

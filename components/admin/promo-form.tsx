@@ -95,24 +95,33 @@ export function PromoForm({ initialData, isEditing = false }: PromoFormProps) {
             };
 
             if (isEditing && initialData?.id) {
-                const { error } = await supabase
-                    .from("promo_content")
-                    .update(payload)
-                    .eq("id", initialData.id);
+                const response = await fetch("/api/admin/promo", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ ...payload, id: initialData.id })
+                });
 
-                if (error) throw error;
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || "Failed to update promo");
+                }
                 toast.success("Promo content updated");
             } else {
-                const { error } = await supabase
-                    .from("promo_content")
-                    .insert([payload]);
+                const response = await fetch("/api/admin/promo", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
 
-                if (error) throw error;
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || "Failed to create promo");
+                }
                 toast.success("Promo content created");
             }
 
-            router.push("/admin/promo");
-            router.refresh();
+            // Force refresh of the data
+            window.location.href = "/admin/promo";
 
         } catch (error) {
             console.error("Form submission error:", error);

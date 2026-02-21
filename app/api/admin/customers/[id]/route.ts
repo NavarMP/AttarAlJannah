@@ -45,7 +45,7 @@ export async function DELETE(
         }
 
         await logAuditEvent({
-            admin: auth.admin,
+            actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
             action: "delete",
             entityType: "customer",
             entityId: customerId,

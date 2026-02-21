@@ -23,20 +23,24 @@ export default async function VolunteerDetailPage({
         redirect("/login");
     }
 
-    // Check if user is admin
-    const { isAdminEmail } = await import("@/lib/config/admin");
+    // Check if user is admin via admin_users table
     let isAdmin = false;
 
-    if (session.user.email && isAdminEmail(session.user.email)) {
-        isAdmin = true;
-    } else {
-        const { data: userRole } = await supabase
-            .from("users")
+    if (session?.user?.email) {
+        const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+        const adminSupabase = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+
+        const { data: adminUser } = await adminSupabase
+            .from("admin_users")
             .select("role")
-            .eq("id", session.user.id)
+            .eq("email", session.user.email)
+            .eq("is_active", true)
             .single();
 
-        if (userRole?.role === "admin") {
+        if (adminUser) {
             isAdmin = true;
         }
     }

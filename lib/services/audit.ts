@@ -1,7 +1,12 @@
-import { AdminUser } from "@/lib/middleware/auth-guard";
+export interface AuditActor {
+    id: string;
+    email: string;
+    name?: string;
+    role: "super_admin" | "admin" | "viewer" | "volunteer" | "customer" | "public";
+}
 
 interface AuditEventParams {
-    admin: AdminUser;
+    actor: AuditActor;
     action: string;
     entityType: string;
     entityId?: string;
@@ -10,11 +15,11 @@ interface AuditEventParams {
 }
 
 /**
- * Log an audit event for admin actions.
+ * Log an audit event for any user action (Admin, Volunteer, Customer).
  * Uses the service role client to bypass RLS.
  */
 export async function logAuditEvent({
-    admin,
+    actor,
     action,
     entityType,
     entityId,
@@ -29,8 +34,10 @@ export async function logAuditEvent({
         );
 
         await supabase.from("audit_logs").insert({
-            admin_id: admin.id,
-            admin_email: admin.email,
+            actor_id: actor.id,
+            actor_email: actor.email,
+            actor_name: actor.name || "Unknown",
+            actor_role: actor.role,
             action,
             entity_type: entityType,
             entity_id: entityId || null,

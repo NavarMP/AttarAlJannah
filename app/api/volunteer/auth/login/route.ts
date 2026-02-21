@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 export async function POST(request: NextRequest) {
     try {
@@ -63,6 +64,19 @@ export async function POST(request: NextRequest) {
                 { status: 401 }
             );
         }
+
+        await logAuditEvent({
+            actor: {
+                id: authData.user?.id || volunteer.id,
+                email: volunteer.email,
+                name: volunteer.name,
+                role: "volunteer"
+            },
+            action: "login",
+            entityType: "auth",
+            details: { volunteer_id: volunteer.volunteer_id },
+            ipAddress: getClientIP(request),
+        });
 
         return NextResponse.json({
             success: true,

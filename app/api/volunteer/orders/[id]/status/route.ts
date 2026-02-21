@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -118,6 +119,19 @@ export async function PATCH(
                 console.error("⚠️ Tracking event error (non-blocking):", trackingError);
             }
 
+            await logAuditEvent({
+                actor: {
+                    id: volunteer.id,
+                    email: volunteerId,
+                    role: "volunteer"
+                },
+                action: "update",
+                entityType: "order",
+                entityId: orderId,
+                details: { status: "delivered", volunteer_id: volunteerId },
+                ipAddress: getClientIP(request),
+            });
+
             return NextResponse.json({
                 success: true,
                 message: "Order marked as delivered successfully",
@@ -140,6 +154,19 @@ export async function PATCH(
         } catch (trackingError) {
             console.error("⚠️ Tracking event error (non-blocking):", trackingError);
         }
+
+        await logAuditEvent({
+            actor: {
+                id: volunteer.id,
+                email: volunteerId,
+                role: "volunteer"
+            },
+            action: "update",
+            entityType: "order",
+            entityId: orderId,
+            details: { status: "cant_reach", volunteer_id: volunteerId },
+            ipAddress: getClientIP(request),
+        });
 
         return NextResponse.json({
             success: true,
