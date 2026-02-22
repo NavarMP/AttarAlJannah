@@ -26,6 +26,9 @@ import {
     ArrowLeft,
     Mail,
     Phone,
+    Trophy,
+    AlertCircle,
+    LinkIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -37,6 +40,7 @@ import { ShareButton } from "@/components/ui/share-button";
 const profileSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
     email: z.string().email("Invalid email").optional().or(z.literal("")),
+    volunteer_id: z.string().min(2, "Volunteer ID must be at least 2 characters"),
     phoneCountry: z.string(),
     phone: z.string().min(10, "Phone must be at least 10 digits"),
     houseBuilding: z.string().optional(),
@@ -65,6 +69,9 @@ export default function VolunteerProfilePage() {
     const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
     const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
     const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
+    const [originalVolunteerId, setOriginalVolunteerId] = useState("");
+    const [isCheckingVolunteerId, setIsCheckingVolunteerId] = useState(false);
+    const [volunteerIdExists, setVolunteerIdExists] = useState(false);
 
     const {
         register,
@@ -73,12 +80,16 @@ export default function VolunteerProfilePage() {
         watch,
         formState: { errors },
         reset,
+        setError,
+        clearErrors,
     } = useForm<ProfileFormData>({
         resolver: zodResolver(profileSchema),
         defaultValues: {
             phoneCountry: "+91",
         },
     });
+
+    const watchedVolunteerId = watch("volunteer_id");
 
     const fetchProfile = useCallback(async () => {
         try {
@@ -114,11 +125,13 @@ export default function VolunteerProfilePage() {
 
             setPhoneCountryCode(countryCode);
             setProfilePhotoPreview(data.volunteer.profile_photo);
+            setOriginalVolunteerId(data.volunteer.volunteer_id);
 
             // Set form values
             reset({
                 name: data.volunteer.name,
                 email: data.volunteer.email || "",
+                volunteer_id: data.volunteer.volunteer_id,
                 phoneCountry: countryCode,
                 phone: phoneNumber,
                 houseBuilding: data.volunteer.house_building || "",
@@ -153,7 +166,48 @@ export default function VolunteerProfilePage() {
         fetchProfile();
     }, [router, fetchProfile]);
 
+    // Check for duplicate volunteer_id (debounced)
+    useEffect(() => {
+        if (!watchedVolunteerId || watchedVolunteerId.trim() === "" || watchedVolunteerId === originalVolunteerId) {
+            setVolunteerIdExists(false);
+            clearErrors("volunteer_id");
+            return;
+        }
+
+        const timer = setTimeout(async () => {
+            setIsCheckingVolunteerId(true);
+            try {
+                const response = await fetch(
+                    `/api/volunteer/check-duplicate?volunteerId=${encodeURIComponent(watchedVolunteerId)}`
+                );
+                const data = await response.json();
+
+                if (data.volunteerIdExists) {
+                    setVolunteerIdExists(true);
+                    setError("volunteer_id", {
+                        type: "manual",
+                        message: "This volunteer ID is already in use",
+                    });
+                } else {
+                    setVolunteerIdExists(false);
+                    clearErrors("volunteer_id");
+                }
+            } catch (error) {
+                console.error("Error checking volunteer ID:", error);
+            } finally {
+                setIsCheckingVolunteerId(false);
+            }
+        }, 800);
+
+        return () => clearTimeout(timer);
+    }, [watchedVolunteerId, setError, clearErrors, originalVolunteerId]);
+
     const onSubmit = async (data: ProfileFormData) => {
+        if (volunteerIdExists) {
+            toast.error("Please fix the volunteer ID conflict before saving");
+            return;
+        }
+
         try {
             setIsSaving(true);
 
@@ -161,23 +215,39 @@ export default function VolunteerProfilePage() {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    ...data,
+                    name: data.name,
+                    email: data.email,
+                    volunteer_id: data.volunteer_id,
                     phone: `${phoneCountryCode}${data.phone}`,
+                    house_building: data.houseBuilding,
+                    town: data.town,
+                    pincode: data.pincode,
+                    post: data.post,
+                    city: data.city,
+                    district: data.district,
+                    state: data.state,
+                    location_link: data.locationLink,
                 }),
             });
 
             if (!response.ok) {
-                throw new Error("Failed to update profile");
+                const result = await response.json();
+                throw new Error(result.error || "Failed to update profile");
             }
 
             const result = await response.json();
             setProfileData(result.volunteer);
+            setOriginalVolunteerId(result.volunteer.volunteer_id);
+            // Update localStorage if volunteer_id changed
+            if (result.volunteer.volunteer_id) {
+                localStorage.setItem("volunteerId", result.volunteer.volunteer_id);
+            }
             setIsEditing(false);
             toast.success("Profile updated successfully!");
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Profile update error:", error);
-            toast.error("Failed to update profile");
+            toast.error(error.message || "Failed to update profile");
         } finally {
             setIsSaving(false);
         }
@@ -464,6 +534,26 @@ export default function VolunteerProfilePage() {
                     </Card>
                 )}
 
+                {/* Quick Links */}
+                <div className="flex flex-wrap gap-3">
+                    <Link href="/volunteer/leaderboard">
+                        <Button variant="outline" className="rounded-2xl gap-2">
+                            <Trophy className="w-4 h-4" />
+                            View Leaderboard
+                        </Button>
+                    </Link>
+                    {profileData && (
+                        <ShareButton
+                            data={{
+                                title: `Order Attar Al Jannah via ${profileData.name}`,
+                                text: `Use my referral link to order Attar Al Jannah!`,
+                                url: `${typeof window !== "undefined" ? window.location.origin : ""}/order?ref=${profileData.volunteer_id}`,
+                            }}
+                            variant="outline"
+                        />
+                    )}
+                </div>
+
                 {/* Profile Details Form */}
                 <Card className="glass-strong rounded-3xl">
                     <CardHeader>
@@ -504,6 +594,35 @@ export default function VolunteerProfilePage() {
                                 />
                                 {errors.name && (
                                     <p className="text-sm text-destructive">{errors.name.message}</p>
+                                )}
+                            </div>
+
+                            {/* Volunteer ID */}
+                            <div className="space-y-2">
+                                <Label htmlFor="volunteer_id">Volunteer ID *</Label>
+                                <div className="relative">
+                                    <Input
+                                        id="volunteer_id"
+                                        placeholder="E.g., Muhammed"
+                                        {...register("volunteer_id")}
+                                        disabled={!isEditing}
+                                        className={`${!isEditing ? "bg-muted" : ""} ${volunteerIdExists ? "border-destructive" : ""}`}
+                                    />
+                                    {isCheckingVolunteerId && (
+                                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                                    )}
+                                </div>
+                                {isCheckingVolunteerId && (
+                                    <p className="text-sm text-muted-foreground">Checking availability...</p>
+                                )}
+                                {!isCheckingVolunteerId && watchedVolunteerId && watchedVolunteerId !== originalVolunteerId && !volunteerIdExists && (
+                                    <p className="text-sm text-emerald-600 dark:text-emerald-400">✓ Available</p>
+                                )}
+                                {errors.volunteer_id && (
+                                    <p className="text-sm text-destructive flex items-center gap-1">
+                                        <AlertCircle className="h-4 w-4" />
+                                        {errors.volunteer_id.message}
+                                    </p>
                                 )}
                             </div>
 

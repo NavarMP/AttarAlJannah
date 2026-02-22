@@ -111,6 +111,7 @@ export async function PUT(request: NextRequest) {
             name,
             email,
             phone,
+            volunteer_id,
             // Address fields
             house_building,
             town,
@@ -122,22 +123,54 @@ export async function PUT(request: NextRequest) {
             location_link,
         } = body;
 
+        // If volunteer_id is being changed, check uniqueness
+        if (volunteer_id) {
+            const { data: currentVol } = await supabase
+                .from("volunteers")
+                .select("volunteer_id")
+                .eq("auth_id", user.id)
+                .single();
+
+            if (currentVol && volunteer_id !== currentVol.volunteer_id) {
+                const { data: existing } = await supabase
+                    .from("volunteers")
+                    .select("id")
+                    .ilike("volunteer_id", volunteer_id)
+                    .neq("auth_id", user.id)
+                    .maybeSingle();
+
+                if (existing) {
+                    return NextResponse.json(
+                        { error: "This volunteer ID is already in use" },
+                        { status: 409 }
+                    );
+                }
+            }
+        }
+
+        // Build update payload
+        const updatePayload: Record<string, any> = {
+            name,
+            email: email || null,
+            phone,
+            house_building: house_building || null,
+            town: town || null,
+            pincode: pincode || null,
+            post: post || null,
+            city: city || null,
+            district: district || null,
+            state: state || null,
+            location_link: location_link || null,
+        };
+
+        if (volunteer_id) {
+            updatePayload.volunteer_id = volunteer_id;
+        }
+
         // Update volunteer profile (excluding goal and profile_photo)
         const { data: updatedVolunteer, error: updateError } = await supabase
             .from("volunteers")
-            .update({
-                name,
-                email: email || null,
-                phone,
-                house_building: house_building || null,
-                town: town || null,
-                pincode: pincode || null,
-                post: post || null,
-                city: city || null,
-                district: district || null,
-                state: state || null,
-                location_link: location_link || null,
-            })
+            .update(updatePayload)
             .eq("auth_id", user.id)
             .select()
             .single();

@@ -221,7 +221,7 @@ export default async function PublicProfilePage({ params }: Props) {
                         </Card>
                     )}
 
-                    {/* Footer / Join CTA */}
+                    {/* Footer*/}
                     <div className="text-center space-y-4 pt-4">
                         <ShareButton
                             data={{
@@ -232,7 +232,7 @@ export default async function PublicProfilePage({ params }: Props) {
                             variant="outline"
                             size="sm"
                         />
-                        <div className="flex flex-col items-center gap-2">
+                        {/* <div className="flex flex-col items-center gap-2">
                             <p className="text-muted-foreground text-sm">
                                 Want to become a volunteer like {name}?
                             </p>
@@ -242,7 +242,7 @@ export default async function PublicProfilePage({ params }: Props) {
                             >
                                 Join Attar Al Jannah
                             </a>
-                        </div>
+                        </div> */}
                     </div>
                 </div>
             </div>

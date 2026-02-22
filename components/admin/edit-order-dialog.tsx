@@ -23,6 +23,8 @@ export function EditOrderDialog({ orderId, trigger, open: controlledOpen, onOpen
     // Support both controlled and uncontrolled usage
     const isControlled = controlledOpen !== undefined;
     const open = isControlled ? controlledOpen : uncontrolledOpen;
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     const setOpen = isControlled ? (setControlledOpen || (() => { })) : setUncontrolledOpen;
 
     const [loading, setLoading] = useState(false);

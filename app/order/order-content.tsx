@@ -6,17 +6,20 @@ import { OrderForm } from "@/components/forms/order-form";
 import { useCustomerAuth } from "@/lib/contexts/customer-auth-context";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Phone, MessageCircle, ArrowLeft } from "lucide-react";
+import { Phone, MessageCircle, ArrowLeft, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { COUNTRY_CODES } from "@/components/ui/country-code-select";
+import { LanguageProvider, useTranslation } from "@/lib/i18n/translations";
+import { LanguageToggle } from "@/components/ui/language-toggle";
 
-export function OrderContent() {
+function OrderContentInner() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { user, customerProfile } = useCustomerAuth();
     const [prefillData, setPrefillData] = useState<any>(null);
     const [referralCode, setReferralCode] = useState<string | null>(null);
+    const { t, language } = useTranslation();
 
     const handleBack = () => {
         // Check for volunteer session
@@ -125,17 +128,6 @@ export function OrderContent() {
                         }
                     }
                 }
-            } else {
-                // Even if it doesn't start with +, if it's long, check if it implicitly has country code (e.g. 9197...)
-                // But safer to assume local number if no plus.
-                // However, user report says: "+919746902268 is prefilled as +9197".
-                // This implies existing logic MATCHED +9197 as a country code?
-                // Let's check COUNTRY_CODES definition.
-                // If COUNTRY_CODES has "+9197", that's the bug.
-                // Assuming standard codes, maybe logic was just splitting blindly?
-                // The provided code sorts by length desc: `b.code.length - a.code.length`
-                // If "+9197" exists in list, it takes precedence over "+91".
-                // Assuming "+91" is correct.
             }
 
             // Auto-fill phone numbers when coming from customer dashboard
@@ -162,60 +154,94 @@ export function OrderContent() {
         }
     }, [searchParams, fetchOrderForReorder, fetchOrderForEdit, prefillData]);
 
+    const whatsappMessage = language === "ml"
+        ? "ഹായ്, എനിക്ക് അത്തർ അൽ-ജന്ന ഓർഡർ ചെയ്യാൻ സഹായം വേണം.%0A%0Aപേര്: %0Aവിലാസം: %0A%0Aഞാൻ പേയ്‌മെന്റ് സ്ക്രീൻഷോട്ട് അയയ്ക്കാം."
+        : "Hi, I need help placing an order for Attar al-Jannah.%0A%0AName: %0AAddress: %0A%0AI will send the payment screenshot.";
+
     return (
         <div className="max-w-4xl mx-auto space-y-8">
-            {/* Back Button */}
-            <Button
-                variant="ghost"
-                onClick={handleBack}
-                className="rounded-xl -ml-2"
-            >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back
-            </Button>
+            {/* Back Button + Language Toggle */}
+            <div className="flex items-center justify-between">
+                <Button
+                    variant="ghost"
+                    onClick={handleBack}
+                    className="rounded-xl -ml-2"
+                >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    {t("page.back", "Back")}
+                </Button>
+                <LanguageToggle />
+            </div>
 
             <div className="text-center space-y-2">
                 <h1 className="text-4xl md:text-5xl font-bold text-foreground">
-                    Place Your Order
+                    {t("page.title", "Place Your Order")}
                 </h1>
                 <p className="text-lg text-muted-foreground">
-                    Attar al-Jannah - Experience the divine fragrance
+                    {t("page.subtitle", "Attar al-Jannah - Experience the divine fragrance")}
                 </p>
                 {user && (
                     <p className="text-sm text-primary">
-                        ✨ Logged in as {user.phone}
+                        {t("page.loggedInAs", "✨ Logged in as")} {user.phone}
                     </p>
                 )}
                 {referralCode && (
                     <p className="text-sm text-blue-600">
-                        🎁 Using referral code: {referralCode}
+                        {t("page.referralCode", "🎁 Using referral code:")} {referralCode}
                     </p>
                 )}
             </div>
 
-            {/* Contact Support */}
-            <Card className="glass border-primary/30">
-                <CardContent className="p-6">
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                        <p className="text-sm text-muted-foreground font-medium">
-                            Need help with your order?
+            {/* Enhanced Need Help / WhatsApp Order Assist */}
+            <Card className="glass border-primary/30 overflow-hidden">
+                <CardContent className="p-0">
+                    {/* Header strip */}
+                    <div className="bg-gradient-to-r from-green-500/10 to-primary/10 px-6 py-4 border-b border-border/40">
+                        <h3 className="text-lg font-semibold text-center">
+                            {t("help.title", "🤝 Need Help Placing an Order?")}
+                        </h3>
+                    </div>
+                    <div className="p-6 space-y-4">
+                        <p className="text-sm text-muted-foreground text-center">
+                            {t("help.description", "Don't worry! Just send us these details on WhatsApp:")}
                         </p>
-                        <div className="flex gap-3">
+                        {/* Checklist */}
+                        <div className="flex flex-col items-center gap-2">
+                            <div className="flex items-center gap-2 text-sm">
+                                <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                                <span>{t("help.item.name", "Your Name")}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm">
+                                <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                                <span>{t("help.item.address", "Full Address")}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm">
+                                <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                                <span>{t("help.item.screenshot", "Payment Screenshot")}</span>
+                            </div>
+                        </div>
+                        <p className="text-sm font-medium text-center text-primary">
+                            {t("help.teamMessage", "Our team will create the order for you!")}
+                        </p>
+                        {/* Action buttons */}
+                        <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
                             <Link
                                 href="tel:+919072358001"
-                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 transition-colors"
+                                className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary/10 hover:bg-primary/20 transition-colors"
                             >
                                 <Phone className="w-4 h-4 text-primary" />
-                                <span className="text-sm font-medium">+91 907 235 8001</span>
+                                <span className="text-sm font-medium">{t("help.call", "Call")} +91 907 235 8001</span>
                             </Link>
                             <Link
-                                href="https://wa.me/919072358001"
+                                href={`https://wa.me/919072358001?text=${whatsappMessage}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500/10 hover:bg-green-500/20 transition-colors"
+                                className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-green-500/10 hover:bg-green-500/20 transition-colors"
                             >
                                 <MessageCircle className="w-4 h-4 text-green-600 dark:text-green-500" />
-                                <span className="text-sm font-medium text-green-700 dark:text-green-400">WhatsApp</span>
+                                <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                                    {t("help.whatsapp", "Send on WhatsApp")}
+                                </span>
                             </Link>
                         </div>
                     </div>
@@ -228,5 +254,13 @@ export function OrderContent() {
                 customerProfile={customerProfile}
             />
         </div>
+    );
+}
+
+export function OrderContent() {
+    return (
+        <LanguageProvider>
+            <OrderContentInner />
+        </LanguageProvider>
     );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Play, ChevronLeft, ChevronRight } from "lucide-react";
@@ -13,6 +13,8 @@ export function PromoSection() {
     const [currentIndex, setCurrentIndex] = useState(0);
     const videoRef = useRef<HTMLVideoElement>(null);
     const supabase = createClient();
+    const autoSwipeTimer = useRef<NodeJS.Timeout | null>(null);
+    const pauseUntil = useRef<number>(0);
 
     useEffect(() => {
         const fetchContent = async () => {
@@ -65,13 +67,29 @@ export function PromoSection() {
         }
     }, [currentIndex]);
 
-    const handlePrevious = () => {
+    const handlePrevious = useCallback(() => {
+        pauseUntil.current = Date.now() + 10000; // pause auto-swipe for 10s after manual nav
         setCurrentIndex((prev) => (prev === 0 ? promoContent.length - 1 : prev - 1));
-    };
+    }, [promoContent.length]);
 
-    const handleNext = () => {
+    const handleNext = useCallback(() => {
+        pauseUntil.current = Date.now() + 10000;
         setCurrentIndex((prev) => (prev === promoContent.length - 1 ? 0 : prev + 1));
-    };
+    }, [promoContent.length]);
+
+    // Auto-swipe interval
+    useEffect(() => {
+        if (promoContent.length <= 1) return;
+
+        autoSwipeTimer.current = setInterval(() => {
+            if (Date.now() < pauseUntil.current) return; // skip if user recently interacted
+            setCurrentIndex((prev) => (prev === promoContent.length - 1 ? 0 : prev + 1));
+        }, 5000);
+
+        return () => {
+            if (autoSwipeTimer.current) clearInterval(autoSwipeTimer.current);
+        };
+    }, [promoContent.length]);
 
     if (promoContent.length === 0) return null;
 

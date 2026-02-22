@@ -72,8 +72,8 @@ export function BulkActionBar({
 
     return (
         <>
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
-                <div className="flex items-center gap-3 px-5 py-3 rounded-2xl border border-border/50 bg-background/95 backdrop-blur-xl shadow-2xl shadow-black/20 dark:shadow-black/50">
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[calc(100vw-2rem)] max-w-fit animate-in slide-in-from-bottom-4 fade-in duration-300">
+                <div className="flex items-center gap-3 px-4 sm:px-5 py-3 rounded-2xl border border-border/50 bg-background/95 backdrop-blur-xl shadow-2xl shadow-black/20 dark:shadow-black/50 overflow-x-auto">
                     {/* Selected count */}
                     <div className="flex items-center gap-2 pr-3 border-r border-border/50">
                         <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary text-primary-foreground text-sm font-bold">

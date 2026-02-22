@@ -12,6 +12,7 @@ import { useAddressAutocomplete } from "@/hooks/use-address-autocomplete";
 import { Loader2, ChevronDown, ChevronUp, MapPin, CheckCircle2, XCircle, Search } from "lucide-react";
 import { toast } from "sonner";
 import { INDIAN_STATES, DISTRICTS_BY_STATE } from "@/lib/data/indian-locations";
+import { useTranslation } from "@/lib/i18n/translations";
 
 interface AddressSectionProps {
     form: any; // react-hook-form instance with register, setValue, watch, formState
@@ -27,9 +28,13 @@ export function AddressSection({
     defaultCollapsed = variant === 'volunteer'
 }: AddressSectionProps) {
     const { register, setValue, watch, formState: { errors } } = form;
+    const { t } = useTranslation();
 
-    // Collapsible state
+    // Collapsible state (for volunteer variant)
     const [isExpanded, setIsExpanded] = useState(!defaultCollapsed);
+
+    // Collapsible state for City/District/State in order variant
+    const [showExtraFields, setShowExtraFields] = useState(false);
 
     // Pincode lookup state
     const [postOffices, setPostOffices] = useState<string[]>([]);
@@ -98,25 +103,30 @@ export function AddressSection({
                     setValue("city", offices[0].Name);
                 }
 
+                // Auto-expand City/District/State when auto-filled
+                if (variant === 'order') {
+                    setShowExtraFields(true);
+                }
+
                 // Show success only once per unique pincode
-                toast.success("Address details loaded!");
+                toast.success(t("toast.addressLoaded", "Address details loaded!"));
             } else {
                 setPostOffices([]);
                 setPostOfficeData([]);
-                setPincodeError("Invalid pincode");
+                setPincodeError(t("toast.invalidPincode", "Invalid pincode"));
                 setIsPincodeValid(false);
-                toast.error("Invalid pincode");
+                toast.error(t("toast.invalidPincode", "Invalid pincode"));
             }
         } catch (error) {
             setPostOffices([]);
             setPostOfficeData([]);
-            setPincodeError("Failed to fetch details");
+            setPincodeError(t("toast.fetchFailed", "Failed to fetch details"));
             setIsPincodeValid(false);
-            toast.error("Failed to fetch pincode details");
+            toast.error(t("toast.fetchFailed", "Failed to fetch pincode details"));
         } finally {
             setIsLoadingPincode(false);
         }
-    }, [setValue]); // Only setValue in dependencies
+    }, [setValue, t, variant]); // Only setValue in dependencies
 
     // Debounced pincode lookup
     useEffect(() => {
@@ -212,8 +222,14 @@ export function AddressSection({
         setPincodeError("");
         setIsPincodeValid(true);
         setPostOfficeSearchResults([]);
-        toast.success("Address auto-filled!");
-    }, [setValue]);
+
+        // Auto-expand City/District/State when auto-filled
+        if (variant === 'order') {
+            setShowExtraFields(true);
+        }
+
+        toast.success(t("toast.addressAutoFilled", "Address auto-filled!"));
+    }, [setValue, t, variant]);
 
     // Deduplicate and format post office options
     const postOfficeOptions = useMemo(() => {
@@ -265,14 +281,14 @@ export function AddressSection({
 
             {/* House/Building with Autocomplete */}
             <div className="space-y-2">
-                <Label htmlFor="houseBuilding">House/Building {variant === 'order' && '*'}</Label>
+                <Label htmlFor="houseBuilding">{t("address.houseBuilding", "House/Building")} {variant === 'order' && '*'}</Label>
                 <AutocompleteInput
                     id="houseBuilding"
                     value={houseBuilding}
                     onChange={(value) => setValue("houseBuilding", value)}
                     suggestions={houseBuildingAutocomplete.suggestions}
                     loading={houseBuildingAutocomplete.loading}
-                    placeholder="House name or number"
+                    placeholder={t("address.housePlaceholder", "House name or number")}
                 />
                 {errors.houseBuilding && (
                     <p className="text-sm text-destructive">{errors.houseBuilding.message as string}</p>
@@ -281,14 +297,14 @@ export function AddressSection({
 
             {/* Town/Village with Autocomplete */}
             <div className="space-y-2">
-                <Label htmlFor="town">Town/Village {variant === 'order' && '*'}</Label>
+                <Label htmlFor="town">{t("address.town", "Town/Village")} {variant === 'order' && '*'}</Label>
                 <AutocompleteInput
                     id="town"
                     value={town}
                     onChange={(value) => setValue("town", value)}
                     suggestions={townAutocomplete.suggestions}
                     loading={townAutocomplete.loading}
-                    placeholder="Enter town or village name"
+                    placeholder={t("address.townPlaceholder", "Enter town or village name")}
                 />
                 {errors.town && (
                     <p className="text-sm text-destructive">{errors.town.message as string}</p>
@@ -297,15 +313,15 @@ export function AddressSection({
 
             {/* Pincode - Primary lookup method */}
             <div className="space-y-2">
-                <Label htmlFor="pincode">Pincode {variant === 'order' && '*'}</Label>
+                <Label htmlFor="pincode">{t("address.pincode", "Pincode")} {variant === 'order' && '*'}</Label>
                 <span className="text-xs text-muted-foreground ml-2">
-                    (Input a pincode to auto-fill district and state)
+                    {t("address.pincodeHint", "(Input a pincode to auto-fill district and state)")}
                 </span>
                 <div className="relative">
                     <Input
                         id="pincode"
                         type="text"
-                        placeholder="Enter 6-digit pincode"
+                        placeholder={t("address.pincodePlaceholder", "Enter 6-digit pincode")}
                         maxLength={6}
                         {...register("pincode")}
                         className={isPincodeValid === false ? "border-destructive pr-10" : "pr-10"}
@@ -319,16 +335,16 @@ export function AddressSection({
                     <p className="text-sm text-destructive">{pincodeError}</p>
                 )}
                 {isPincodeValid === true && !errors.pincode && (
-                    <p className="text-sm text-emerald-600 dark:text-emerald-400">✓ Valid pincode</p>
+                    <p className="text-sm text-emerald-600 dark:text-emerald-400">{t("address.validPincode", "✓ Valid pincode")}</p>
                 )}
             </div>
 
             {/* Post Office - Smart searchable dropdown */}
             <div className="space-y-2">
                 <Label htmlFor="post">
-                    Post Office {variant === 'order' && '*'}
+                    {t("address.postOffice", "Post Office")} {variant === 'order' && '*'}
                     <span className="text-xs text-muted-foreground ml-2">
-                        (Type to search by name to auto-fill all address fields)
+                        {t("address.postHint", "(Type to search by name to auto-fill all address fields)")}
                     </span>
                 </Label>
                 <SearchableSelect
@@ -347,65 +363,131 @@ export function AddressSection({
                             setValue("post", selectedValue);
                         }
                     }}
-                    placeholder="Select or search post office"
-                    searchPlaceholder="Type post office name or select from list..."
+                    placeholder={t("address.selectPostOffice", "Select or search post office")}
+                    searchPlaceholder={t("address.searchPostOffice", "Type post office name or select from list...")}
                     emptyMessage={postOffices.length === 0 && postOfficeSearchResults.length === 0
-                        ? "Enter pincode or type post office name to search"
-                        : "No post offices found"}
+                        ? t("address.enterPincodeOrSearch", "Enter pincode or type post office name to search")
+                        : t("address.noPostOffice", "No post offices found")}
                     onCustomSearch={(query) => searchPostOffices(query)}
                     isSearching={isSearchingPostOffice}
                 />
                 {errors.post && (
                     <p className="text-sm text-destructive">{errors.post.message as string}</p>
                 )}
-                {/* <p className="text-xs text-muted-foreground">
-                    💡 Tip: Input a pincode first to filter post offices by area.
-                </p> */}
             </div>
 
-            {/* City - Auto-populated from post office */}
-            <div className="space-y-2">
-                <Label htmlFor="city">City {variant === 'order' && '*'}</Label>
-                <Input
-                    id="city"
-                    // placeholder="City (auto-filled)"
-                    {...register("city")}
-                // readOnly
-                // className="bg-muted/50"
-                />
-                {errors.city && (
-                    <p className="text-sm text-destructive">{errors.city.message as string}</p>
-                )}
-            </div>
+            {/* City, District, State — Collapsible in order variant */}
+            {variant === 'order' ? (
+                <div className="space-y-3">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowExtraFields(!showExtraFields)}
+                        className="w-full justify-between rounded-xl text-xs h-9"
+                    >
+                        <span className="flex items-center gap-1.5">
+                            <MapPin className="h-3.5 w-3.5" />
+                            {showExtraFields
+                                ? t("address.hideMore", "Hide City, District & State")
+                                : t("address.showMore", "Show City, District & State")}
+                        </span>
+                        {showExtraFields ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                    </Button>
 
-            {/* District - Auto-populated */}
-            <div className="space-y-2">
-                <Label htmlFor="district">District {variant === 'order' && '*'}</Label>
-                <SearchableSelect
-                    options={watch("state") ? DISTRICTS_BY_STATE[watch("state")] || [] : []}
-                    value={watch("district") || ""}
-                    onChange={(value) => setValue("district", value)}
-                    placeholder="Select district"
-                    emptyMessage="Select state first"
-                />
-                {errors.district && (
-                    <p className="text-sm text-destructive">{errors.district.message as string}</p>
-                )}
-            </div>
+                    {showExtraFields && (
+                        <div className="space-y-4 pl-1 border-l-2 border-primary/20 ml-1">
+                            <p className="text-xs text-muted-foreground pl-3">
+                                {t("address.autoFilledHint", "These fields are auto-filled from pincode/post office")}
+                            </p>
 
-            {/* State - Auto-populated */}
-            <div className="space-y-2">
-                <Label htmlFor="state">State {variant === 'order' && '*'}</Label>
-                <SearchableSelect
-                    options={INDIAN_STATES}
-                    value={watch("state") || ""}
-                    onChange={(value) => setValue("state", value)}
-                    placeholder="Select state"
-                />
-                {errors.state && (
-                    <p className="text-sm text-destructive">{errors.state.message as string}</p>
-                )}
-            </div>
+                            {/* City */}
+                            <div className="space-y-2 pl-3">
+                                <Label htmlFor="city">{t("address.city", "City")} *</Label>
+                                <Input
+                                    id="city"
+                                    {...register("city")}
+                                />
+                                {errors.city && (
+                                    <p className="text-sm text-destructive">{errors.city.message as string}</p>
+                                )}
+                            </div>
+
+                            {/* District */}
+                            <div className="space-y-2 pl-3">
+                                <Label htmlFor="district">{t("address.district", "District")} *</Label>
+                                <SearchableSelect
+                                    options={watch("state") ? DISTRICTS_BY_STATE[watch("state")] || [] : []}
+                                    value={watch("district") || ""}
+                                    onChange={(value) => setValue("district", value)}
+                                    placeholder={t("address.selectDistrict", "Select district")}
+                                    emptyMessage={t("address.selectStateFirst", "Select state first")}
+                                />
+                                {errors.district && (
+                                    <p className="text-sm text-destructive">{errors.district.message as string}</p>
+                                )}
+                            </div>
+
+                            {/* State */}
+                            <div className="space-y-2 pl-3">
+                                <Label htmlFor="state">{t("address.state", "State")} *</Label>
+                                <SearchableSelect
+                                    options={INDIAN_STATES}
+                                    value={watch("state") || ""}
+                                    onChange={(value) => setValue("state", value)}
+                                    placeholder={t("address.selectState", "Select state")}
+                                />
+                                {errors.state && (
+                                    <p className="text-sm text-destructive">{errors.state.message as string}</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <>
+                    {/* City - Auto-populated from post office */}
+                    <div className="space-y-2">
+                        <Label htmlFor="city">{t("address.city", "City")}</Label>
+                        <Input
+                            id="city"
+                            {...register("city")}
+                        />
+                        {errors.city && (
+                            <p className="text-sm text-destructive">{errors.city.message as string}</p>
+                        )}
+                    </div>
+
+                    {/* District - Auto-populated */}
+                    <div className="space-y-2">
+                        <Label htmlFor="district">{t("address.district", "District")}</Label>
+                        <SearchableSelect
+                            options={watch("state") ? DISTRICTS_BY_STATE[watch("state")] || [] : []}
+                            value={watch("district") || ""}
+                            onChange={(value) => setValue("district", value)}
+                            placeholder={t("address.selectDistrict", "Select district")}
+                            emptyMessage={t("address.selectStateFirst", "Select state first")}
+                        />
+                        {errors.district && (
+                            <p className="text-sm text-destructive">{errors.district.message as string}</p>
+                        )}
+                    </div>
+
+                    {/* State - Auto-populated */}
+                    <div className="space-y-2">
+                        <Label htmlFor="state">{t("address.state", "State")}</Label>
+                        <SearchableSelect
+                            options={INDIAN_STATES}
+                            value={watch("state") || ""}
+                            onChange={(value) => setValue("state", value)}
+                            placeholder={t("address.selectState", "Select state")}
+                        />
+                        {errors.state && (
+                            <p className="text-sm text-destructive">{errors.state.message as string}</p>
+                        )}
+                    </div>
+                </>
+            )}
 
             {/* Location Link - Volunteer only */}
             {showLocationLink && (

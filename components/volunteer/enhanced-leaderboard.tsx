@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +28,7 @@ type MetricType = "overall" | "referral" | "delivery" | "revenue";
 type PeriodType = "all" | "month" | "week";
 
 export function EnhancedLeaderboard() {
+    const router = useRouter();
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [metric, setMetric] = useState<MetricType>("overall");
@@ -82,8 +84,9 @@ export function EnhancedLeaderboard() {
                 {entries.map((entry) => (
                     <div
                         key={entry.id}
-                        className={`p-4 rounded-xl border flex items-center gap-4 transition-all ${entry.rank <= 3
-                            ? "bg-gradient-to-r from-primary/5 to-transparent border-primary/30 shadow-sm"
+                        onClick={() => router.push(`/profile/${entry.volunteer_id}`)}
+                        className={`p-4 rounded-xl border flex items-center gap-4 transition-all cursor-pointer ${entry.rank <= 3
+                            ? "bg-gradient-to-r from-primary/5 to-transparent border-primary/30 shadow-sm hover:shadow-md"
                             : "bg-card hover:bg-accent/50"
                             }`}
                     >
@@ -98,7 +101,7 @@ export function EnhancedLeaderboard() {
                             <p className="text-lg font-bold text-primary">
                                 {typeof entry[metricKey] === 'number'
                                     ? metricKey.includes('commission') || metricKey.includes('score')
-                                        ? `₹${Math.round(entry[metricKey] as number)}`
+                                        ? `${Math.round(entry[metricKey] as number)}`
                                         : entry[metricKey]
                                     : '0'}
                             </p>

@@ -1,7 +1,17 @@
 import { Suspense } from "react";
+import { Metadata } from "next";
 import { Footer } from "@/components/sections/footer";
 import { ScrollHideThemeToggle } from "@/components/custom/scroll-hide-theme-toggle";
 import { OrderContent } from "./order-content";
+
+export const metadata: Metadata = {
+    title: "Order Attar al-Jannah | عطر الجنّة",
+    description: "Order premium Attar al-Jannah perfume. Fast delivery across India with online payment options.",
+    openGraph: {
+        title: "Order Attar al-Jannah | عطر الجنّة",
+        description: "Order premium Attar al-Jannah perfume. Fast delivery across India with online payment options.",
+    },
+};
 
 export default function OrderPage() {
     return (

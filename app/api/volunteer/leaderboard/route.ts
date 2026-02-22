@@ -101,9 +101,6 @@ export async function GET(request: NextRequest) {
             case "overall": default: sortColumn = "overall_score"; break;
         }
 
-        // Only include those who have actually done some activity
-        leaderboardData = leaderboardData.filter(v => v.referred_orders > 0 || v.delivered_orders > 0);
-
         leaderboardData.sort((a: any, b: any) => b[sortColumn] - a[sortColumn]);
 
         // Apply limit

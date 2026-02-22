@@ -12,6 +12,7 @@ import { Loader2, CheckCircle2, Copy, Camera, Upload, X, QrCode, Smartphone, Shi
 import { LocationLink } from "@/components/forms/location-link";
 import { AddressSection } from "@/components/forms/address-section";
 import { toast } from "sonner";
+import { useTranslation } from "@/lib/i18n/translations";
 import { loadRazorpayScript, createRazorpayOptions, openRazorpayCheckout, type RazorpayResponse } from "@/lib/config/razorpay-config";
 import Image from "next/image";
 import { CountryCodeSelect, COUNTRY_CODES } from "@/components/ui/country-code-select";
@@ -37,6 +38,7 @@ interface OrderFormProps {
 const PRODUCT_PRICE = 313;
 
 export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFormProps) {
+    const { t } = useTranslation();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
@@ -166,7 +168,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                         }
 
                         hasRestoredFromLocalStorage = true;
-                        toast.info("Restored your unsaved form data");
+                        toast.info(t("toast.restoredForm", "Restored your unsaved form data"));
                     }
                 }
             } catch (e) {
@@ -238,11 +240,11 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
 
             // Show a message if data was prefilled
             if (prefillData.orderId) {
-                toast.info("Editing your order. Update the details and submit.");
+                toast.info(t("toast.editingOrder", "Editing your order. Update the details and submit."));
             } else if (prefillData.customerAddress) {
-                toast.info("Form prefilled with your previous order details!");
+                toast.info(t("toast.prefilled", "Form prefilled with your previous order details!"));
             } else if (prefillData.customerPhone) {
-                toast.success("Your phone number has been prefilled!");
+                toast.success(t("toast.phonePrefilled", "Your phone number has been prefilled!"));
             }
         } else if (customerProfile) {
             // LOWEST PRIORITY: Logged in customer scenario
@@ -263,9 +265,9 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
 
             if (customerProfile.email) setValue("customerEmail", customerProfile.email);
 
-            toast.success("Welcome back! Your details are prefilled.");
+            toast.success(t("toast.welcomeBack", "Welcome back! Your details are prefilled."));
         }
-    }, [prefillData, customerProfile, setValue, volunteerId]);
+    }, [prefillData, customerProfile, setValue, volunteerId, t]);
 
     // Save form data to localStorage on change
     useEffect(() => {
@@ -315,9 +317,9 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
         if (phoneNumber && phoneNumber.length >= 10) {
             setValue("whatsappNumber", phoneNumber);
             setWhatsappCountryCode(phoneCountryCode);
-            toast.success("Phone number copied to WhatsApp field!");
+            toast.success(t("toast.phoneCopied", "Phone number copied to WhatsApp field!"));
         } else {
-            toast.error("Please enter a valid phone number first");
+            toast.error(t("toast.enterPhone", "Please enter a valid phone number first"));
         }
     };
 
@@ -369,9 +371,9 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
 
                 // Show toast based on result
                 if (result.verified) {
-                    toast.success("Payment verified by AI!");
+                    toast.success(t("toast.paymentVerified", "Payment verified by AI!"));
                 } else if (result.checks?.is_payment_screenshot === false) {
-                    toast.error("This doesn't look like a payment screenshot");
+                    toast.error(t("toast.notPayment", "This doesn't look like a payment screenshot"));
                 } else {
                     toast.warning(result.message || "Payment needs admin verification");
                 }
@@ -415,7 +417,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                 setVolunteerName(data.volunteer.name);
                 setIsVolunteerValidated(true);
                 setVolunteerValidationError("");
-                toast.success(`Referred by: ${data.volunteer.name}`);
+                toast.success(`${t("toast.volunteerValidated", "Referred by:")} ${data.volunteer.name}`);
             } else {
                 setVolunteerName("");
                 setIsVolunteerValidated(false);
@@ -438,6 +440,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
             setVolunteerReferralId(volunteerId);
             validateVolunteerId(volunteerId);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [volunteerId]);
 
     // Debounced validation on input change
@@ -454,6 +457,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                 validateVolunteerId("");
             }
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [volunteerReferralId, volunteerId]);
 
 
@@ -507,7 +511,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
             // Handle QR payment: attach previously uploaded screenshot URL + verification
             if (activePaymentMethod === "qr") {
                 if (!screenshotPublicUrl) {
-                    toast.error("Please upload a payment screenshot");
+                    toast.error(t("toast.uploadScreenshot", "Please upload a payment screenshot"));
                     setIsSubmitting(false);
                     return;
                 }
@@ -643,7 +647,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                 setIsProcessingPayment(false);
             }
         } catch (error) {
-            toast.error("Failed to submit order. Please try again.");
+            toast.error(t("toast.orderFailed", "Failed to submit order. Please try again."));
             console.error(error);
         } finally {
             setIsSubmitting(false);
@@ -656,19 +660,19 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
             <Card className="glass-strong rounded-3xl">
                 {/* ... existing header ... */}
                 <CardHeader>
-                    <CardTitle className="text-3xl">Order Attar al-Jannah</CardTitle>
+                    <CardTitle className="text-3xl">{t("form.title", "Order Attar al-Jannah")}</CardTitle>
                     <CardDescription>
-                        Fill in your details to place an order. {volunteerId && "This order will be credited to your volunteer account."}
+                        {t("form.description", "Fill in your details to place an order.")} {volunteerId && t("form.volunteerCredit", "This order will be credited to your volunteer account.")}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     {/* ... customer name, phone, whatsapp, email ... */}
                     {/* Customer Name */}
                     <div className="space-y-2">
-                        <Label htmlFor="customerName">Full Name *</Label>
+                        <Label htmlFor="customerName">{t("form.fullName", "Full Name")} *</Label>
                         <Input
                             id="customerName"
-                            placeholder="Enter your full name"
+                            placeholder={t("form.fullNamePlaceholder", "Enter your full name")}
                             {...register("customerName")}
                         />
                         {errors.customerName && (
@@ -678,7 +682,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
 
                     {/* Phone Number */}
                     <div className="space-y-2">
-                        <Label htmlFor="customerPhone">Mobile Number *</Label>
+                        <Label htmlFor="customerPhone">{t("form.mobileNumber", "Mobile Number")} *</Label>
                         <div className="flex gap-2">
                             <CountryCodeSelect
                                 value={phoneCountryCode}
@@ -690,7 +694,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                             <Input
                                 id="customerPhone"
                                 type="tel"
-                                placeholder="Enter mobile number"
+                                placeholder={t("form.mobilePlaceholder", "Enter mobile number")}
                                 className="flex-1"
                                 {...register("customerPhone")}
                             />
@@ -703,7 +707,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                     {/* WhatsApp Number */}
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                            <Label htmlFor="whatsappNumber">WhatsApp Number *</Label>
+                            <Label htmlFor="whatsappNumber">{t("form.whatsappNumber", "WhatsApp Number")} *</Label>
                             <Button
                                 type="button"
                                 variant="outline"
@@ -712,7 +716,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                                 className="text-xs"
                             >
                                 <Copy className="w-3 h-3 mr-1" />
-                                Same as phone
+                                {t("form.sameAsPhone", "Same as phone")}
                             </Button>
                         </div>
                         <div className="flex gap-2">
@@ -726,7 +730,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                             <Input
                                 id="whatsappNumber"
                                 type="tel"
-                                placeholder="Enter WhatsApp number"
+                                placeholder={t("form.whatsappPlaceholder", "Enter WhatsApp number")}
                                 className="flex-1"
                                 {...register("whatsappNumber")}
                             />
@@ -738,9 +742,9 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
 
                     {/* Email (Optional) */}
                     <div className="space-y-2">
-                        <Label htmlFor="customerEmail">Email</Label>
+                        <Label htmlFor="customerEmail">{t("form.email", "Email")}</Label>
                         <span className="text-xs text-muted-foreground ml-2">
-                            (Let&apos;s keep you posted! Enter your email for order updates.)
+                            {t("form.emailHint", "(Let's keep you posted! Enter your email for order updates.)")}
                         </span>
                         <Input
                             id="customerEmail"
@@ -758,9 +762,9 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
             {/* Volunteer Referral Section */}
             <Card className="glass-strong border-gold-300 dark:border-gold-700">
                 <CardHeader>
-                    <CardTitle className="text-lg">Volunteer Referral</CardTitle>
+                    <CardTitle className="text-lg">{t("referral.title", "Volunteer Referral")}</CardTitle>
                     <CardDescription>
-                        If you were referred by a volunteer, enter their ID to credit them for this order
+                        {t("referral.description", "If you were referred by a volunteer, enter their ID to credit them for this order")}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -768,7 +772,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                         <Input
                             id="volunteerReferral"
                             type="text"
-                            placeholder="Enter Volunteer ID"
+                            placeholder={t("referral.placeholder", "Enter Volunteer ID")}
                             value={volunteerReferralId}
                             onChange={(e) => setVolunteerReferralId(e.target.value)}
                             readOnly={!!volunteerId}
@@ -784,13 +788,13 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                         {isValidatingVolunteer && (
                             <p className="text-sm text-muted-foreground flex items-center gap-1">
                                 <Loader2 className="w-3 h-3 animate-spin" />
-                                Validating volunteer ID...
+                                {t("referral.validating", "Validating volunteer ID...")}
                             </p>
                         )}
                         {isVolunteerValidated && volunteerName && (
                             <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
                                 <CheckCircle2 className="w-4 h-4" />
-                                Referred by: <span className="font-semibold">{volunteerName}</span>
+                                {t("referral.referredBy", "Referred by:")} <span className="font-semibold">{volunteerName}</span>
                             </p>
                         )}
                         {volunteerValidationError && (
@@ -798,7 +802,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                         )}
                         {!!volunteerId && (
                             <p className="text-sm text-muted-foreground mt-1">
-                                This order will be credited to the referring volunteer
+                                {t("referral.creditNote", "This order will be credited to the referring volunteer")}
                             </p>
                         )}
                     </div>
@@ -808,7 +812,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
             {/* Order Details */}
             <Card className="glass-strong">
                 <CardHeader>
-                    <CardTitle className="text-lg">Order & Delivery Details</CardTitle>
+                    <CardTitle className="text-lg">{t("order.title", "Order & Delivery Details")}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
 
@@ -826,7 +830,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
 
                     {/* Quantity */}
                     <div className="space-y-2">
-                        <Label htmlFor="quantity">Quantity *</Label>
+                        <Label htmlFor="quantity">{t("order.quantity", "Quantity")} *</Label>
                         <Input
                             id="quantity"
                             type="number"
@@ -838,14 +842,14 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                             <p className="text-sm text-destructive">{errors.quantity.message}</p>
                         )}
                         <p className="text-sm text-muted-foreground">
-                            Price: ₹{PRODUCT_PRICE} per bottle | Total: <span className="font-bold text-foreground">₹{totalPrice}</span>
+                            {t("order.pricePerBottle", `Price: ₹${PRODUCT_PRICE} per bottle`).replace("{price}", String(PRODUCT_PRICE))} | {t("order.total", "Total:")} <span className="font-bold text-foreground">₹{totalPrice}</span>
                         </p>
                     </div>
 
                     {/* Payment Mode Selection (Only if volunteer is active) */}
                     {(volunteerId || (isVolunteerValidated && volunteerName)) && (
                         <div className="space-y-3 pt-4 border-t">
-                            <Label className="text-base font-semibold">Payment Option</Label>
+                            <Label className="text-base font-semibold">{t("payment.title", "Payment Option")}</Label>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <label className={`flex items-start gap-3 p-4 border rounded-2xl cursor-pointer transition-all ${activePaymentMethod !== "volunteer_cash" ? "border-primary bg-primary/5 shadow-sm" : "hover:bg-accent"}`}>
                                     <input
@@ -855,8 +859,8 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                                         onChange={() => setActivePaymentMethod(globalPaymentMethod)}
                                     />
                                     <div>
-                                        <p className="font-medium">Pay Online / UPI</p>
-                                        <p className="text-xs text-muted-foreground mt-0.5">Pay directly using PhonePe, GPay, etc.</p>
+                                        <p className="font-medium">{t("payment.online", "Pay Online / UPI")}</p>
+                                        <p className="text-xs text-muted-foreground mt-0.5">{t("payment.onlineDesc", "Pay directly using PhonePe, GPay, etc.")}</p>
                                     </div>
                                 </label>
                                 <label className={`flex items-start gap-3 p-4 border rounded-2xl cursor-pointer transition-all ${activePaymentMethod === "volunteer_cash" ? "border-primary bg-primary/5 shadow-sm" : "hover:bg-accent"}`}>
@@ -867,8 +871,8 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                                         onChange={() => setActivePaymentMethod("volunteer_cash")}
                                     />
                                     <div>
-                                        <p className="font-medium">Cash to Volunteer</p>
-                                        <p className="text-xs text-muted-foreground mt-0.5">Hand over cash to {volunteerName || "the volunteer"}.</p>
+                                        <p className="font-medium">{t("payment.cash", "Cash to Volunteer")}</p>
+                                        <p className="text-xs text-muted-foreground mt-0.5">{t("payment.cashDesc", "Hand over cash to")} {volunteerName || "the volunteer"}.</p>
                                     </div>
                                 </label>
                             </div>
@@ -881,10 +885,10 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                             <div className="border-t pt-4">
                                 <h3 className="font-semibold text-lg flex items-center gap-2 mb-3">
                                     <QrCode className="h-5 w-5 text-primary" />
-                                    Pay Online/UPI
+                                    {t("payment.qrTitle", "Pay Online/UPI")}
                                 </h3>
                                 <p className="text-sm text-muted-foreground mb-4">
-                                    Scan the QR code below or click on the link to pay <span className="font-bold text-foreground">₹{totalPrice}</span>, then upload the payment screenshot.
+                                    {t("payment.qrInstruction", "Scan the QR code below or click on the link to pay")} <span className="font-bold text-foreground">₹{totalPrice}</span>{t("payment.thenUpload", ", then upload the payment screenshot.")}
                                 </p>
 
                                 {/* QR Code Image (Dynamic) */}
@@ -908,7 +912,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                                 </div>
                                 {upiId && (
                                     <p className="text-xs text-center text-muted-foreground mb-3">
-                                        Pay to: <code className="bg-muted px-1 rounded">{upiId}</code>
+                                        {t("payment.payTo", "Pay to:")} <code className="bg-muted px-1 rounded">{upiId}</code>
                                     </p>
                                 )}
 
@@ -921,7 +925,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                                             className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-medium rounded-2xl transition-all shadow-md active:scale-[0.98]"
                                         >
                                             <Smartphone className="h-5 w-5" />
-                                            Open UPI App to Pay ₹{totalPrice}
+                                            {t("payment.openUpi", `Open UPI App to Pay ₹${totalPrice}`).replace("{amount}", String(totalPrice))}
                                         </a>
                                     )}
 
@@ -957,13 +961,13 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                                     </div>
 
                                     <p className="text-xs text-center text-muted-foreground">
-                                        Tap button above to pay directly, or scan the QR code
+                                        {t("payment.tapToPay", "Tap button above to pay directly, or scan the QR code")}
                                     </p>
                                 </div>
 
                                 {/* Screenshot Upload */}
                                 <div className="space-y-3">
-                                    <Label className="text-sm font-medium">Payment Screenshot *</Label>
+                                    <Label className="text-sm font-medium">{t("payment.screenshot", "Payment Screenshot *")}</Label>
 
                                     {screenshotPreview ? (
                                         <div className="relative w-full max-w-sm mx-auto">
@@ -992,13 +996,13 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                                             {uploadingScreenshot && (
                                                 <p className="text-sm text-muted-foreground mt-2 flex items-center gap-1 justify-center">
                                                     <Loader2 className="w-4 h-4 animate-spin" />
-                                                    Uploading screenshot...
+                                                    {t("payment.uploading", "Uploading screenshot...")}
                                                 </p>
                                             )}
                                             {verifying && (
                                                 <p className="text-sm text-blue-600 dark:text-blue-400 mt-2 flex items-center gap-1 justify-center">
                                                     <Loader2 className="w-4 h-4 animate-spin" />
-                                                    AI is verifying payment...
+                                                    {t("payment.aiVerifying", "AI is verifying payment...")}
                                                 </p>
                                             )}
 
@@ -1040,7 +1044,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                                             {!uploadingScreenshot && !verifying && !verificationResult && screenshotPublicUrl && (
                                                 <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-2 flex items-center gap-1 justify-center">
                                                     <CheckCircle2 className="w-4 h-4" />
-                                                    Screenshot uploaded
+                                                    {t("payment.uploaded", "Screenshot uploaded")}
                                                 </p>
                                             )}
                                         </div>
@@ -1050,7 +1054,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                                             <label className="flex-1 cursor-pointer">
                                                 <div className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-muted-foreground/30 rounded-2xl hover:border-primary/50 hover:bg-accent/50 transition-all">
                                                     <Upload className="h-5 w-5 text-muted-foreground" />
-                                                    <span className="text-sm text-muted-foreground">Upload File</span>
+                                                    <span className="text-sm text-muted-foreground">{t("payment.uploadFile", "Upload File")}</span>
                                                 </div>
                                                 <input
                                                     type="file"
@@ -1079,7 +1083,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                                                 onClick={() => setShowCamera(true)}
                                             >
                                                 <Camera className="h-5 w-5" />
-                                                <span className="text-sm">Take Photo</span>
+                                                <span className="text-sm">{t("payment.takePhoto", "Take Photo")}</span>
                                             </Button>
                                         </div>
                                     )}
@@ -1111,40 +1115,40 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                         {isProcessingPayment ? (
                             <>
                                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                Processing Payment...
+                                {t("submit.processing", "Processing Payment...")}
                             </>
                         ) : uploadingScreenshot ? (
                             <>
                                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                Uploading Screenshot...
+                                {t("submit.uploading", "Uploading Screenshot...")}
                             </>
                         ) : isSubmitting ? (
                             <>
                                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                Creating Order...
+                                {t("submit.creating", "Creating Order...")}
                             </>
                         ) : activePaymentMethod === "qr" ? (
-                            `Submit Order - ₹${totalPrice}`
+                            t("submit.qr", `Submit Order - ₹${totalPrice}`).replace("{amount}", String(totalPrice))
                         ) : activePaymentMethod === "volunteer_cash" ? (
-                            `Confirm Cash Order - ₹${totalPrice}`
+                            t("submit.cash", `Confirm Cash Order - ₹${totalPrice}`).replace("{amount}", String(totalPrice))
                         ) : (
-                            `Proceed to Payment - ₹${totalPrice}`
+                            t("submit.pay", `Proceed to Payment - ₹${totalPrice}`).replace("{amount}", String(totalPrice))
                         )}
                     </Button>
 
                     {verifying && activePaymentMethod === "qr" && (
                         <p className="text-xs text-center text-blue-600 dark:text-blue-400 flex items-center justify-center gap-1">
                             <Loader2 className="w-3 h-3 animate-spin" />
-                            AI verification in progress — you can submit now
+                            {t("submit.aiVerifying", "AI verification in progress — you can submit now")}
                         </p>
                     )}
 
                     <p className="text-xs text-center text-muted-foreground">
                         {activePaymentMethod === "qr"
-                            ? "* Your order will be confirmed after payment verification"
+                            ? t("submit.qrNote", "* Your order will be confirmed after payment verification")
                             : activePaymentMethod === "volunteer_cash"
-                                ? "* You will pay the cash directly to the volunteer"
-                                : "* Secure payment powered by Razorpay"
+                                ? t("submit.cashNote", "* You will pay the cash directly to the volunteer")
+                                : t("submit.razorpayNote", "* Secure payment powered by Razorpay")
                         }
                     </p>
                 </CardContent>
