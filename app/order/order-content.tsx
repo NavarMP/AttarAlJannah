@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import { COUNTRY_CODES } from "@/components/ui/country-code-select";
 import { LanguageProvider, useTranslation } from "@/lib/i18n/translations";
 import { LanguageToggle } from "@/components/ui/language-toggle";
+import { HelpButton } from "@/components/ui/help-button";
+import { StartupPopup } from "@/components/custom/startup-popup";
 
 function OrderContentInner() {
     const searchParams = useSearchParams();
@@ -159,9 +161,11 @@ function OrderContentInner() {
         : "Hi, I need help placing an order for Attar al-Jannah.%0A%0AName: %0AAddress: %0A%0AI will send the payment screenshot.";
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8">
-            {/* Back Button + Language Toggle */}
-            <div className="flex items-center justify-between">
+        <div className="max-w-4xl mx-auto space-y-8 relative">
+            <StartupPopup />
+
+            {/* Back Button, Help, and Language Toggle */}
+            <div className="flex items-center justify-between relative z-20">
                 <Button
                     variant="ghost"
                     onClick={handleBack}
@@ -170,7 +174,10 @@ function OrderContentInner() {
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     {t("page.back", "Back")}
                 </Button>
-                <LanguageToggle />
+                <div className="flex items-center gap-2">
+                    <HelpButton />
+                    <LanguageToggle />
+                </div>
             </div>
 
             <div className="text-center space-y-2">
@@ -191,62 +198,6 @@ function OrderContentInner() {
                     </p>
                 )}
             </div>
-
-            {/* Enhanced Need Help / WhatsApp Order Assist */}
-            <Card className="glass border-primary/30 overflow-hidden">
-                <CardContent className="p-0">
-                    {/* Header strip */}
-                    <div className="bg-gradient-to-r from-green-500/10 to-primary/10 px-6 py-4 border-b border-border/40">
-                        <h3 className="text-lg font-semibold text-center">
-                            {t("help.title", "🤝 Need Help Placing an Order?")}
-                        </h3>
-                    </div>
-                    <div className="p-6 space-y-4">
-                        <p className="text-sm text-muted-foreground text-center">
-                            {t("help.description", "Don't worry! Just send us these details on WhatsApp:")}
-                        </p>
-                        {/* Checklist */}
-                        <div className="flex flex-col items-center gap-2">
-                            <div className="flex items-center gap-2 text-sm">
-                                <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-                                <span>{t("help.item.name", "Your Name")}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm">
-                                <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-                                <span>{t("help.item.address", "Full Address")}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm">
-                                <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-                                <span>{t("help.item.screenshot", "Payment Screenshot")}</span>
-                            </div>
-                        </div>
-                        <p className="text-sm font-medium text-center text-primary">
-                            {t("help.teamMessage", "Our team will create the order for you!")}
-                        </p>
-                        {/* Action buttons */}
-                        <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-                            <Link
-                                href="tel:+919072358001"
-                                className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary/10 hover:bg-primary/20 transition-colors"
-                            >
-                                <Phone className="w-4 h-4 text-primary" />
-                                <span className="text-sm font-medium">{t("help.call", "Call")} +91 907 235 8001</span>
-                            </Link>
-                            <Link
-                                href={`https://wa.me/919072358001?text=${whatsappMessage}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-green-500/10 hover:bg-green-500/20 transition-colors"
-                            >
-                                <MessageCircle className="w-4 h-4 text-green-600 dark:text-green-500" />
-                                <span className="text-sm font-medium text-green-700 dark:text-green-400">
-                                    {t("help.whatsapp", "Send on WhatsApp")}
-                                </span>
-                            </Link>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
 
             <OrderForm
                 volunteerId={referralCode || undefined}

@@ -386,6 +386,88 @@ export default function OrdersPage() {
         toast.success(`${label} copied to clipboard`);
     };
 
+    const handleWhatsAppMessage = async (order: Order) => {
+        if (!order.whatsapp_number) return;
+
+        toast.info("Preparing WhatsApp message and poster...", { id: "wa-prep" });
+
+        try {
+            // Generate Thanks Poster programmatically
+            const canvas = document.createElement("canvas");
+            const width = 1080;
+            const height = 1350;
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+
+            if (ctx) {
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+
+                await new Promise((resolve) => {
+                    img.onload = () => {
+                        ctx.drawImage(img, 0, 0, width, height);
+                        ctx.textAlign = "left";
+                        ctx.textBaseline = "middle";
+                        ctx.font = "bold 40px sans-serif";
+                        ctx.fillStyle = "#ffffff";
+                        ctx.fillText(order.customer_name, 110, 480);
+
+                        canvas.toBlob(async (blob) => {
+                            if (blob) {
+                                try {
+                                    await navigator.clipboard.write([
+                                        new ClipboardItem({ "image/png": blob })
+                                    ]);
+                                    resolve(true);
+                                } catch (err) {
+                                    console.error("Clipboard write failed:", err);
+                                    resolve(false);
+                                }
+                            } else {
+                                resolve(false);
+                            }
+                        }, "image/png");
+                    };
+                    img.onerror = () => resolve(false);
+                    img.src = "/assets/thankYou_Ml.png";
+                });
+            }
+
+            const statusLabel = getStatusLabel(order.order_status);
+            const baseUrl = window.location.origin;
+            const trackUrl = `${baseUrl}/track/${order.id}`;
+            const dashboardUrl = `${baseUrl}/customer/dashboard`;
+
+            const message = `Assalamu Alaykum, ${order.customer_name},
+
+Thank you for your order with Attar al-Jannah!
+
+*Order Status*: ${statusLabel}
+*Quantity*: ${order.quantity} bottle(s)
+*Total Price*: ₹${order.total_price}
+
+*Track your delivery here:*
+${trackUrl}
+
+*View your orders & invoice here:*
+${dashboardUrl}
+
+جزاك الله خيراً`;
+
+            const encodedMessage = encodeURIComponent(message);
+            const cleanNumber = order.whatsapp_number.replace(/\D/g, '');
+            window.open(`https://wa.me/${cleanNumber}?text=${encodedMessage}`, "_blank");
+
+            toast.dismiss("wa-prep");
+            toast.success("Ready! Hit Paste (Cmd+V / Ctrl+V) in WhatsApp to attach the poster.", { duration: 6000 });
+        } catch (error) {
+            console.error("WhatsApp prep failed:", error);
+            toast.dismiss("wa-prep");
+            toast.error("Failed to prepare message.");
+        }
+    };
+
     const handleInvoiceDownload = (orderId: string) => {
         window.open(`/admin/orders/${orderId}?action=download`, "_blank");
     };
@@ -1053,9 +1135,9 @@ export default function OrdersPage() {
                                                         Copy Phone
                                                     </DropdownMenuItem>
                                                     {order.whatsapp_number && (
-                                                        <DropdownMenuItem onClick={() => handleCopy(order.whatsapp_number, "WhatsApp number")}>
-                                                            <MessageSquare className="mr-2 h-4 w-4" />
-                                                            Copy WhatsApp
+                                                        <DropdownMenuItem onClick={() => handleWhatsAppMessage(order)}>
+                                                            <MessageSquare className="mr-2 h-4 w-4 text-green-500" />
+                                                            Message on WhatsApp
                                                         </DropdownMenuItem>
                                                     )}
 
