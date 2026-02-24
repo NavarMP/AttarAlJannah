@@ -187,6 +187,12 @@ export default function Home() {
                                 Volunteer Signup
                             </Link>
                         </div>
+                        <span className="hidden md:inline text-muted-foreground/50">|</span>
+                        <div className="flex gap-1">
+                            <Link href="/leaderboard" className="text-primary hover:underline font-medium">
+                                Public Leaderboard
+                            </Link>
+                        </div>
                     </div>
                 </div>
             </section>

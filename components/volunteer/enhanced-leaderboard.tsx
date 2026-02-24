@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, TrendingUp, Package, DollarSign, Medal } from "lucide-react";
+import { Trophy, TrendingUp, Package, DollarSign, Medal, Download, Loader2 } from "lucide-react";
+import { downloadNodeAsImage } from "@/lib/utils/export";
 import { toast } from "sonner";
 
 interface LeaderboardEntry {
@@ -33,12 +34,14 @@ export function EnhancedLeaderboard() {
     const [loading, setLoading] = useState(true);
     const [metric, setMetric] = useState<MetricType>("overall");
     const [period, setPeriod] = useState<PeriodType>("all");
+    const [limit, setLimit] = useState<number>(10);
+    const [isExporting, setIsExporting] = useState(false);
 
     const fetchLeaderboard = useCallback(async () => {
         setLoading(true);
         try {
             const response = await fetch(
-                `/api/volunteer/leaderboard?metric=${metric}&period=${period}&limit=100`
+                `/api/volunteer/leaderboard?metric=${metric}&period=${period}&limit=${limit}`
             );
             if (!response.ok) throw new Error("Failed to fetch leaderboard");
             const data = await response.json();
@@ -49,7 +52,7 @@ export function EnhancedLeaderboard() {
         } finally {
             setLoading(false);
         }
-    }, [metric, period]);
+    }, [metric, period, limit]);
 
     useEffect(() => {
         fetchLeaderboard();
@@ -114,40 +117,77 @@ export function EnhancedLeaderboard() {
     };
 
     return (
-        <Card className="rounded-3xl">
-            <CardHeader>
-                <div className="flex items-center justify-between flex-wrap gap-4">
+        <Card id="leaderboard-export-container" className="rounded-3xl border-primary/10 shadow-lg">
+            <CardHeader className="pb-4">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <CardTitle className="flex items-center gap-2">
                         <Trophy className="h-5 w-5 text-primary" />
                         Leaderboard - {getPeriodLabel()}
                     </CardTitle>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-center gap-2 bg-secondary/30 rounded-lg p-1 border">
+                            <span className="text-xs font-medium text-muted-foreground ml-2">Top</span>
+                            <select
+                                value={limit}
+                                onChange={(e) => setLimit(Number(e.target.value))}
+                                className="text-sm bg-background border-none rounded-md px-2 py-1 outline-none cursor-pointer"
+                            >
+                                <option value={3}>3</option>
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                            </select>
+                        </div>
+                        <div className="flex gap-1 bg-secondary/30 p-1 rounded-lg border">
+                            <button
+                                onClick={() => setPeriod("all")}
+                                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${period === "all"
+                                    ? "bg-primary text-primary-foreground shadow-sm"
+                                    : "text-secondary-foreground hover:bg-secondary/80"
+                                    }`}
+                            >
+                                All Time
+                            </button>
+                            <button
+                                onClick={() => setPeriod("month")}
+                                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${period === "month"
+                                    ? "bg-primary text-primary-foreground shadow-sm"
+                                    : "text-secondary-foreground hover:bg-secondary/80"
+                                    }`}
+                            >
+                                Month
+                            </button>
+                            <button
+                                onClick={() => setPeriod("week")}
+                                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${period === "week"
+                                    ? "bg-primary text-primary-foreground shadow-sm"
+                                    : "text-secondary-foreground hover:bg-secondary/80"
+                                    }`}
+                            >
+                                Week
+                            </button>
+                        </div>
                         <button
-                            onClick={() => setPeriod("all")}
-                            className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${period === "all"
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                                }`}
+                            onClick={async () => {
+                                try {
+                                    setIsExporting(true);
+                                    // slight delay to allow UI to update if needed
+                                    await new Promise(r => setTimeout(r, 100));
+                                    await downloadNodeAsImage("leaderboard-export-container", `leaderboard_${metric}_${period}.png`);
+                                    toast.success("Leaderboard downloaded!");
+                                } catch (error) {
+                                    toast.error("Failed to download image");
+                                } finally {
+                                    setIsExporting(false);
+                                }
+                            }}
+                            disabled={isExporting}
+                            className={`p-1.5 px-3 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-sm font-medium transition-colors flex items-center gap-2 border border-primary/20 ${isExporting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            title="Export Leaderboard as Image"
                         >
-                            All Time
-                        </button>
-                        <button
-                            onClick={() => setPeriod("month")}
-                            className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${period === "month"
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                                }`}
-                        >
-                            This Month
-                        </button>
-                        <button
-                            onClick={() => setPeriod("week")}
-                            className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${period === "week"
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                                }`}
-                        >
-                            This Week
+                            {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                            <span className="hidden sm:inline">Export</span>
                         </button>
                     </div>
                 </div>

@@ -29,6 +29,7 @@ import {
     Trophy,
     AlertCircle,
     LinkIcon,
+    Download,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -67,6 +68,7 @@ export default function VolunteerProfilePage() {
 
     // Profile photo management
     const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
     const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
     const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
     const [originalVolunteerId, setOriginalVolunteerId] = useState("");
@@ -354,185 +356,216 @@ export default function VolunteerProfilePage() {
                     </Link>
 
                     {profileData && stats && (
-                        <ShareButton
-                            data={{
-                                title: `Support ${profileData.name} on Attar Al Jannah`,
-                                text: `Check out ${profileData.name}'s volunteer profile! They've ordered ${stats.totalBottles} bottles so far.`,
-                                url: shareUrl,
-                            }}
-                            variant="outline"
-                        />
+                        <div className="flex items-center gap-2">
+                            <ShareButton
+                                data={{
+                                    title: `Support ${profileData.name} on Attar Al Jannah`,
+                                    text: `Check out ${profileData.name}'s volunteer profile! They've ordered ${stats.totalBottles} bottles so far.`,
+                                    url: shareUrl,
+                                }}
+                                variant="outline"
+                            />
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={async () => {
+                                    try {
+                                        setIsExporting(true);
+                                        const { downloadNodeAsImage } = await import('@/lib/utils/export');
+                                        await downloadNodeAsImage('private-profile-card-export', `${profileData?.volunteer_id}_stats.png`);
+                                        toast.success("Dashboard exported!");
+                                    } catch (e) {
+                                        toast.error("Failed to export dashboard");
+                                    } finally {
+                                        setIsExporting(false);
+                                    }
+                                }}
+                                disabled={isExporting}
+                                title="Download Dashboard Stats"
+                            >
+                                {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                            </Button>
+                        </div>
                     )}
                 </div>
 
-                {/* Profile Header Card */}
-                <Card className="glass-strong rounded-3xl">
-                    <CardContent className="pt-6">
-                        <div className="flex flex-col md:flex-row gap-6 items-center md:items-start">
-                            {/* Profile Photo */}
-                            <div className="space-y-3">
-                                <Avatar className="w-32 h-32 border-4 border-border">
-                                    <AvatarImage src={profilePhotoPreview || undefined} />
-                                    <AvatarFallback className="text-3xl font-semibold bg-gradient-to-br from-primary to-gold-500 text-white">
-                                        {getInitials(profileData.name)}
-                                    </AvatarFallback>
-                                </Avatar>
+                <div id="private-profile-card-export" className="space-y-6 bg-background/40 p-1 rounded-3xl -mx-1">
+                    {/* Profile Header Card */}
+                    <Card className="glass-strong rounded-3xl">
+                        <CardContent className="pt-6">
+                            <div className="flex flex-col md:flex-row gap-6 items-center md:items-start">
+                                {/* Profile Photo */}
+                                <div className="space-y-3">
+                                    <Avatar className="w-32 h-32 border-4 border-border">
+                                        <AvatarImage src={profilePhotoPreview || undefined} />
+                                        <AvatarFallback className="text-3xl font-semibold bg-gradient-to-br from-primary to-gold-500 text-white">
+                                            {getInitials(profileData.name)}
+                                        </AvatarFallback>
+                                    </Avatar>
 
-                                {isEditing && (
-                                    <div className="space-y-2">
-                                        <ProfilePhotoUpload
-                                            currentPhotoUrl={profilePhotoPreview}
-                                            volunteerName={profileData.name}
-                                            onPhotoChange={(file, preview) => {
-                                                setProfilePhotoFile(file);
-                                                if (preview) setProfilePhotoPreview(preview);
-                                            }}
-                                            size="sm"
-                                        />
-                                        {profilePhotoFile && (
-                                            <Button
-                                                onClick={handlePhotoUpload}
-                                                disabled={isUploadingPhoto}
+                                    {isEditing && (
+                                        <div className="space-y-2">
+                                            <ProfilePhotoUpload
+                                                currentPhotoUrl={profilePhotoPreview}
+                                                volunteerName={profileData.name}
+                                                onPhotoChange={(file, preview) => {
+                                                    setProfilePhotoFile(file);
+                                                    if (preview) setProfilePhotoPreview(preview);
+                                                }}
                                                 size="sm"
-                                                className="w-full"
-                                            >
-                                                {isUploadingPhoto ? (
-                                                    <>
-                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                        Uploading...
-                                                    </>
-                                                ) : (
-                                                    "Save Photo"
-                                                )}
-                                            </Button>
-                                        )}
-                                        {profilePhotoPreview && !profilePhotoFile && (
-                                            <Button
-                                                onClick={handlePhotoDelete}
-                                                disabled={isUploadingPhoto}
-                                                variant="destructive"
-                                                size="sm"
-                                                className="w-full"
-                                            >
-                                                Remove Photo
-                                            </Button>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Profile Info */}
-                            <div className="flex-1 space-y-4 text-center md:text-left">
-                                <div>
-                                    <h1 className="text-3xl font-bold">{profileData.name}</h1>
-                                    <p className="text-muted-foreground">@{profileData.volunteer_id}</p>
-                                </div>
-
-                                <div className="flex flex-wrap gap-2 justify-center md:justify-start">
-                                    <Badge variant={profileData.status === "active" ? "default" : "secondary"}>
-                                        {profileData.status}
-                                    </Badge>
-                                    {profileData.email && (
-                                        <Badge variant="outline" className="gap-1">
-                                            <Mail className="w-3 h-3" />
-                                            {profileData.email}
-                                        </Badge>
+                                            />
+                                            {profilePhotoFile && (
+                                                <Button
+                                                    onClick={handlePhotoUpload}
+                                                    disabled={isUploadingPhoto}
+                                                    size="sm"
+                                                    className="w-full"
+                                                >
+                                                    {isUploadingPhoto ? (
+                                                        <>
+                                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                            Uploading...
+                                                        </>
+                                                    ) : (
+                                                        "Save Photo"
+                                                    )}
+                                                </Button>
+                                            )}
+                                            {profilePhotoPreview && !profilePhotoFile && (
+                                                <Button
+                                                    onClick={handlePhotoDelete}
+                                                    disabled={isUploadingPhoto}
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    className="w-full"
+                                                >
+                                                    Remove Photo
+                                                </Button>
+                                            )}
+                                        </div>
                                     )}
-                                    <Badge variant="outline" className="gap-1">
-                                        <Phone className="w-3 h-3" />
-                                        {profileData.phone}
-                                    </Badge>
                                 </div>
 
-                                {!isEditing && (
-                                    <Button
-                                        onClick={() => setIsEditing(true)}
-                                        className="gap-2"
-                                    >
-                                        <Edit className="w-4 h-4" />
-                                        Edit Profile
-                                    </Button>
-                                )}
+                                {/* Profile Info */}
+                                <div className="flex-1 space-y-4 text-center md:text-left">
+                                    <div>
+                                        <h1 className="text-3xl font-bold">{profileData.name}</h1>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <p className="text-muted-foreground">@{profileData.volunteer_id}</p>
+                                            {(stats as any)?.rank && (
+                                                <Badge variant="outline" className="font-medium bg-gold-500/10 text-gold-600 border-gold-200 gap-1 ml-2">
+                                                    <Trophy className="w-3 h-3" /> Rank #{(stats as any).rank}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-2 justify-center md:justify-start">
+                                        <Badge variant={profileData.status === "active" ? "default" : "secondary"}>
+                                            {profileData.status}
+                                        </Badge>
+                                        {profileData.email && (
+                                            <Badge variant="outline" className="gap-1">
+                                                <Mail className="w-3 h-3" />
+                                                {profileData.email}
+                                            </Badge>
+                                        )}
+                                        <Badge variant="outline" className="gap-1">
+                                            <Phone className="w-3 h-3" />
+                                            {profileData.phone}
+                                        </Badge>
+                                    </div>
+
+                                    {!isEditing && (
+                                        <Button
+                                            onClick={() => setIsEditing(true)}
+                                            className="gap-2"
+                                        >
+                                            <Edit className="w-4 h-4" />
+                                            Edit Profile
+                                        </Button>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Stats Cards */}
-                {stats && (
-                    <div className="grid md:grid-cols-4 gap-4">
-                        <Card className="glass rounded-2xl">
-                            <CardContent className="pt-6">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-3 rounded-full bg-primary/10">
-                                        <Package className="w-5 h-5 text-primary" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Bottles Ordered</p>
-                                        <p className="text-2xl font-bold">{stats.totalBottles}</p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="glass rounded-2xl">
-                            <CardContent className="pt-6">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-3 rounded-full bg-gold-500/10">
-                                        <Target className="w-5 h-5 text-gold-500" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Goal</p>
-                                        <p className="text-2xl font-bold">{stats.goal}</p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="glass rounded-2xl">
-                            <CardContent className="pt-6">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-3 rounded-full bg-emerald-500/10">
-                                        <TrendingUp className="w-5 h-5 text-emerald-500" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Progress</p>
-                                        <p className="text-2xl font-bold">{stats.goalProgress}%</p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="glass rounded-2xl">
-                            <CardContent className="pt-6">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-3 rounded-full bg-blue-500/10">
-                                        <DollarSign className="w-5 h-5 text-blue-500" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Commission</p>
-                                        <p className="text-2xl font-bold">₹{stats.commission.toFixed(2)}</p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                )}
-
-                {/* Goal Progress */}
-                {stats && (
-                    <Card className="glass rounded-2xl">
-                        <CardHeader>
-                            <CardTitle className="text-lg">Goal Progress</CardTitle>
-                            <CardDescription>
-                                {stats.totalBottles} / {stats.goal} bottles ordered
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <Progress value={stats.goalProgress} className="h-3" />
                         </CardContent>
                     </Card>
-                )}
+
+                    {/* Stats Cards */}
+                    {stats && (
+                        <div className="grid md:grid-cols-4 gap-4">
+                            <Card className="glass rounded-2xl">
+                                <CardContent className="pt-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-3 rounded-full bg-primary/10">
+                                            <Package className="w-5 h-5 text-primary" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm text-muted-foreground">Bottles Ordered</p>
+                                            <p className="text-2xl font-bold">{stats.totalBottles}</p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="glass rounded-2xl">
+                                <CardContent className="pt-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-3 rounded-full bg-gold-500/10">
+                                            <Target className="w-5 h-5 text-gold-500" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm text-muted-foreground">Goal</p>
+                                            <p className="text-2xl font-bold">{stats.goal}</p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="glass rounded-2xl">
+                                <CardContent className="pt-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-3 rounded-full bg-emerald-500/10">
+                                            <TrendingUp className="w-5 h-5 text-emerald-500" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm text-muted-foreground">Progress</p>
+                                            <p className="text-2xl font-bold">{stats.goalProgress}%</p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="glass rounded-2xl">
+                                <CardContent className="pt-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-3 rounded-full bg-blue-500/10">
+                                            <DollarSign className="w-5 h-5 text-blue-500" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm text-muted-foreground">Commission</p>
+                                            <p className="text-2xl font-bold">₹{stats.commission.toFixed(2)}</p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    )}
+
+                    {/* Goal Progress */}
+                    {stats && (
+                        <Card className="glass rounded-2xl">
+                            <CardHeader>
+                                <CardTitle className="text-lg">Goal Progress</CardTitle>
+                                <CardDescription>
+                                    {stats.totalBottles} / {stats.goal} bottles ordered
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Progress value={stats.goalProgress} className="h-3" />
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
 
                 {/* Quick Links */}
                 <div className="flex flex-wrap gap-3">

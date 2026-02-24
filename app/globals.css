@@ -114,7 +114,8 @@ html.lenis {
   background: hsl(var(--primary));
   pointer-events: none;
   z-index: 9999;
-  mix-blend-mode: difference;
+  opacity: 0.6;
+  will-change: transform;
   transition: transform 0.2s ease, opacity 0.2s ease;
 }
 

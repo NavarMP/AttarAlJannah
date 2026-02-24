@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, CheckCircle2, Copy, Camera, Upload, X, QrCode, Smartphone, ShieldCheck, ShieldAlert, ShieldX, AlertTriangle } from "lucide-react";
+import { Loader2, CheckCircle2, Copy, Camera, Upload, X, QrCode, Smartphone, ShieldCheck, ShieldAlert, ShieldX, AlertTriangle, Download } from "lucide-react";
 import { LocationLink } from "@/components/forms/location-link";
 import { AddressSection } from "@/components/forms/address-section";
 import { toast } from "sonner";
@@ -298,7 +298,10 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
             return;
         }
 
-        const upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(merchantName)}&am=${totalPrice.toFixed(2)}&cu=INR`;
+        // const upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(merchantName)}&am=${totalPrice.toFixed(2)}&cu=INR`;
+        // Removed &am= parameter to fix "exceeded bank limit" error in UPI apps for P2P VPAs.
+        // UPI apps impose strict limits on dynamic QRs with pre-filled amounts for non-merchant accounts.
+        const upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(merchantName)}&cu=INR`;
 
         QRCodeLib.toDataURL(upiUrl, {
             width: 300,
@@ -892,7 +895,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                                 </p>
 
                                 {/* QR Code Image (Dynamic) */}
-                                <div className="flex justify-center mb-4">
+                                <div className="flex flex-col items-center justify-center mb-4 gap-3">
                                     <div className="bg-white p-3 rounded-2xl shadow-md inline-block">
                                         {qrDataUrl ? (
                                             <Image
@@ -909,6 +912,25 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                                             </div>
                                         )}
                                     </div>
+                                    {qrDataUrl && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="rounded-full gap-2 border-primary/20 text-primary hover:bg-primary/5"
+                                            onClick={() => {
+                                                const link = document.createElement('a');
+                                                link.href = qrDataUrl;
+                                                link.download = `attar_al_jannah_qr_amount_${totalPrice}.png`;
+                                                document.body.appendChild(link);
+                                                link.click();
+                                                document.body.removeChild(link);
+                                            }}
+                                        >
+                                            <Download className="w-4 h-4" />
+                                            {t("payment.downloadQr", "Download QR Code")}
+                                        </Button>
+                                    )}
                                 </div>
                                 {upiId && (
                                     <p className="text-xs text-center text-muted-foreground mb-3">
@@ -919,15 +941,16 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                                 {/* Quick Pay Options */}
                                 <div className="space-y-3 mb-4">
                                     {/* Open UPI App Button */}
-                                    {upiId && (
+                                    {/* {upiId && (
                                         <a
-                                            href={`upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(merchantName)}&am=${totalPrice.toFixed(2)}&cu=INR`}
+                                            // href={`upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(merchantName)}&am=${totalPrice.toFixed(2)}&cu=INR`}
+                                            href={`upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(merchantName)}&cu=INR`}
                                             className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-medium rounded-2xl transition-all shadow-md active:scale-[0.98]"
                                         >
                                             <Smartphone className="h-5 w-5" />
                                             {t("payment.openUpi", `Open UPI App to Pay ₹${totalPrice}`).replace("{amount}", String(totalPrice))}
                                         </a>
-                                    )}
+                                    )} */}
 
                                     {/* Copy Details Row */}
                                     <div className="flex gap-2">

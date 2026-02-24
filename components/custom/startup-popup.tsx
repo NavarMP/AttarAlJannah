@@ -54,7 +54,7 @@ export function StartupPopup() {
             <div className="relative bg-background/95 backdrop-blur-md border border-primary/30 shadow-2xl p-4 rounded-2xl w-80 max-w-[90vw] overflow-hidden group">
                 {/* Decorative background */}
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent -z-10" />
-                <div className="absolute top-0 right-0 p-4 opacity-10">
+                <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
                     <Sparkles className="w-16 h-16 text-primary" />
                 </div>
 

@@ -2,8 +2,10 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
-import { Award, Clock } from "lucide-react";
+import { Award, Clock, Trophy } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { getVolunteerRank } from "@/lib/services/leaderboard-service";
+import { ProfileActions } from "@/components/volunteer/profile-actions";
 import { Progress } from "@/components/ui/progress";
 import { ShareButton } from "@/components/ui/share-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -101,6 +103,8 @@ export default async function PublicProfilePage({ params }: Props) {
 
     const { name, profile_photo, status, volunteer_id, stats } = volunteer;
 
+    const rank = await getVolunteerRank(volunteer_id, "overall", "all");
+
     // Get initials for avatar fallback
     const initials = name
         .split(" ")
@@ -114,7 +118,7 @@ export default async function PublicProfilePage({ params }: Props) {
     return (
         <div className="min-h-screen bg-background pb-20">
             {/* Hero Section / Header Background */}
-            <div className="h-48 bg-gradient-to-r from-primary/10 via-primary/5 to-background relative overflow-hidden">
+            <div className="h-48 bg-gradient-to-b from-border/30 to-background relative overflow-hidden">
                 <div className="flex justify-end p-4 gap-2">
                     <ThemeToggle />
                     <Link href="/">
@@ -129,12 +133,12 @@ export default async function PublicProfilePage({ params }: Props) {
             <div className="container max-w-lg mx-auto px-4 -mt-20 relative z-10">
                 <div className="space-y-6">
                     {/* Profile Header Card */}
-                    <Card className="glass-strong border-gold-200/20 shadow-xl">
+                    <Card id="profile-card-export" className="glass-strong border-gold-200/20 shadow-xl overflow-visible pt-0 mt-20 bg-background/50 backdrop-blur-md rounded-[40px]">
                         <CardContent className="pt-0 relative">
                             {/* Profile Photo */}
-                            <div className="flex justify-center -mt-16 mb-4">
-                                <div className="rounded-full p-2 bg-background shadow-xl ring-4 ring-background/50">
-                                    <Avatar className="h-32 w-32 border-4 border-gold-100">
+                            <div className="flex justify-center pt-8 mb-4">
+                                <div className="rounded-full p-1.5 bg-background shadow-2xl ring-4 ring-primary/20">
+                                    <Avatar className="h-32 w-32 border-4 border-background">
                                         <AvatarImage src={profile_photo || undefined} alt={name} className="object-cover" />
                                         <AvatarFallback className="text-2xl font-bold bg-primary/5 text-primary">
                                             {initials}
@@ -157,6 +161,14 @@ export default async function PublicProfilePage({ params }: Props) {
                                         {status === 'active' ? 'Active Volunteer' : status}
                                     </Badge>
                                 </div>
+                                {rank && (
+                                    <Link href="/leaderboard" className="inline-flex items-center justify-center gap-1.5 mt-2 group">
+                                        <Trophy className="w-4 h-4 text-gold-500 group-hover:scale-110 transition-transform" />
+                                        <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                                            Rank <span className="text-foreground font-bold underline-offset-2 group-hover:underline">#{rank}</span>
+                                        </span>
+                                    </Link>
+                                )}
                             </div>
 
                             {/* Primary Stat: Bottles Ordered */}
@@ -221,28 +233,14 @@ export default async function PublicProfilePage({ params }: Props) {
                         </Card>
                     )}
 
-                    {/* Footer*/}
-                    <div className="text-center space-y-4 pt-4">
-                        <ShareButton
-                            data={{
-                                title: `Support ${name} on Attar Al Jannah`,
-                                text: `Check out ${name}'s volunteer profile! They've ordered ${stats.totalBottles} bottles so far.`,
-                                url: shareUrl,
-                            }}
-                            variant="outline"
-                            size="sm"
+                    {/* Footer / Profile Actions */}
+                    <div className="text-center pt-2">
+                        <ProfileActions
+                            volunteerName={name}
+                            volunteerId={volunteer_id}
+                            totalBottles={stats.totalBottles}
+                            shareUrl={shareUrl}
                         />
-                        {/* <div className="flex flex-col items-center gap-2">
-                            <p className="text-muted-foreground text-sm">
-                                Want to become a volunteer like {name}?
-                            </p>
-                            <a
-                                href="/volunteer/signup"
-                                className="inline-flex items-center justify-center px-6 py-2 rounded-full bg-foreground text-background font-medium text-sm hover:opacity-90 transition-opacity"
-                            >
-                                Join Attar Al Jannah
-                            </a>
-                        </div> */}
                     </div>
                 </div>
             </div>
