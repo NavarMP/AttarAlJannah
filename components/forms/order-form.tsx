@@ -916,7 +916,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                                     {t("payment.qrTitle", "Pay Online/UPI")}
                                 </h3>
                                 <p className="text-sm text-muted-foreground mb-4">
-                                    {t("payment.qrInstruction", "Scan the QR code below or click on the link to pay")} <span className="font-bold text-foreground">₹{totalPrice}</span>{t("payment.thenUpload", ", then upload the payment screenshot.")}
+                                    {t("payment.qrInstruction", "Scan the QR code, download it for your UPI app, or copy the UPI ID to pay manually")} <span className="font-bold text-foreground">₹{totalPrice}</span>{t("payment.thenUpload", ", then upload the payment screenshot.")}
                                 </p>
 
                                 {/* QR Code Image (Dynamic) */}
@@ -1008,9 +1008,9 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                                         </button>
                                     </div>
 
-                                    <p className="text-xs text-center text-muted-foreground">
+                                    {/* <p className="text-xs text-center text-muted-foreground">
                                         {t("payment.tapToPay", "Tap button above to pay directly, or scan the QR code")}
-                                    </p>
+                                    </p> */}
                                 </div>
 
                                 {/* Screenshot Upload */}
@@ -1050,7 +1050,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                                             {verifying && (
                                                 <p className="text-sm text-blue-600 dark:text-blue-400 mt-2 flex items-center gap-1 justify-center">
                                                     <Loader2 className="w-4 h-4 animate-spin" />
-                                                    {t("payment.aiVerifying", "AI is verifying payment...")}
+                                                    {t("payment.aiVerifying", "AI is verifying your payment... Proceed to submit, or stay on this page to finish.")}
                                                 </p>
                                             )}
 
@@ -1186,12 +1186,12 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                         )}
                     </Button>
 
-                    {verifying && activePaymentMethod === "qr" && (
+                    {/* {verifying && activePaymentMethod === "qr" && (
                         <p className="text-xs text-center text-blue-600 dark:text-blue-400 flex items-center justify-center gap-1">
                             <Loader2 className="w-3 h-3 animate-spin" />
                             {t("submit.aiVerifying", "AI verification in progress — you can submit now")}
                         </p>
-                    )}
+                    )} */}
 
                     <p className="text-xs text-center text-muted-foreground">
                         {activePaymentMethod === "qr"
