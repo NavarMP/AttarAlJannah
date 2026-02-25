@@ -38,7 +38,7 @@ export interface Order {
     delivery_fee?: number;
 
     // Payment
-    payment_method?: 'qr' | 'razorpay' | 'volunteer_cash';
+    payment_method?: 'qr' | 'razorpay' | 'volunteer_cash' | 'cod';
     payment_status: 'pending' | 'paid' | 'verified';
     payment_screenshot_url?: string;
     razorpay_order_id?: string;

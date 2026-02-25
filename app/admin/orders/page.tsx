@@ -86,6 +86,7 @@ const DELIVERY_METHODS = [
 const PAYMENT_METHODS = [
     { label: "Online (Razorpay)", value: "razorpay" },
     { label: "UPI", value: "qr" },
+    { label: "Cash on Delivery", value: "cod" },
     { label: "Held by volunteer", value: "volunteer_cash" },
 ];
 
@@ -1027,7 +1028,7 @@ ${dashboardUrl}
                                             ₹{order.total_price}
                                         </td>
                                         <td className="px-4 py-4">
-                                            <span className="text-sm capitalize">{order.payment_method}</span>
+                                            <span className="text-sm">{order.payment_method === 'cod' ? 'Cash on Delivery' : order.payment_method === 'volunteer_cash' ? 'Cash (Volunteer)' : order.payment_method === 'qr' ? 'UPI' : order.payment_method === 'razorpay' ? 'Razorpay' : order.payment_method}</span>
                                         </td>
                                         <td className="px-4 py-4">
                                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.order_status)}`}>

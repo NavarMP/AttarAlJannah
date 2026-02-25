@@ -168,29 +168,26 @@ export default function Home() {
                     </div>
                     <div className="flex flex-col md:flex-row items-center gap-2 text-sm text-muted-foreground mt-2">
                         <div className="flex gap-1">
-                            {/* <span>Already ordered?</span> */}
                             <Link href="/customer/dashboard" className="text-primary hover:underline font-medium">
                                 Track your order
                             </Link>
                         </div>
                         <span className="hidden md:inline text-muted-foreground/50">|</span>
                         <div className="flex gap-1">
-                            {/* <span>Received your order?</span> */}
                             <Link href="/customer/feedback" className="text-primary hover:underline font-medium">
                                 Give feedback
                             </Link>
                         </div>
-                        <span className="hidden md:inline text-muted-foreground/50">|</span>
+                        {/* <span className="hidden md:inline text-muted-foreground/50">|</span>
                         <div className="flex gap-1">
-                            {/* <span>Do you want to become a volunteer?</span> */}
                             <Link href="/volunteer/signup" className="text-primary hover:underline font-medium">
                                 Volunteer Signup
                             </Link>
-                        </div>
+                        </div> */}
                         <span className="hidden md:inline text-muted-foreground/50">|</span>
                         <div className="flex gap-1">
                             <Link href="/leaderboard" className="text-primary hover:underline font-medium">
-                                Public Leaderboard
+                                Volunteer Leaderboard
                             </Link>
                         </div>
                     </div>
@@ -202,22 +199,17 @@ export default function Home() {
                 <LiveStatsCard />
             </div> */}
 
-            {/* Eid Special Banner */}
             <div className="max-w-6xl mx-auto space-y-12">
                 <div className="max-w-4xl mx-auto text-center space-y-4">
-                    <div className="flex items-center justify-center gap-3 mb-2">
-                        <Sparkles className="w-5 h-5 text-gold-500 animate-pulse" />
-                        <h3 className="text-xl md:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-gold-500">
-                            Eid Special
-                        </h3>
-                        <Sparkles className="w-5 h-5 text-gold-500 animate-pulse" />
-                    </div>
-                    <p className="text-sm md:text-base text-muted-foreground">
+                    <div className="space-y-4">
+                    <h3 className="text-3xl font-bold text-foreground">Eid Special</h3>
+                    <p className="text-muted-foreground">
                         A blessed offering from <span className="font-semibold text-primary">Minhajul Janna</span> to celebrate this joyous occasion.
                         By participating in this initiative, you&apos;re supporting students who dedicate
                         their lives to learning and teaching the beautiful religion of Islam.
                         Every bottle ordered contributes to this noble cause.
                     </p>
+                </div>
                 </div>
             </div>
 

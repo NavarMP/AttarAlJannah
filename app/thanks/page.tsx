@@ -186,6 +186,15 @@ function ThanksContent() {
                                                 </div>
                                             )}
                                         </>
+                                    ) : order.payment_method === "cod" ? (
+                                        <div className="space-y-2">
+                                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 text-sm font-medium">
+                                                💵 Cash on Delivery
+                                            </div>
+                                            <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+                                                Your order is being verified. We&apos;ll confirm shortly and contact you before delivery.
+                                            </p>
+                                        </div>
                                     ) : (
                                         <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
                                             Your order has been received.

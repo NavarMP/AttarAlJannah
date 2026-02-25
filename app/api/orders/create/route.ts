@@ -105,6 +105,7 @@ export async function POST(request: NextRequest) {
         // Create order
         console.log("💾 Inserting order into database...");
         const isQrPayment = paymentMethod === "qr";
+        const isCodPayment = paymentMethod === "cod";
         const { data: orderData, error: orderError } = await supabase
             .from("orders")
             .insert({
@@ -117,14 +118,14 @@ export async function POST(request: NextRequest) {
                 quantity,
                 total_price: totalPrice,
                 payment_method: paymentMethod,
-                payment_screenshot_url: paymentScreenshotUrl,
-                screenshot_verified: screenshotVerified === "true" ? true : screenshotVerified === "false" ? false : null,
-                screenshot_verification_details: screenshotVerificationDetails ? JSON.parse(screenshotVerificationDetails) : null,
-                extracted_transaction_id: extractedTransactionId,
-                payment_status: isQrPayment ? "pending" : "pending",
-                order_status: "payment_pending", // QR: stays until admin verifies; Razorpay: promoted after verify
+                payment_screenshot_url: isCodPayment ? null : paymentScreenshotUrl, // COD has no screenshot
+                screenshot_verified: isCodPayment ? null : (screenshotVerified === "true" ? true : screenshotVerified === "false" ? false : null),
+                screenshot_verification_details: isCodPayment ? null : (screenshotVerificationDetails ? JSON.parse(screenshotVerificationDetails) : null),
+                extracted_transaction_id: isCodPayment ? null : extractedTransactionId,
+                payment_status: "pending",
+                order_status: "payment_pending", // QR/COD: stays until admin verifies; Razorpay: promoted after verify
                 volunteer_id: referredByUuid,
-                payment_upi_id: activeUpiId, // Track which account receives the payment
+                payment_upi_id: isCodPayment ? null : activeUpiId, // COD doesn't use UPI
             })
             .select()
             .single();

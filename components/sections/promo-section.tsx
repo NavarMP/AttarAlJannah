@@ -15,6 +15,7 @@ export function PromoSection() {
     const supabase = createClient();
     const autoSwipeTimer = useRef<NodeJS.Timeout | null>(null);
     const pauseUntil = useRef<number>(0);
+    const isVideoPlaying = useRef<boolean>(false);
 
     useEffect(() => {
         const fetchContent = async () => {
@@ -58,6 +59,29 @@ export function PromoSection() {
         };
     }, [currentIndex, promoContent]); // Re-run when content changes
 
+    // Track video play/pause state to control auto-swipe
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) {
+            isVideoPlaying.current = false;
+            return;
+        }
+
+        const handlePlay = () => { isVideoPlaying.current = true; };
+        const handlePause = () => { isVideoPlaying.current = false; };
+        const handleEnded = () => { isVideoPlaying.current = false; };
+
+        video.addEventListener('play', handlePlay);
+        video.addEventListener('pause', handlePause);
+        video.addEventListener('ended', handleEnded);
+
+        return () => {
+            video.removeEventListener('play', handlePlay);
+            video.removeEventListener('pause', handlePause);
+            video.removeEventListener('ended', handleEnded);
+        };
+    }, [currentIndex, promoContent]);
+
     // Reset video when switching
     useEffect(() => {
         const video = videoRef.current;
@@ -77,19 +101,27 @@ export function PromoSection() {
         setCurrentIndex((prev) => (prev === promoContent.length - 1 ? 0 : prev + 1));
     }, [promoContent.length]);
 
-    // Auto-swipe interval
+    // Auto-swipe interval (pauses when video/youtube is playing)
     useEffect(() => {
         if (promoContent.length <= 1) return;
 
         autoSwipeTimer.current = setInterval(() => {
             if (Date.now() < pauseUntil.current) return; // skip if user recently interacted
+
+            // Don't auto-swipe if a video is currently playing
+            if (isVideoPlaying.current) return;
+
+            // Don't auto-swipe if current item is a YouTube embed (can't reliably detect playback)
+            const currentType = promoContent[currentIndex]?.type;
+            if (currentType === 'youtube') return;
+
             setCurrentIndex((prev) => (prev === promoContent.length - 1 ? 0 : prev + 1));
         }, 5000);
 
         return () => {
             if (autoSwipeTimer.current) clearInterval(autoSwipeTimer.current);
         };
-    }, [promoContent.length]);
+    }, [promoContent.length, currentIndex, promoContent]);
 
     if (promoContent.length === 0) return null;
 

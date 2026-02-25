@@ -137,7 +137,7 @@ const BillContent = React.forwardRef<HTMLDivElement, { order: Order }>(({ order 
                     <div className="w-64 space-y-2">
                         <div className="flex justify-between py-2 border-t border-gray-300">
                             <span className="font-semibold text-gray-800">Payment Method:</span>
-                            <span className="text-gray-700 uppercase">{order.payment_method}</span>
+                            <span className="text-gray-700">{order.payment_method === 'cod' ? 'Cash on Delivery' : order.payment_method === 'volunteer_cash' ? 'Cash (Volunteer)' : order.payment_method === 'qr' ? 'UPI' : order.payment_method === 'razorpay' ? 'Razorpay' : order.payment_method}</span>
                         </div>
                         <div className="flex justify-between py-2 border-t-2 border-primary">
                             <span className="font-bold text-lg text-gray-800">Grand Total:</span>

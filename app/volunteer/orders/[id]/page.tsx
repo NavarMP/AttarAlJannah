@@ -139,7 +139,7 @@ export default function VolunteerOrderDetailsPage({ params }: { params: Promise<
                             </div>
                             <div>
                                 <p className="text-sm text-muted-foreground">Payment Method</p>
-                                <p className="font-medium capitalize">{order.payment_method}</p>
+                                <p className="font-medium">{order.payment_method === 'cod' ? 'Cash on Delivery' : order.payment_method === 'volunteer_cash' ? 'Cash (Volunteer)' : order.payment_method === 'qr' ? 'UPI' : order.payment_method === 'razorpay' ? 'Razorpay' : order.payment_method}</p>
                             </div>
                             <div>
                                 <p className="text-sm text-muted-foreground">Status</p>

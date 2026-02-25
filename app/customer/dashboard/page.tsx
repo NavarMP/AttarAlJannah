@@ -345,8 +345,8 @@ export default function CustomerDashboard() {
                                                 <p className="text-sm text-muted-foreground">
                                                     Quantity: {order.quantity} • {new Date(order.created_at).toLocaleDateString()}
                                                 </p>
-                                                <p className="text-sm text-muted-foreground capitalize">
-                                                    Payment: {order.payment_method}
+                                                <p className="text-sm text-muted-foreground">
+                                                    Payment: {order.payment_method === 'cod' ? 'Cash on Delivery' : order.payment_method === 'volunteer_cash' ? 'Cash (Volunteer)' : order.payment_method === 'qr' ? 'UPI' : order.payment_method === 'razorpay' ? 'Razorpay' : order.payment_method}
                                                 </p>
                                             </div>
                                             <div className="flex items-center gap-3">

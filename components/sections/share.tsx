@@ -82,12 +82,12 @@ export function Share() {
                 <div className="space-y-4">
                     <h3 className="text-3xl font-bold text-foreground">Earn Rewards Beyond Giving</h3>
                     <p className="text-muted-foreground">
-                        If a purchase isn&apos;t possible right now, consider setting a reminder for later or sharing this with others to help spread the fragrance.
+                        If a purchase isn&apos;t possible, share this with others to help spread the fragrance.
                     </p>
                 </div>
 
                 <div className="flex justify-center items-center gap-4">
-                    {reminderSet ? (
+                    {/* {reminderSet ? (
                         <Button
                             variant="outline"
                             className="gap-2 border-primary/50 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary"
@@ -130,7 +130,7 @@ export function Share() {
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
-                    )}
+                    )} */}
 
                     <ShareButton variant="default" size="default" />
                 </div>

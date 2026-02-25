@@ -44,7 +44,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
 
     // Payment method state
     const [globalPaymentMethod, setGlobalPaymentMethod] = useState<"qr" | "razorpay">("qr");
-    const [activePaymentMethod, setActivePaymentMethod] = useState<"qr" | "razorpay" | "volunteer_cash">("qr");
+    const [activePaymentMethod, setActivePaymentMethod] = useState<"qr" | "razorpay" | "volunteer_cash" | "cod">("qr");
     const [paymentMethodLoading, setPaymentMethodLoading] = useState(true);
 
     // QR screenshot state
@@ -549,9 +549,14 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
 
             console.log("✅ Order created:", order.id, "Payment method:", activePaymentMethod);
 
-            // QR Payment or Volunteer Cash: Order is done — redirect to thanks page
-            if (activePaymentMethod === "qr" || activePaymentMethod === "volunteer_cash") {
-                toast.success(activePaymentMethod === "volunteer_cash" ? "Order submitted! Cash will be collected by volunteer." : "Order submitted! Payment is being verified.");
+            // QR Payment, Volunteer Cash, or COD: Order is done — redirect to thanks page
+            if (activePaymentMethod === "qr" || activePaymentMethod === "volunteer_cash" || activePaymentMethod === "cod") {
+                const toastMsg = activePaymentMethod === "volunteer_cash"
+                    ? "Order submitted! Cash will be collected by volunteer."
+                    : activePaymentMethod === "cod"
+                        ? "Order placed! We'll verify and confirm shortly."
+                        : "Order submitted! Payment is being verified.";
+                toast.success(toastMsg);
                 localStorage.removeItem('orderFormData');
                 await new Promise(resolve => setTimeout(resolve, 500));
                 window.location.href = `/thanks?orderId=${order.id}`;
@@ -849,26 +854,46 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                         </p>
                     </div>
 
-                    {/* Payment Mode Selection (Only if volunteer is active) */}
-                    {(volunteerId || (isVolunteerValidated && volunteerName)) && (
-                        <div className="space-y-3 pt-4 border-t">
-                            <Label className="text-base font-semibold">{t("payment.title", "Payment Option")}</Label>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <label className={`flex items-start gap-3 p-4 border rounded-2xl cursor-pointer transition-all ${activePaymentMethod !== "volunteer_cash" ? "border-primary bg-primary/5 shadow-sm" : "hover:bg-accent"}`}>
-                                    <input
-                                        type="radio"
-                                        className="w-4 h-4 text-primary mt-0.5"
-                                        checked={activePaymentMethod !== "volunteer_cash"}
-                                        onChange={() => setActivePaymentMethod(globalPaymentMethod)}
-                                    />
-                                    <div>
-                                        <p className="font-medium">{t("payment.online", "Pay Online / UPI")}</p>
-                                        <p className="text-xs text-muted-foreground mt-0.5">{t("payment.onlineDesc", "Pay directly using PhonePe, GPay, etc.")}</p>
-                                    </div>
-                                </label>
+                    {/* Payment Mode Selection — always show online + COD, plus volunteer_cash if volunteer is active */}
+                    <div className="space-y-3 pt-4 border-t">
+                        <Label className="text-base font-semibold">{t("payment.title", "Payment Option")}</Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {/* Online Payment (default) */}
+                            <label className={`flex items-start gap-3 p-4 border rounded-2xl cursor-pointer transition-all ${activePaymentMethod !== "volunteer_cash" && activePaymentMethod !== "cod" ? "border-primary bg-primary/5 shadow-sm" : "hover:bg-accent"}`}>
+                                <input
+                                    type="radio"
+                                    name="paymentOption"
+                                    className="w-4 h-4 text-primary mt-0.5"
+                                    checked={activePaymentMethod !== "volunteer_cash" && activePaymentMethod !== "cod"}
+                                    onChange={() => setActivePaymentMethod(globalPaymentMethod)}
+                                />
+                                <div>
+                                    <p className="font-medium">{t("payment.online", "Pay Online / UPI")}</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">{t("payment.onlineDesc", "Pay directly using PhonePe, GPay, etc.")}</p>
+                                </div>
+                            </label>
+
+                            {/* Cash on Delivery */}
+                            <label className={`flex items-start gap-3 p-4 border rounded-2xl cursor-pointer transition-all ${activePaymentMethod === "cod" ? "border-primary bg-primary/5 shadow-sm" : "hover:bg-accent"}`}>
+                                <input
+                                    type="radio"
+                                    name="paymentOption"
+                                    className="w-4 h-4 text-primary mt-0.5"
+                                    checked={activePaymentMethod === "cod"}
+                                    onChange={() => setActivePaymentMethod("cod")}
+                                />
+                                <div>
+                                    <p className="font-medium">{t("payment.cod", "Cash on Delivery")}</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">{t("payment.codDesc", "Pay cash when your order is delivered.")}</p>
+                                </div>
+                            </label>
+
+                            {/* Cash to Volunteer (only when volunteer is validated) */}
+                            {(volunteerId || (isVolunteerValidated && volunteerName)) && (
                                 <label className={`flex items-start gap-3 p-4 border rounded-2xl cursor-pointer transition-all ${activePaymentMethod === "volunteer_cash" ? "border-primary bg-primary/5 shadow-sm" : "hover:bg-accent"}`}>
                                     <input
                                         type="radio"
+                                        name="paymentOption"
                                         className="w-4 h-4 text-primary mt-0.5"
                                         checked={activePaymentMethod === "volunteer_cash"}
                                         onChange={() => setActivePaymentMethod("volunteer_cash")}
@@ -878,9 +903,9 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                                         <p className="text-xs text-muted-foreground mt-0.5">{t("payment.cashDesc", "Hand over cash to")} {volunteerName || "the volunteer"}.</p>
                                     </div>
                                 </label>
-                            </div>
+                            )}
                         </div>
-                    )}
+                    </div>
 
                     {/* QR Payment Section */}
                     {activePaymentMethod === "qr" && (
@@ -1133,7 +1158,7 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                         type="submit"
                         size="lg"
                         className="w-full bg-gradient-to-r from-primary to-gold-500 hover:from-primary/90 hover:to-gold-600 rounded-2xl"
-                        disabled={isSubmitting || isProcessingPayment || uploadingScreenshot || (activePaymentMethod === "qr" && !screenshotPublicUrl)}
+                        disabled={isSubmitting || isProcessingPayment || uploadingScreenshot || (activePaymentMethod === "qr" && !screenshotPublicUrl) || (activePaymentMethod === "cod" && false)}
                     >
                         {isProcessingPayment ? (
                             <>
@@ -1152,6 +1177,8 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                             </>
                         ) : activePaymentMethod === "qr" ? (
                             t("submit.qr", `Submit Order - ₹${totalPrice}`).replace("{amount}", String(totalPrice))
+                        ) : activePaymentMethod === "cod" ? (
+                            t("submit.cod", `Place COD Order - ₹${totalPrice}`).replace("{amount}", String(totalPrice))
                         ) : activePaymentMethod === "volunteer_cash" ? (
                             t("submit.cash", `Confirm Cash Order - ₹${totalPrice}`).replace("{amount}", String(totalPrice))
                         ) : (
@@ -1169,9 +1196,11 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                     <p className="text-xs text-center text-muted-foreground">
                         {activePaymentMethod === "qr"
                             ? t("submit.qrNote", "* Your order will be confirmed after payment verification")
-                            : activePaymentMethod === "volunteer_cash"
-                                ? t("submit.cashNote", "* You will pay the cash directly to the volunteer")
-                                : t("submit.razorpayNote", "* Secure payment powered by Razorpay")
+                            : activePaymentMethod === "cod"
+                                ? t("submit.codNote", "* Your order will be verified and confirmed before delivery")
+                                : activePaymentMethod === "volunteer_cash"
+                                    ? t("submit.cashNote", "* You will pay the cash directly to the volunteer")
+                                    : t("submit.razorpayNote", "* Secure payment powered by Razorpay")
                         }
                     </p>
                 </CardContent>
