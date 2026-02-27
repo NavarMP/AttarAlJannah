@@ -49,14 +49,14 @@ export async function GET(request: NextRequest) {
         const cashReceivedOrders = currentOrders?.filter(o => o.cash_received === true) || [];
         const bottlesSold = cashReceivedOrders.reduce((sum, order) => sum + (order.quantity || 0), 0);
         const totalRevenue = bottlesSold * NET_PROFIT_PER_BOTTLE; // Net profit, not gross
-        const activeOrders = currentOrders?.filter(o => o.order_status === "ordered" || o.order_status === "pending").length || 0;
+        const activeOrders = currentOrders?.filter(o => o.order_status === "confirmed" || o.order_status === "pending").length || 0;
         const totalOrders = currentOrders?.length || 0;
 
         // Previous period metrics
         const prevCashOrders = previousOrders?.filter(o => o.cash_received === true) || [];
         const prevBottles = prevCashOrders.reduce((sum, order) => sum + (order.quantity || 0), 0);
         const prevRevenue = prevBottles * NET_PROFIT_PER_BOTTLE;
-        const prevActiveOrders = previousOrders?.filter(o => o.order_status === "ordered" || o.order_status === "pending").length || 0;
+        const prevActiveOrders = previousOrders?.filter(o => o.order_status === "confirmed" || o.order_status === "pending").length || 0;
 
         // Calculate growth percentages
         const revenueGrowth = prevRevenue === 0 ? 100 : Math.round(((totalRevenue - prevRevenue) / prevRevenue) * 100);

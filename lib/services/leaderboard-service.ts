@@ -15,7 +15,7 @@ export async function getLeaderboardData(metric: string = "overall", period: str
     let ordersQuery = supabase
         .from("orders")
         .select("volunteer_id, delivery_volunteer_id, order_status, quantity")
-        .in("order_status", ["ordered", "delivered"]);
+        .in("order_status", ["pending", "confirmed", "delivered"]);
 
     // Apply time period filter if not "all"
     if (period === "month") {

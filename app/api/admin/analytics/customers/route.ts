@@ -24,10 +24,11 @@ export async function GET(request: NextRequest) {
         const startDate = new Date(start);
         const endDate = new Date(end);
 
-        // Get all orders in period with customer info
+        // Get all orders in period with customer info (excluding softly-deleted customers)
         const { data: orders } = await supabase
             .from("orders")
-            .select("customer_id, customers(name, phone_number), created_at, quantity, total_price, order_status")
+            .select("customer_id, customers!inner(name, phone_number), created_at, quantity, total_price, order_status")
+            .is("customers.deleted_at", null)
             .gte("created_at", startDate.toISOString())
             .lte("created_at", endDate.toISOString());
 

@@ -28,8 +28,8 @@ export function DeliveryDashboard({ volunteerId }: DeliveryDashboardProps) {
         try {
             setLoading(true);
 
-            // Fetch available orders (ordered status, no delivery volunteer)
-            const ordersRes = await fetch(`/api/volunteer/orders?volunteerId=${volunteerId}&status=ordered&unassigned=true`);
+            // Fetch available orders (confirmed status, no delivery volunteer)
+            const ordersRes = await fetch(`/api/volunteer/orders?volunteerId=${volunteerId}&status=confirmed&unassigned=true`);
             if (ordersRes.ok) {
                 const ordersData = await ordersRes.json();
                 setAvailableOrders(ordersData.orders || []);
@@ -199,12 +199,12 @@ export function DeliveryDashboard({ volunteerId }: DeliveryDashboardProps) {
                                                 {order.customer_address.substring(0, 50)}...
                                             </p>
                                         </div>
-                                        <Badge className={order.order_status === "ordered" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"}>
+                                        <Badge className={order.order_status === "confirmed" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"}>
                                             {order.order_status}
                                         </Badge>
                                     </div>
 
-                                    {order.order_status === "ordered" && (
+                                    {order.order_status === "confirmed" && (
                                         <div className="flex gap-2">
                                             <Button
                                                 size="sm"

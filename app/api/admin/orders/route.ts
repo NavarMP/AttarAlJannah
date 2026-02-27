@@ -20,8 +20,10 @@ export async function GET(request: NextRequest) {
 
         // New: additional filters
         const referredBy = searchParams.get("referredBy");
+        const deliveryVolunteer = searchParams.get("deliveryVolunteer");
         const deliveryMethod = searchParams.get("deliveryMethod");
         const paymentMethod = searchParams.get("paymentMethod");
+        const cashReceived = searchParams.get("cashReceived");
 
         // Use service role client to bypass RLS for admin queries
         const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
@@ -65,7 +67,12 @@ export async function GET(request: NextRequest) {
 
         // Referred volunteer filter
         if (referredBy && referredBy !== "all") {
-            query = query.eq("referred_by", referredBy);
+            query = query.eq("volunteer_id", referredBy);
+        }
+
+        // Delivery volunteer filter
+        if (deliveryVolunteer && deliveryVolunteer !== "all") {
+            query = query.eq("delivery_volunteer_id", deliveryVolunteer);
         }
 
         // Delivery method filter
@@ -76,6 +83,12 @@ export async function GET(request: NextRequest) {
         // Payment method filter
         if (paymentMethod && paymentMethod !== "all") {
             query = query.eq("payment_method", paymentMethod);
+        }
+
+        // Cash received filter
+        if (cashReceived && cashReceived !== "all") {
+            const isReceived = cashReceived === "true";
+            query = query.eq("cash_received", isReceived);
         }
 
         if (search) {

@@ -152,12 +152,19 @@ export default function NewVolunteerPage() {
                 }
             }
 
+            let cleanPhone = data.phone.trim();
+            if (cleanPhone.startsWith(phoneCountryCode)) {
+                cleanPhone = cleanPhone.substring(phoneCountryCode.length).trim();
+            } else if (cleanPhone.startsWith(phoneCountryCode.replace("+", ""))) {
+                cleanPhone = cleanPhone.substring(phoneCountryCode.length - 1).trim();
+            }
+
             const response = await fetch("/api/admin/volunteers", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     ...data,
-                    phone: `${phoneCountryCode}${data.phone}`,
+                    phone: `${phoneCountryCode}${cleanPhone}`,
                     profile_photo: profilePhotoUrl, // Add profile photo URL
                     // Address fields already in data, but ensure they're null if empty
                     houseBuilding: data.houseBuilding || null,

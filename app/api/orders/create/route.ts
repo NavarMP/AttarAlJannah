@@ -247,6 +247,39 @@ export async function POST(request: NextRequest) {
             }
         }
 
+        // Update challenge_progress eagerly for volunteer referrals
+        if (referredByUuid) {
+            try {
+                const { data: progress, error: progressFetchError } = await supabase
+                    .from("challenge_progress")
+                    .select("confirmed_orders, goal")
+                    .eq("volunteer_id", referredByUuid)
+                    .single();
+
+                if (progressFetchError && progressFetchError.code !== 'PGRST116') {
+                    console.error("❌ Error fetching progress for eager update:", progressFetchError);
+                } else if (progress) {
+                    const newTotal = (progress.confirmed_orders || 0) + quantity;
+                    await supabase
+                        .from("challenge_progress")
+                        .update({ confirmed_orders: newTotal })
+                        .eq("volunteer_id", referredByUuid);
+                    console.log(`✅ Eagerly added ${quantity} bottles to progress. New total: ${newTotal}`);
+                } else {
+                    await supabase
+                        .from("challenge_progress")
+                        .insert({
+                            volunteer_id: referredByUuid,
+                            confirmed_orders: quantity,
+                            goal: 20
+                        });
+                    console.log(`✅ Eagerly created progress record with ${quantity} bottles`);
+                }
+            } catch (err) {
+                console.error("⚠️ Error strictly updating challenge_progress eagerly:", err);
+            }
+        }
+
         // Return order data
         return NextResponse.json({
             success: true,

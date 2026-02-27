@@ -67,7 +67,7 @@ export async function PUT(
         const supabase = await createClient();
 
         // Sanitize body — remove fields that don't belong in volunteers table
-        const { confirmPassword, goal, ...updateData } = body;
+        const { confirmPassword, goal, houseBuilding, locationLink, phoneCountry, ...updateData } = body;
         if (updateData.password === "") {
             delete updateData.password;
         }

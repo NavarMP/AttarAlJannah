@@ -183,7 +183,7 @@ export async function sendOrderConfirmationEmail(
     subject: `Order Confirmed - #${orderId.slice(0, 8)}`,
     title: 'Order Confirmed! 🎉',
     message: `Hi ${customerName},\n\nYour order has been confirmed!\n\nOrder ID: #${orderId.slice(0, 8)}\nQuantity: ${quantity} bottles\nTotal: ₹${totalPrice}\n\nWe'll notify you once your order is out for delivery.`,
-    actionUrl: `https://attaraljannah.com/track/${orderId}`,
+    actionUrl: `${process.env.NEXT_PUBLIC_APP_URL}track/${orderId}`,
     actionText: 'Track Order',
     priority: 'medium'
   });

@@ -79,7 +79,7 @@ export default function VolunteerOrderDetailsPage({ params }: { params: Promise<
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case "ordered":
+            case "confirmed":
                 return "bg-blue-100 text-blue-700";
             case "delivered":
                 return "bg-green-100 text-green-700";
@@ -171,7 +171,7 @@ export default function VolunteerOrderDetailsPage({ params }: { params: Promise<
                                 </p>
 
                                 {/* Quick Tracking Update Buttons */}
-                                {order.order_status === 'ordered' && (
+                                {order.order_status === 'confirmed' && (
                                     <div className="space-y-3">
                                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Quick Updates</p>
                                         <div className="flex flex-wrap gap-2">

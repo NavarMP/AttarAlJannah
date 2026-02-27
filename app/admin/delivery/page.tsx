@@ -938,7 +938,7 @@ function AssignTab() {
         setLoading(true);
         try {
             // Fetch orders that need delivery attention
-            const params = new URLSearchParams({ status: "ordered", sortBy: "created_at", sortOrder: "desc" });
+            const params = new URLSearchParams({ status: "confirmed", sortBy: "created_at", sortOrder: "desc" });
             const response = await fetch(`/api/admin/orders?${params}`);
             const data = await response.json();
             setOrders(data.orders || []);
@@ -1087,7 +1087,7 @@ function AssignTab() {
                         {[
                             { label: "Needs Method", value: "needs_method" },
                             { label: "Needs Volunteer", value: "needs_volunteer" },
-                            { label: "All Ordered", value: "all" },
+                            { label: "All Confirmed", value: "all" },
                         ].map(f => (
                             <Button
                                 key={f.value}

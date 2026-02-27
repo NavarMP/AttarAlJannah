@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
                             .from("orders")
                             .select("quantity")
                             .eq("volunteer_id", order.volunteer_id)
-                            .in("order_status", ["ordered", "delivered"]);
+                            .in("order_status", ["confirmed", "delivered"]);
 
                         const totalBottles = volunteerOrders?.reduce((sum, o) => sum + o.quantity, 0) || 0;
                         const newCommission = calculateReferralCommission(totalBottles);

@@ -30,7 +30,7 @@ import {
 import {
     Search, Trash2, MoreVertical, Eye, FileDown, Printer,
     Phone, MessageSquare, Truck, Package, Download, Copy, DollarSign,
-    ArrowUpDown, ArrowUp, ArrowDown, CalendarDays, Filter, X, RotateCcw, CheckCircle, Pencil
+    ArrowUpDown, ArrowUp, ArrowDown, CalendarDays, Filter, X, RotateCcw, CheckCircle, Pencil, CreditCard
 } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -40,8 +40,8 @@ import { EditOrderDialog } from "@/components/admin/edit-order-dialog";
 interface Stats {
     totalBottles: number;
     totalOrders: number;
-    orderedBottles: number;
-    orderedOrders: number;
+    confirmedBottles: number;
+    confirmedOrders: number;
     deliveredBottles: number;
     deliveredOrders: number;
     totalRevenue: number;
@@ -70,7 +70,7 @@ interface Volunteer {
 
 const ORDER_STATUSES = [
     { label: "Pending", value: "pending" },
-    { label: "Ordered", value: "ordered" },
+    { label: "Confirmed", value: "confirmed" },
     { label: "Delivered", value: "delivered" },
     { label: "Can't Reach", value: "cant_reach" },
     { label: "Cancelled", value: "cancelled" },
@@ -169,6 +169,8 @@ export default function OrdersPage() {
     const [referredByFilter, setReferredByFilter] = useState("all");
     const [deliveryMethodFilter, setDeliveryMethodFilter] = useState("all");
     const [paymentMethodFilter, setPaymentMethodFilter] = useState("all");
+    const [cashReceivedFilter, setCashReceivedFilter] = useState("all");
+    const [deliveryVolunteerFilter, setDeliveryVolunteerFilter] = useState("all");
     const [datePreset, setDatePreset] = useState<string>("all");
 
     // Sorting
@@ -214,7 +216,7 @@ export default function OrdersPage() {
 
     // Check if any filter is active
     const hasActiveFilters = statusFilter !== "all" || startDate !== "" || endDate !== "" ||
-        referredByFilter !== "all" || deliveryMethodFilter !== "all" || paymentMethodFilter !== "all" || searchInput !== "";
+        referredByFilter !== "all" || deliveryMethodFilter !== "all" || paymentMethodFilter !== "all" || cashReceivedFilter !== "all" || deliveryVolunteerFilter !== "all" || searchInput !== "";
 
     const clearAllFilters = () => {
         setStatusFilter("all");
@@ -225,6 +227,8 @@ export default function OrdersPage() {
         setReferredByFilter("all");
         setDeliveryMethodFilter("all");
         setPaymentMethodFilter("all");
+        setCashReceivedFilter("all");
+        setDeliveryVolunteerFilter("all");
         setDatePreset("all");
         setPage(1);
     };
@@ -284,8 +288,10 @@ export default function OrdersPage() {
             if (startDate) queryParams.append("startDate", startDate);
             if (endDate) queryParams.append("endDate", endDate);
             if (referredByFilter !== "all") queryParams.append("referredBy", referredByFilter);
+            if (deliveryVolunteerFilter !== "all") queryParams.append("deliveryVolunteer", deliveryVolunteerFilter);
             if (deliveryMethodFilter !== "all") queryParams.append("deliveryMethod", deliveryMethodFilter);
             if (paymentMethodFilter !== "all") queryParams.append("paymentMethod", paymentMethodFilter);
+            if (cashReceivedFilter !== "all") queryParams.append("cashReceived", cashReceivedFilter);
 
             const response = await fetch(`/api/admin/orders?${queryParams}`);
 
@@ -305,7 +311,7 @@ export default function OrdersPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, statusFilter, search, startDate, endDate, sortBy, sortOrder, referredByFilter, deliveryMethodFilter, paymentMethodFilter]);
+    }, [page, statusFilter, search, startDate, endDate, sortBy, sortOrder, referredByFilter, deliveryVolunteerFilter, deliveryMethodFilter, paymentMethodFilter, cashReceivedFilter]);
 
     useEffect(() => {
         fetchStats();
@@ -611,6 +617,36 @@ ${dashboardUrl}
             },
         },
         {
+            label: "Payment Method",
+            icon: <CreditCard className="h-4 w-4" />,
+            options: PAYMENT_METHODS.map(p => ({ label: p.label, value: p.value })),
+            onExecute: async (_ids, value) => {
+                setBulkProcessing(true);
+                try {
+                    const response = await fetch("/api/admin/orders/bulk-update", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            orderIds: Array.from(selectedOrders),
+                            payment_method: value,
+                        }),
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        toast.success(`Payment method updated for ${selectedOrders.size} order(s)`);
+                        setSelectedOrders(new Set());
+                        fetchOrders();
+                    } else {
+                        toast.error(data.error || "Failed to update payment method");
+                    }
+                } catch (error) {
+                    toast.error("An error occurred");
+                } finally {
+                    setBulkProcessing(false);
+                }
+            },
+        },
+        {
             label: "Export CSV",
             icon: <Download className="h-4 w-4" />,
             variant: "outline",
@@ -656,7 +692,7 @@ ${dashboardUrl}
         switch (status) {
             case "pending":
                 return "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400";
-            case "ordered":
+            case "confirmed":
                 return "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400";
             case "delivered":
                 return "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400";
@@ -842,7 +878,7 @@ ${dashboardUrl}
                             </div>
 
                             {/* Filter Row */}
-                            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
                                 {/* Status Filter */}
                                 <div className="space-y-1">
                                     <label className="text-xs font-medium text-muted-foreground">Status</label>
@@ -890,7 +926,25 @@ ${dashboardUrl}
                                         <SelectContent>
                                             <SelectItem value="all">All Volunteers</SelectItem>
                                             {volunteers.map(v => (
-                                                <SelectItem key={v.id} value={v.volunteer_id || v.id}>
+                                                <SelectItem key={v.id} value={v.id}>
+                                                    {v.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Delivery Volunteer Filter */}
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-muted-foreground">Delivery Volunteer</label>
+                                    <Select value={deliveryVolunteerFilter} onValueChange={(v) => { setDeliveryVolunteerFilter(v); setPage(1); }}>
+                                        <SelectTrigger className="h-9">
+                                            <SelectValue placeholder="All Volunteers" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Volunteers</SelectItem>
+                                            {volunteers.map(v => (
+                                                <SelectItem key={`delivery-${v.id}`} value={v.id}>
                                                     {v.name}
                                                 </SelectItem>
                                             ))}
@@ -910,6 +964,21 @@ ${dashboardUrl}
                                             {PAYMENT_METHODS.map(p => (
                                                 <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
                                             ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Cash Received Filter */}
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-muted-foreground">Cash Status</label>
+                                    <Select value={cashReceivedFilter} onValueChange={(v) => { setCashReceivedFilter(v); setPage(1); }}>
+                                        <SelectTrigger className="h-9">
+                                            <SelectValue placeholder="All Cash Status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Cash Status</SelectItem>
+                                            <SelectItem value="true">Cash Received</SelectItem>
+                                            <SelectItem value="false">Cash Pending</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -1069,7 +1138,7 @@ ${dashboardUrl}
                                                         }
                                                     />
                                                     {order.payment_method === 'volunteer_cash' && order.order_status === 'pending' && (
-                                                        <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'ordered')}>
+                                                        <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'confirmed')}>
                                                             <DollarSign className="mr-2 h-4 w-4 text-emerald-500" />
                                                             Mark Cash Received
                                                         </DropdownMenuItem>

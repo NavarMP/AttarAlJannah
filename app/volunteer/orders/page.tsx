@@ -38,10 +38,9 @@ interface Order {
 }
 
 const ORDER_STATUSES = [
-    { label: "Ordered", value: "ordered" },
     { label: "Confirmed", value: "confirmed" },
     { label: "Delivered", value: "delivered" },
-    { label: "Cancelled", value: "cancelled" },
+    { label: "Cancel", value: "cancelled" },
 ];
 
 export default function VolunteerOrdersPage() {
@@ -231,13 +230,11 @@ export default function VolunteerOrdersPage() {
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case "ordered":
-            case "pending":
-                return "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400";
             case "confirmed":
-                return "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400";
+            case "pending":
+                return "bg-orange-100 text-orange-800 dark:bg-yellow-950/40 dark:text-yellow-400";
             case "delivered":
-                return "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400";
+                return "bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-400";
             case "cancelled":
                 return "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400";
             default:
@@ -408,7 +405,7 @@ export default function VolunteerOrdersPage() {
                                                         <DropdownMenuItem onClick={() => router.push(`/volunteer/orders/${order.id}`)}>
                                                             <Eye className="mr-2 h-4 w-4" />View Details
                                                         </DropdownMenuItem>
-                                                        {order.order_status === "ordered" && (
+                                                        {order.order_status === "confirmed" && (
                                                             <DropdownMenuItem onClick={() => handleEditOrder(order.id)}>
                                                                 <Edit2 className="mr-2 h-4 w-4" />Edit Order
                                                             </DropdownMenuItem>

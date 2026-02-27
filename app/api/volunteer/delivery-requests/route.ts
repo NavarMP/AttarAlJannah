@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Check order exists and is in 'ordered' status
+        // Check order exists and is in 'confirmed' status
         const { data: order, error: orderError } = await supabase
             .from("orders")
             .select("id, order_status, volunteer_id, is_delivery_duty, customer_name, quantity")
@@ -47,9 +47,9 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        if (order.order_status !== "ordered") {
+        if (order.order_status !== "confirmed") {
             return NextResponse.json(
-                { error: "Only orders with 'ordered' status can have delivery requests" },
+                { error: "Only orders with 'confirmed' status can have delivery requests" },
                 { status: 400 }
             );
         }

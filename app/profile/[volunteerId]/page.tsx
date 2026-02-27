@@ -50,7 +50,7 @@ async function getVolunteerData(volunteerId: string) {
         .select("quantity, order_status")
         .eq("volunteer_id", volunteer.id);
 
-    const confirmedOrders = orders?.filter(o => o.order_status === "ordered" || o.order_status === "delivered") || [];
+    const confirmedOrders = orders?.filter(o => o.order_status === "confirmed" || o.order_status === "delivered") || [];
     const totalBottles = confirmedOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
     const goal = progress?.goal || 20;
     const goalProgress = Math.min(100, Math.round((totalBottles / goal) * 100));

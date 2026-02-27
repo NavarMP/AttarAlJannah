@@ -277,12 +277,19 @@ export default function EditVolunteerPage() {
                 profilePhotoUrl = null;
             }
 
+            let cleanPhone = data.phone.trim();
+            if (cleanPhone.startsWith(phoneCountryCode)) {
+                cleanPhone = cleanPhone.substring(phoneCountryCode.length).trim();
+            } else if (cleanPhone.startsWith(phoneCountryCode.replace("+", ""))) {
+                cleanPhone = cleanPhone.substring(phoneCountryCode.length - 1).trim();
+            }
+
             const response = await fetch(`/api/admin/volunteers/${id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     ...data,
-                    phone: `${phoneCountryCode}${data.phone}`,
+                    phone: `${phoneCountryCode}${cleanPhone}`,
                     profile_photo: profilePhotoUrl,
                     house_building: data.houseBuilding || null,
                     town: data.town || null,

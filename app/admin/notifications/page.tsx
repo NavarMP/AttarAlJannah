@@ -527,7 +527,6 @@ export default function EnhancedNotificationComposerPage() {
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="all">Any</SelectItem>
-                                                        <SelectItem value="ordered">Ordered</SelectItem>
                                                         <SelectItem value="confirmed">Confirmed</SelectItem>
                                                         <SelectItem value="delivered">Delivered</SelectItem>
                                                     </SelectContent>

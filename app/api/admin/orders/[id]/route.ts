@@ -53,20 +53,21 @@ export async function PATCH(
             is_delivery_duty, created_at, payment_upi_id,
             customer_name, customer_phone, whatsapp_number, customer_email,
             customer_address, product_name, quantity, total_price,
-            whatsapp_sent, email_sent, admin_notes, payment_screenshot_url, cash_received
+            whatsapp_sent, email_sent, admin_notes, payment_screenshot_url, cash_received,
+            payment_method
         } = body;
 
         // Allow updates if at least one meaningful field is present
-        if (!order_status && !delivery_method && !volunteer_id && is_delivery_duty === undefined && !created_at && payment_upi_id === undefined && !customer_name && !customer_phone && !whatsapp_number && customer_email === undefined && !customer_address && !product_name && quantity === undefined && total_price === undefined && whatsapp_sent === undefined && email_sent === undefined && admin_notes === undefined && payment_screenshot_url === undefined && cash_received === undefined) {
+        if (!order_status && !delivery_method && !volunteer_id && is_delivery_duty === undefined && !created_at && payment_upi_id === undefined && !customer_name && !customer_phone && !whatsapp_number && customer_email === undefined && !customer_address && !product_name && quantity === undefined && total_price === undefined && whatsapp_sent === undefined && email_sent === undefined && admin_notes === undefined && payment_screenshot_url === undefined && cash_received === undefined && payment_method === undefined) {
             return NextResponse.json({ error: "No fields to update provided" }, { status: 400 });
         }
 
         const supabase = await createClient();
 
-        // First, get the current order to check previous status, volunteer info, and quantity
+        // First, get the current order to check previous status, volunteer info, quantity, and screenshot
         const { data: currentOrder, error: fetchError } = await supabase
             .from("orders")
-            .select("order_status, volunteer_id, quantity, customer_id, id")
+            .select("order_status, volunteer_id, quantity, customer_id, id, payment_screenshot_url")
             .eq("id", id)
             .single();
 
@@ -96,6 +97,30 @@ export async function PATCH(
         if (admin_notes !== undefined) updateData.admin_notes = admin_notes;
         if (payment_screenshot_url !== undefined) updateData.payment_screenshot_url = payment_screenshot_url;
         if (cash_received !== undefined) updateData.cash_received = cash_received;
+        if (payment_method !== undefined) updateData.payment_method = payment_method;
+
+        // Handle screenshot deletion if it's being removed or replaced
+        if (payment_screenshot_url !== undefined && currentOrder.payment_screenshot_url && payment_screenshot_url !== currentOrder.payment_screenshot_url) {
+            try {
+                // Extract the path after the bucket name
+                const urlParts = currentOrder.payment_screenshot_url.split('/payment-screenshots/');
+                if (urlParts.length > 1) {
+                    const filePath = urlParts[1];
+                    console.log(`🗑️ Deleting old screenshot from storage: ${filePath}`);
+                    const { error: deleteError } = await supabase.storage
+                        .from("payment-screenshots")
+                        .remove([filePath]);
+
+                    if (deleteError) {
+                        console.error("⚠️ Failed to delete old payment screenshot:", deleteError);
+                    } else {
+                        console.log("✅ Successfully deleted old payment screenshot");
+                    }
+                }
+            } catch (err) {
+                console.error("⚠️ Error parsing old payment screenshot URL for deletion:", err);
+            }
+        }
 
         console.log("=== Order Update ===");
         console.log("Order ID:", id);
@@ -152,70 +177,21 @@ export async function PATCH(
             console.log("→ Status changed from", previousStatus, "to", order_status);
 
             // Update challenge_progress for volunteer orders
-            // NEW STATUS LOGIC: 'ordered' and 'delivered' count toward commission
-            if (targetVolunteerId && (order_status === "ordered" || order_status === "delivered")) {
+            // NEW STATUS LOGIC: 'pending', 'confirmed', and 'delivered' count toward commission
+            const activeStatuses = ["pending", "confirmed", "delivered"];
+            const inactiveStatuses = ["cant_reach", "cancelled"];
+
+            if (targetVolunteerId) {
+                const wasActive = activeStatuses.includes(previousStatus);
+                const isNowActive = activeStatuses.includes(order_status);
+                const wasInactive = inactiveStatuses.includes(previousStatus);
+                const isNowInactive = inactiveStatuses.includes(order_status);
+
                 console.log("→ Volunteer order detected, checking progress update...");
 
-                // Increment bottles if this is a new qualifying order or reactivated from cancelled/cant_reach
-                const shouldIncrement = previousStatus === "cant_reach" || previousStatus === "cancelled" ||
-                    (!previousStatus || (previousStatus !== "ordered" && previousStatus !== "delivered"));
-
-                if (shouldIncrement) {
-                    console.log(`→ Status changed to ${order_status} - adding to commission`);
-                    console.log(`→ Adding ${orderQuantity} bottles to volunteer ${targetVolunteerId}'s progress`);
-
-                    // Get current progress
-                    const { data: progress, error: progressFetchError } = await supabase
-                        .from("challenge_progress")
-                        .select("confirmed_orders, goal")
-                        .eq("volunteer_id", targetVolunteerId)
-                        .single();
-
-                    if (progressFetchError) {
-                        console.error("❌ Error fetching progress:", progressFetchError);
-                    } else if (progress) {
-                        console.log(`→ Current bottles: ${progress.confirmed_orders}, Goal: ${progress.goal}`);
-                        const newTotal = progress.confirmed_orders + orderQuantity;
-                        console.log(`→ New total will be: ${newTotal}`);
-
-                        // Add quantity (bottles) to confirmed_orders
-                        const { error: updateError } = await supabase
-                            .from("challenge_progress")
-                            .update({
-                                confirmed_orders: newTotal
-                            })
-                            .eq("volunteer_id", targetVolunteerId);
-
-                        if (updateError) {
-                            console.error("❌ Failed to update challenge_progress:", updateError);
-                        } else {
-                            console.log(`✅ Successfully added ${orderQuantity} bottles! New total: ${newTotal}`);
-                        }
-                    } else {
-                        console.log("→ No progress record found, creating new one");
-                        // Create progress record if it doesn't exist
-                        const { error: insertError } = await supabase
-                            .from("challenge_progress")
-                            .insert({
-                                volunteer_id: targetVolunteerId,
-                                confirmed_orders: orderQuantity,
-                                goal: 20 // Default goal
-                            });
-
-                        if (insertError) {
-                            console.error("❌ Failed to create challenge_progress:", insertError);
-                        } else {
-                            console.log(`✅ Created progress record with ${orderQuantity} bottles`);
-                        }
-                    }
-                } else {
-                    console.log(`⚠ Status was already ${previousStatus} - no update needed`);
-                }
-            } else if (targetVolunteerId && (order_status === "cant_reach" || order_status === "cancelled")) {
-                // If order is cancelled/cant_reach, subtract from progress if it was previously counted
-                if (previousStatus === "ordered" || previousStatus === "delivered") {
-                    console.log(`→ Order moved to ${order_status}, removing ${orderQuantity} bottles from progress`);
-
+                // If moving from inactive to active -> increment
+                if ((wasInactive || !previousStatus) && isNowActive) {
+                    console.log(`→ Status changed to ${order_status} - adding ${orderQuantity} bottles to commission`);
                     const { data: progress } = await supabase
                         .from("challenge_progress")
                         .select("confirmed_orders")
@@ -223,13 +199,42 @@ export async function PATCH(
                         .single();
 
                     if (progress) {
-                        const newTotal = Math.max(0, progress.confirmed_orders - orderQuantity);
+                        const newTotal = (progress.confirmed_orders || 0) + orderQuantity;
+                        await supabase
+                            .from("challenge_progress")
+                            .update({ confirmed_orders: newTotal })
+                            .eq("volunteer_id", targetVolunteerId);
+                        console.log(`✅ Successfully added ${orderQuantity} bottles. New total: ${newTotal}`);
+                    } else {
+                        await supabase
+                            .from("challenge_progress")
+                            .insert({
+                                volunteer_id: targetVolunteerId,
+                                confirmed_orders: orderQuantity,
+                                goal: 20
+                            });
+                        console.log(`✅ Created progress record with ${orderQuantity} bottles`);
+                    }
+                }
+                // If moving from active to inactive -> decrement
+                else if (wasActive && isNowInactive) {
+                    console.log(`→ Order moved to ${order_status}, removing ${orderQuantity} bottles from progress`);
+                    const { data: progress } = await supabase
+                        .from("challenge_progress")
+                        .select("confirmed_orders")
+                        .eq("volunteer_id", targetVolunteerId)
+                        .single();
+
+                    if (progress) {
+                        const newTotal = Math.max(0, (progress.confirmed_orders || 0) - orderQuantity);
                         await supabase
                             .from("challenge_progress")
                             .update({ confirmed_orders: newTotal })
                             .eq("volunteer_id", targetVolunteerId);
                         console.log(`✅ Removed ${orderQuantity} bottles. New total: ${newTotal}`);
                     }
+                } else {
+                    console.log(`⚠ Status change (${previousStatus} -> ${order_status}) doesn't affect active count - no update needed`);
                 }
             }
 
@@ -248,6 +253,24 @@ export async function PATCH(
             } catch (notifError) {
                 console.error("⚠️ Notification error (non-blocking):", notifError);
             }
+        }
+
+        try {
+            const { logAuditEvent, getClientIP } = await import("@/lib/services/audit");
+            await logAuditEvent({
+                actor: {
+                    id: "system-or-admin-id", // Note: A real implementation would pull from session/auth context
+                    email: "admin@system",
+                    role: "admin",
+                },
+                action: "UPDATE_ORDER",
+                entityType: "order",
+                entityId: id,
+                details: { changes: updateData },
+                ipAddress: getClientIP(request),
+            });
+        } catch (auditError) {
+            console.error("Audit log error:", auditError);
         }
 
         return NextResponse.json({

@@ -34,8 +34,8 @@ export async function logAuditEvent({
         );
 
         await supabase.from("audit_logs").insert({
-            actor_id: actor.id,
-            actor_email: actor.email,
+            admin_id: actor.id,
+            admin_email: actor.email,
             actor_name: actor.name || "Unknown",
             actor_role: actor.role,
             action,

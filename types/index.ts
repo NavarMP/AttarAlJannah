@@ -45,7 +45,7 @@ export interface Order {
     razorpay_payment_id?: string;
 
     // Order status (updated with pending)
-    order_status: 'pending' | 'ordered' | 'delivered' | 'cant_reach' | 'cancelled';
+    order_status: 'pending' | 'confirmed' | 'delivered' | 'cant_reach' | 'cancelled';
 
     // Delivery method
     delivery_method?: 'volunteer' | 'post' | 'courier' | 'pickup';

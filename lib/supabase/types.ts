@@ -48,7 +48,7 @@ export type Database = {
                     total_price: number
                     payment_method: "cod" | "upi"
                     payment_status: "pending" | "paid" | "verified"
-                    order_status: "ordered" | "delivered" | "cant_reach" | "cancelled"
+                    order_status: "confirmed" | "delivered" | "cant_reach" | "cancelled"
                     payment_screenshot_url: string | null
                     customer_name: string
                     customer_phone: string
@@ -71,7 +71,7 @@ export type Database = {
                     total_price: number
                     payment_method: "cod" | "upi"
                     payment_status?: "pending" | "paid" | "verified"
-                    order_status?: "ordered" | "delivered" | "cant_reach" | "cancelled"
+                    order_status?: "confirmed" | "delivered" | "cant_reach" | "cancelled"
                     payment_screenshot_url?: string | null
                     customer_name: string
                     customer_phone: string
@@ -94,7 +94,7 @@ export type Database = {
                     total_price?: number
                     payment_method?: "cod" | "upi"
                     payment_status?: "pending" | "paid" | "verified"
-                    order_status?: "ordered" | "delivered" | "cant_reach" | "cancelled"
+                    order_status?: "confirmed" | "delivered" | "cant_reach" | "cancelled"
                     payment_screenshot_url?: string | null
                     customer_name?: string
                     customer_phone?: string

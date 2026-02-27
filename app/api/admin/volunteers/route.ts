@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
                 .from("orders")
                 .select("volunteer_id, quantity, order_status")
                 .in("volunteer_id", volunteerUUIDs)
-                .in("order_status", ["ordered", "delivered"]);
+                .in("order_status", ["pending", "confirmed", "delivered"]);
             orders = ord || [];
         }
 
@@ -312,6 +312,24 @@ export async function POST(request: NextRequest) {
         if (progressError) {
             console.error("Progress creation error:", progressError);
             // Non-fatal, can be created later or ignored
+        }
+
+        try {
+            const { logAuditEvent, getClientIP } = await import("@/lib/services/audit");
+            await logAuditEvent({
+                actor: {
+                    id: "system-or-admin-id", // Note: In a real flow this grabs from the session header
+                    email: "admin@system",
+                    role: "admin",
+                },
+                action: "CREATE_VOLUNTEER",
+                entityType: "volunteer",
+                entityId: newVolunteer.id,
+                details: { name, volunteer_id: finalVolunteerId },
+                ipAddress: getClientIP(request),
+            });
+        } catch (auditError) {
+            console.error("Audit log error:", auditError);
         }
 
         return NextResponse.json({

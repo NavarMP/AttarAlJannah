@@ -39,14 +39,14 @@ export async function POST(request: NextRequest) {
 
         const supabase = await createClient();
 
-        // Update order with payment details AND change status to 'ordered'
+        // Update order with payment details AND change status to 'confirmed'
         const { data: order, error: updateError } = await supabase
             .from("orders")
             .update({
                 razorpay_order_id,
                 razorpay_payment_id,
                 payment_status: "paid",
-                order_status: "ordered", // Promote from 'pending' to 'ordered'
+                order_status: "confirmed", // Promote from 'pending' to 'confirmed'
                 updated_at: new Date().toISOString(),
             })
             .eq("id", order_id)
@@ -67,12 +67,12 @@ export async function POST(request: NextRequest) {
         if (order.volunteer_id) {
             console.log("💰 Calculating referral commission for volunteer:", order.volunteer_id);
 
-            // Get all 'ordered' and 'delivered' orders for this volunteer to calculate cumulative bottles
+            // Get all 'confirmed' and 'delivered' orders for this volunteer to calculate cumulative bottles
             const { data: volunteerOrders } = await supabase
                 .from("orders")
                 .select("quantity")
                 .eq("volunteer_id", order.volunteer_id)
-                .in("order_status", ["ordered", "delivered"]);
+                .in("order_status", ["confirmed", "delivered"]);
 
             const totalBottles = volunteerOrders?.reduce((sum, o) => sum + o.quantity, 0) || 0;
             const newCommission = calculateReferralCommission(totalBottles);
@@ -95,10 +95,10 @@ export async function POST(request: NextRequest) {
             // Notify payment verified
             await NotificationService.notifyPaymentVerified(order_id);
 
-            // Notify status change to 'ordered'
+            // Notify status change to 'confirmed'
             await NotificationService.notifyOrderStatusChange({
                 orderId: order_id,
-                newStatus: 'ordered',
+                newStatus: 'confirmed',
                 customerId: order.customer_id || undefined,
                 volunteerId: order.volunteer_id || undefined,
             });

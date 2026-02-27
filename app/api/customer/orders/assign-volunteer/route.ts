@@ -67,9 +67,9 @@ export async function POST(request: NextRequest) {
         // Given complexity, let's stick to just linking for now, as stats update is complex (requires checking if already counted etc).
         // Actually, if order is CONFIRMED, the volunteer deserves credit immediately.
 
-        // Update challenge progress if order is already ordered/delivered
+        // Update challenge progress if order is already confirmed/delivered
         // (volunteer gets credit for already-active orders)
-        if (order.order_status === 'ordered' || order.order_status === 'delivered') {
+        if (order.order_status === 'confirmed' || order.order_status === 'delivered') {
             // Fetch order quantity to be accurate
             const { data: fullOrder } = await supabase.from("orders").select("quantity").eq("id", orderId).single();
             const quantity = fullOrder?.quantity || 0;

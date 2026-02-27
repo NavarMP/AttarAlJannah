@@ -8,7 +8,6 @@ import { OrderBill } from "@/components/order-bill";
 import { CheckCircle2, Loader2, ShoppingBag, User } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useCustomerAuth } from "@/lib/contexts/customer-auth-context";
 import { ThankYouPoster } from "@/components/thank-you-poster";
 import { AssignVolunteerDialog } from "@/components/assign-volunteer-dialog";
 import { toast } from "sonner";
@@ -54,7 +53,6 @@ function ThanksContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const orderId = searchParams.get("orderId");
-    const { loginWithPhone, user } = useCustomerAuth();
     const [order, setOrder] = useState<Order | null>(null);
     const [orderLoading, setOrderLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -77,11 +75,11 @@ function ThanksContent() {
             const data = await response.json();
             setOrder(data);
 
-            // Auto-login if not logged in or phone doesn't match
-            if (data.customer_phone && (!user || user.phone !== data.customer_phone)) {
-                console.log("Auto-logging in user:", data.customer_phone);
-                loginWithPhone(data.customer_phone);
-            }
+            // Auto-login removed as requested
+            // if (data.customer_phone && (!user || user.phone !== data.customer_phone)) {
+            //     console.log("Auto-logging in user:", data.customer_phone);
+            //     loginWithPhone(data.customer_phone);
+            // }
 
             // Show bill after 500ms
             setTimeout(() => setShowBill(true), 500);
@@ -91,7 +89,7 @@ function ThanksContent() {
         } finally {
             setOrderLoading(false);
         }
-    }, [orderId, user, loginWithPhone]);
+    }, [orderId]);
 
     useEffect(() => {
         fetchOrderDetails();

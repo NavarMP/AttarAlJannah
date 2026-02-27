@@ -7,17 +7,17 @@ export async function POST(request: NextRequest) {
     if ("error" in auth) return auth.error;
 
     try {
-        const { orderIds, status, cash_received } = await request.json();
+        const { orderIds, status, cash_received, payment_method } = await request.json();
 
         if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
             return NextResponse.json({ error: "Invalid order IDs" }, { status: 400 });
         }
 
-        if (status && !["pending", "pending", "confirmed", "delivered", "ordered", "cant_reach", "cancelled"].includes(status)) {
+        if (status && !["pending", "confirmed", "delivered", "cant_reach", "cancelled"].includes(status)) {
             return NextResponse.json({ error: "Invalid status" }, { status: 400 });
         }
 
-        if (!status && cash_received === undefined) {
+        if (!status && cash_received === undefined && payment_method === undefined) {
             return NextResponse.json({ error: "No update fields provided" }, { status: 400 });
         }
 
@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
         const updateData: any = {};
         if (status) updateData.order_status = status;
         if (cash_received !== undefined) updateData.cash_received = cash_received;
+        if (payment_method !== undefined) updateData.payment_method = payment_method;
 
         // Update orders
         const { error, count } = await adminSupabase
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
             action: "bulk_update",
             entityType: "order",
             entityId: orderIds.join(","),
-            details: { count: orderIds.length, status, cash_received },
+            details: { count: orderIds.length, status, cash_received, payment_method },
             ipAddress: getClientIP(request),
         });
 

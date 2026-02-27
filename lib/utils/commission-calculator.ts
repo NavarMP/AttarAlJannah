@@ -25,7 +25,7 @@ export function calculateDeliveryCommission(bottlesDelivered: number): number {
  * - ₹6 per bottle for next 10 bottles (21-30)
  * - ₹8 per bottle for 31+ bottles
  * 
- * @param totalBottles - Cumulative total bottles from all 'ordered' and 'delivered' orders
+ * @param totalBottles - Cumulative total bottles from all 'confirmed' and 'delivered' orders
  * @returns Total commission amount
  * 
  * @example

@@ -67,9 +67,9 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: "Order not found or you don't have permission to delete it" }, { status: 404 });
         }
 
-        if (order.order_status !== "ordered") {
+        if (order.order_status !== "confirmed") {
             return NextResponse.json({
-                error: `Cannot delete ${order.order_status} orders. Only 'ordered' orders can be deleted.`
+                error: `Cannot delete ${order.order_status} orders. Only 'confirmed' orders can be deleted.`
             }, { status: 403 });
         }
 

@@ -5,7 +5,7 @@ import { ChartContainer } from "../shared/ChartContainer";
 
 interface OrderStatusDonutProps {
     data: {
-        ordered: number;
+        pending: number;
         confirmed: number;
         delivered: number;
         cancelled: number;
@@ -13,7 +13,7 @@ interface OrderStatusDonutProps {
 }
 
 const COLORS = {
-    ordered: '#3b82f6',    // blue
+    pending: '#3b82f6',    // blue
     confirmed: '#f59e0b', // amber
     delivered: '#10b981',  // green
     cancelled: '#ef4444',  // red
@@ -21,13 +21,13 @@ const COLORS = {
 
 export function OrderStatusDonut({ data }: OrderStatusDonutProps) {
     const chartData = [
-        { name: 'Ordered', value: data.ordered, color: COLORS.ordered },
+        { name: 'Pending', value: data.pending, color: COLORS.pending },
         { name: 'Confirmed', value: data.confirmed, color: COLORS.confirmed },
         { name: 'Delivered', value: data.delivered, color: COLORS.delivered },
         { name: 'Cancelled', value: data.cancelled, color: COLORS.cancelled },
     ].filter(item => item.value > 0); // Only show non-zero values
 
-    const total = data.ordered + data.confirmed + data.delivered + data.cancelled;
+    const total = data.pending + data.confirmed + data.delivered + data.cancelled;
 
     return (
         <ChartContainer

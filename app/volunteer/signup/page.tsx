@@ -152,13 +152,20 @@ export default function VolunteerSignupPage() {
                 }
             }
 
+            let cleanPhone = data.phone.trim();
+            if (cleanPhone.startsWith(phoneCountryCode)) {
+                cleanPhone = cleanPhone.substring(phoneCountryCode.length).trim();
+            } else if (cleanPhone.startsWith(phoneCountryCode.replace("+", ""))) {
+                cleanPhone = cleanPhone.substring(phoneCountryCode.length - 1).trim();
+            }
+
             const response = await fetch("/api/volunteer/auth/signup", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     name: data.name,
                     email: data.email || undefined,
-                    phone: `${phoneCountryCode}${data.phone}`,
+                    phone: `${phoneCountryCode}${cleanPhone}`,
                     volunteer_id: data.volunteer_id,
                     password: data.password,
                     profile_photo: profilePhotoUrl, // Add profile photo URL
@@ -267,7 +274,7 @@ export default function VolunteerSignupPage() {
                                     size="md"
                                 />
                             </div>
-                            
+
                             {/* Name */}
                             <div className="space-y-2">
                                 <Label htmlFor="name">Full Name *</Label>

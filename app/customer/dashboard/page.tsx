@@ -120,7 +120,7 @@ export default function CustomerDashboard() {
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case "ordered":
+            case "confirmed":
                 return "bg-blue-100 text-blue-700";
             case "delivered":
                 return "bg-green-100 text-green-700";

@@ -114,6 +114,12 @@ export function EditOrderDialog({ orderId, trigger, open: controlledOpen, onOpen
         setSaving(true);
 
         try {
+            if (formData.payment_method === 'qr' && ((removeScreenshot && !screenshotFile) || (!formData.payment_screenshot_url && !screenshotFile))) {
+                toast.error("A payment screenshot is mandatory when using UPI (QR).");
+                setSaving(false);
+                return;
+            }
+
             let finalScreenshotUrl = formData.payment_screenshot_url;
 
             // Handle screenshot removal

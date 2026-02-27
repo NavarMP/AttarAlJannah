@@ -337,7 +337,7 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
     const getStatusLabel = (status: string) => {
         const labels: Record<string, string> = {
             pending: "Pending",
-            ordered: "Ordered",
+            confirmed: "Confirmed",
             delivered: "Delivered",
             cant_reach: "Can't Reach",
             cancelled: "Cancelled",
@@ -936,7 +936,7 @@ ${dashboardUrl}
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="pending">Pending</SelectItem>
-                                <SelectItem value="ordered">Ordered</SelectItem>
+                                <SelectItem value="confirmed">Confirmed</SelectItem>
                                 <SelectItem value="delivered">Delivered</SelectItem>
                                 <SelectItem value="cant_reach">Can&apos;t Reach</SelectItem>
                                 <SelectItem value="cancelled">Cancelled</SelectItem>

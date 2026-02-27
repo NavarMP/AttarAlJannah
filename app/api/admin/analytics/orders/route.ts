@@ -58,8 +58,8 @@ export async function GET(request: NextRequest) {
 
         // Status distribution
         const statusDistribution = {
-            ordered: orders.filter(o => o.order_status === "ordered").length,
             pending: orders.filter(o => o.order_status === "pending").length,
+            confirmed: orders.filter(o => o.order_status === "confirmed").length,
             delivered: orders.filter(o => o.order_status === "delivered").length,
             cancelled: orders.filter(o => o.order_status === "cancelled").length,
         };

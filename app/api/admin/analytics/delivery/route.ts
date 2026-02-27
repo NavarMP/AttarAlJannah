@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
             .from("orders")
             .select("*", { count: "exact", head: true })
             .eq("is_delivery_duty", true)
-            .eq("order_status", "ordered");
+            .eq("order_status", "confirmed");
 
         // Get completed deliveries in period
         const { data: completedOrders } = await supabase

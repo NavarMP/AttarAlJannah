@@ -46,20 +46,22 @@ export async function GET(
 
         // Calculate analytics
         const totalOrders = orders.length;
-        const deliveredOrders = orders.filter((o) => o.order_status === "ordered" || o.order_status === "delivered");
-        const pendingOrders = orders.filter((o) => o.order_status === "pending" || o.order_status === "pending");
+        const deliveredOrders = orders.filter((o) => o.order_status === "delivered");
+        const confirmedOrders = orders.filter((o) => ["confirmed", "delivered"].includes(o.order_status));
+        const activeOrdersList = orders.filter((o) => ["pending", "confirmed", "delivered"].includes(o.order_status));
+        const pendingOrders = orders.filter((o) => o.order_status === "pending");
         const cancelledOrders = orders.filter((o) => o.order_status === "cancelled" || o.order_status === "cant_reach");
 
         // Calculate bottles and revenue (only for confirmed/delivered orders)
-        const totalBottlesSold = deliveredOrders.reduce((sum, order) => sum + (order.quantity || 0), 0);
-        const totalRevenue = deliveredOrders.reduce((sum, order) => sum + (order.total_price || 0), 0);
+        const totalBottlesSold = confirmedOrders.reduce((sum, order) => sum + (order.quantity || 0), 0);
+        const totalRevenue = confirmedOrders.reduce((sum, order) => sum + (order.total_price || 0), 0);
 
         // Calculate commission (20% of revenue)
         const commission = totalRevenue * 0.20;
 
         // Calculate performance metrics
         const conversionRate = totalOrders > 0
-            ? Math.round((deliveredOrders.length / totalOrders) * 100)
+            ? Math.round((confirmedOrders.length / totalOrders) * 100)
             : 0;
 
         const successRate = (deliveredOrders.length + cancelledOrders.length) > 0
@@ -83,7 +85,7 @@ export async function GET(
             .single();
 
         const goalTarget = goalData?.goal || 20;
-        const goalCurrent = totalBottlesSold; // Use calculated total bottles
+        const goalCurrent = activeOrdersList.reduce((sum, order) => sum + (order.quantity || 0), 0);
         const goalProgress = goalTarget > 0 ? Math.round((goalCurrent / goalTarget) * 100) : 0;
 
         // Generate timeline data (last 30 days)
@@ -100,7 +102,7 @@ export async function GET(
             performance: {
                 conversionRate,
                 successRate,
-                avgOrderValue: deliveredOrders.length > 0 ? Math.round(totalRevenue / deliveredOrders.length) : 0,
+                avgOrderValue: confirmedOrders.length > 0 ? Math.round(totalRevenue / confirmedOrders.length) : 0,
                 activeDays,
                 goal: {
                     target: goalTarget,
@@ -136,7 +138,7 @@ function generateTimeline(orders: any[]) {
         // Find orders for this day
         const dayOrders = orders.filter(o => o.created_at.startsWith(dateStr));
         const dayRevenue = dayOrders
-            .filter(o => o.order_status === "ordered" || o.order_status === "delivered")
+            .filter(o => o.order_status === "confirmed" || o.order_status === "delivered")
             .reduce((sum, o) => sum + (o.total_price || 0), 0);
 
         timeline.push({

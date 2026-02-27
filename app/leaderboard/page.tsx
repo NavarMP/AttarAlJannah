@@ -33,7 +33,7 @@ export default function PublicLeaderboardPage() {
                             data={{
                                 title: "Volunteer Leaderboard | Attar al-Jannah",
                                 text: "Check out the leaderboard for our Attar al-Jannah volunteer campaign!",
-                                url: typeof window !== "undefined" ? window.location.href : `${process.env.NEXT_PUBLIC_APP_URL}leaderboard`,
+                                url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/leaderboard`,
                             }}
                             variant="outline"
                             size="sm"

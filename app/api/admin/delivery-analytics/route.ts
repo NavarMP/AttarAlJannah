@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
             .from("orders")
             .select("*", { count: "exact", head: true })
             .eq("is_delivery_duty", true)
-            .eq("order_status", "ordered");
+            .eq("order_status", "confirmed");
 
         // Get top delivery volunteers (last 30 days)
         const { data: topVolunteers } = await supabase

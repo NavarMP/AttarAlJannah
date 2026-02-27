@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
             .select("quantity, total_price, order_status")
             .eq("volunteer_id", volunteer.id);
 
-        const confirmedOrders = orders?.filter(o => o.order_status === "ordered" || o.order_status === "delivered") || [];
+        const confirmedOrders = orders?.filter(o => o.order_status === "confirmed" || o.order_status === "delivered") || [];
         const totalBottles = confirmedOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
         const totalRevenue = confirmedOrders.reduce((sum, o) => sum + (o.total_price || 0), 0);
 
