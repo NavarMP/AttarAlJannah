@@ -16,7 +16,7 @@ export async function GET() {
         // Get all orders to calculate bottle quantities and order counts
         const { data: allOrders } = await adminSupabase
             .from("orders")
-            .select("quantity, order_status, total_price");
+            .select("quantity, order_status, total_price, cash_received");
 
         const totalBottles = allOrders?.reduce((sum, order) => sum + (order.quantity || 0), 0) || 0;
         const totalOrders = allOrders?.length || 0;
@@ -31,8 +31,9 @@ export async function GET() {
         const deliveredBottles = deliveredOrders.reduce((sum, order) => sum + (order.quantity || 0), 0);
         const deliveredOrdersCount = deliveredOrders.length;
 
-        // Get total revenue from delivered orders
-        const totalRevenue = orderedOrders.reduce((sum, order) => sum + Number(order.total_price), 0);
+        // Get total revenue from orders where cash was received
+        const cashOrders = allOrders?.filter(o => o.cash_received === true) || [];
+        const totalRevenue = cashOrders.reduce((sum, order) => sum + Number(order.total_price), 0);
 
         // Get recent orders
         const { data: recentOrders } = await adminSupabase

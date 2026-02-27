@@ -170,12 +170,14 @@ export default function AdminDashboard() {
                 <Card className="rounded-3xl">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium text-muted-foreground">
-                            Revenue
+                            Net Profit
                         </CardTitle>
-                        <DollarSign className="h-5 w-5 text-primary" />
+                        <DollarSign className="h-5 w-5 text-green-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold">₹{stats?.totalRevenue?.toFixed(2) || 0}</div>
+                        <div className="text-3xl flex items-baseline gap-1 font-bold text-green-600 dark:text-green-500">
+                            ₹{stats?.totalRevenue?.toLocaleString() || 0}
+                        </div>
                     </CardContent>
                 </Card>
             </div>

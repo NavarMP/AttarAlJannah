@@ -44,8 +44,8 @@ export interface Order {
     razorpay_order_id?: string;
     razorpay_payment_id?: string;
 
-    // Order status (updated with payment_pending)
-    order_status: 'payment_pending' | 'ordered' | 'delivered' | 'cant_reach' | 'cancelled';
+    // Order status (updated with pending)
+    order_status: 'pending' | 'ordered' | 'delivered' | 'cant_reach' | 'cancelled';
 
     // Delivery method
     delivery_method?: 'volunteer' | 'post' | 'courier' | 'pickup';
@@ -54,6 +54,10 @@ export interface Order {
     customer_name: string;
     customer_phone: string;
     whatsapp_number: string;
+    whatsapp_sent?: boolean;
+    email_sent?: boolean;
+    admin_notes?: string;
+    cash_received?: boolean;
     customer_address: string;
 
     created_at: string;

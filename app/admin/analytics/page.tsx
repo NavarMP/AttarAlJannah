@@ -268,7 +268,7 @@ export default function AnalyticsPage() {
                 ) : metrics ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <MetricCard
-                            title="Total Revenue"
+                            title="Net Profit"
                             value={`₹${metrics.totalRevenue.toLocaleString()}`}
                             icon={DollarSign}
                             color="green"

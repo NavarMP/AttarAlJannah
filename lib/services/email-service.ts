@@ -199,7 +199,7 @@ export async function sendPaymentReminderEmail(
 ) {
   return sendNotificationEmail({
     to,
-    subject: `Payment Pending - Order #${orderId.slice(0, 8)}`,
+    subject: `Pending - Order #${orderId.slice(0, 8)}`,
     title: 'Payment Action Required ⚠️',
     message: `Your order #${orderId.slice(0, 8)} is awaiting payment.\n\nAmount Due: ₹${amount}\n\nPlease complete your payment to process your order.`,
     actionUrl: `https://attaraljannah.com/track/${orderId}`,

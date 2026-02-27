@@ -47,7 +47,7 @@ export async function GET(
         // Calculate analytics
         const totalOrders = orders.length;
         const deliveredOrders = orders.filter((o) => o.order_status === "ordered" || o.order_status === "delivered");
-        const pendingOrders = orders.filter((o) => o.order_status === "payment_pending" || o.order_status === "pending");
+        const pendingOrders = orders.filter((o) => o.order_status === "pending" || o.order_status === "pending");
         const cancelledOrders = orders.filter((o) => o.order_status === "cancelled" || o.order_status === "cant_reach");
 
         // Calculate bottles and revenue (only for confirmed/delivered orders)

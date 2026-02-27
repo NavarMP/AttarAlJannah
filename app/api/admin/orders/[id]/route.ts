@@ -52,11 +52,12 @@ export async function PATCH(
             order_status, delivery_method, volunteer_id,
             is_delivery_duty, created_at, payment_upi_id,
             customer_name, customer_phone, whatsapp_number, customer_email,
-            customer_address, product_name, quantity, total_price
+            customer_address, product_name, quantity, total_price,
+            whatsapp_sent, email_sent, admin_notes, payment_screenshot_url, cash_received
         } = body;
 
         // Allow updates if at least one meaningful field is present
-        if (!order_status && !delivery_method && !volunteer_id && is_delivery_duty === undefined && !created_at && payment_upi_id === undefined && !customer_name && !customer_phone && !whatsapp_number && customer_email === undefined && !customer_address && !product_name && quantity === undefined && total_price === undefined) {
+        if (!order_status && !delivery_method && !volunteer_id && is_delivery_duty === undefined && !created_at && payment_upi_id === undefined && !customer_name && !customer_phone && !whatsapp_number && customer_email === undefined && !customer_address && !product_name && quantity === undefined && total_price === undefined && whatsapp_sent === undefined && email_sent === undefined && admin_notes === undefined && payment_screenshot_url === undefined && cash_received === undefined) {
             return NextResponse.json({ error: "No fields to update provided" }, { status: 400 });
         }
 
@@ -90,6 +91,11 @@ export async function PATCH(
         if (product_name !== undefined) updateData.product_name = product_name;
         if (quantity !== undefined) updateData.quantity = quantity;
         if (total_price !== undefined) updateData.total_price = total_price;
+        if (whatsapp_sent !== undefined) updateData.whatsapp_sent = whatsapp_sent;
+        if (email_sent !== undefined) updateData.email_sent = email_sent;
+        if (admin_notes !== undefined) updateData.admin_notes = admin_notes;
+        if (payment_screenshot_url !== undefined) updateData.payment_screenshot_url = payment_screenshot_url;
+        if (cash_received !== undefined) updateData.cash_received = cash_received;
 
         console.log("=== Order Update ===");
         console.log("Order ID:", id);

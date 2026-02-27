@@ -69,7 +69,7 @@ interface Volunteer {
 }
 
 const ORDER_STATUSES = [
-    { label: "Payment Pending", value: "payment_pending" },
+    { label: "Pending", value: "pending" },
     { label: "Ordered", value: "ordered" },
     { label: "Delivered", value: "delivered" },
     { label: "Can't Reach", value: "cant_reach" },
@@ -518,7 +518,6 @@ ${dashboardUrl}
     const toggleSelectAll = () => {
         if (selectedOrders.size === orders.length) {
             setSelectedOrders(new Set());
-        } else {
             setSelectedOrders(new Set(orders.map(o => o.id)));
         }
     };
@@ -527,9 +526,10 @@ ${dashboardUrl}
 
     const bulkActions: BulkAction[] = [
         {
-            label: "Mark Cash Received",
+            label: "Cash Received",
             icon: <DollarSign className="h-4 w-4" />,
-            onExecute: async () => {
+            onExecute: async (_ids, value) => {
+                const isReceived = value === "true";
                 setBulkProcessing(true);
                 try {
                     const response = await fetch("/api/admin/orders/bulk-update", {
@@ -537,16 +537,16 @@ ${dashboardUrl}
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                             orderIds: Array.from(selectedOrders),
-                            status: "ordered",
+                            cash_received: isReceived,
                         }),
                     });
                     const data = await response.json();
                     if (response.ok) {
-                        toast.success(`Cash collected! Updated ${selectedOrders.size} order(s)`);
+                        toast.success(`Cash status updated for ${selectedOrders.size} order(s)`);
                         setSelectedOrders(new Set());
                         fetchOrders();
                     } else {
-                        toast.error(data.error || "Failed to mark cash as received");
+                        toast.error(data.error || "Failed to update cash status");
                     }
                 } catch (error) {
                     toast.error("An error occurred");
@@ -654,7 +654,7 @@ ${dashboardUrl}
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case "payment_pending":
+            case "pending":
                 return "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400";
             case "ordered":
                 return "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400";
@@ -1068,7 +1068,7 @@ ${dashboardUrl}
                                                             </DropdownMenuItem>
                                                         }
                                                     />
-                                                    {order.payment_method === 'volunteer_cash' && order.order_status === 'payment_pending' && (
+                                                    {order.payment_method === 'volunteer_cash' && order.order_status === 'pending' && (
                                                         <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'ordered')}>
                                                             <DollarSign className="mr-2 h-4 w-4 text-emerald-500" />
                                                             Mark Cash Received

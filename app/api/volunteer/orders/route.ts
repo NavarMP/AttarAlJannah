@@ -56,8 +56,8 @@ export async function GET(request: NextRequest) {
         // Build query for listing orders
         let query = supabase.from("orders").select("*");
 
-        // Filter out payment_pending orders globally
-        query = query.neq("order_status", "payment_pending");
+        // Filter out pending orders globally
+        query = query.neq("order_status", "pending");
 
         if (deliveryAssigned) {
             // Orders where this volunteer is assigned as delivery volunteer

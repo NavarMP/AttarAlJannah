@@ -7,14 +7,18 @@ export async function POST(request: NextRequest) {
     if ("error" in auth) return auth.error;
 
     try {
-        const { orderIds, status } = await request.json();
+        const { orderIds, status, cash_received } = await request.json();
 
         if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
             return NextResponse.json({ error: "Invalid order IDs" }, { status: 400 });
         }
 
-        if (!status || !["pending", "confirmed", "delivered", "ordered", "cant_reach", "cancelled"].includes(status)) {
+        if (status && !["pending", "pending", "confirmed", "delivered", "ordered", "cant_reach", "cancelled"].includes(status)) {
             return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+        }
+
+        if (!status && cash_received === undefined) {
+            return NextResponse.json({ error: "No update fields provided" }, { status: 400 });
         }
 
         const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
@@ -23,10 +27,14 @@ export async function POST(request: NextRequest) {
             process.env.SUPABASE_SERVICE_ROLE_KEY!
         );
 
+        const updateData: any = {};
+        if (status) updateData.order_status = status;
+        if (cash_received !== undefined) updateData.cash_received = cash_received;
+
         // Update orders
         const { error, count } = await adminSupabase
             .from("orders")
-            .update({ order_status: status })
+            .update(updateData)
             .in("id", orderIds);
 
         if (error) {
@@ -39,13 +47,13 @@ export async function POST(request: NextRequest) {
             action: "bulk_update",
             entityType: "order",
             entityId: orderIds.join(","),
-            details: { count: orderIds.length, newStatus: status },
+            details: { count: orderIds.length, status, cash_received },
             ipAddress: getClientIP(request),
         });
 
         return NextResponse.json({
             success: true,
-            message: `Updated status to ${status} for ${orderIds.length} order(s)`
+            message: `Updated ${orderIds.length} order(s)`
         });
 
     } catch (error: any) {

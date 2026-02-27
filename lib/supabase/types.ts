@@ -55,6 +55,10 @@ export type Database = {
                     customer_email: string | null
                     customer_address: string
                     whatsapp_number: string
+                    whatsapp_sent: boolean
+                    email_sent: boolean
+                    admin_notes: string | null
+                    cash_received: boolean
                     created_at: string
                     updated_at: string
                 }
@@ -74,6 +78,10 @@ export type Database = {
                     customer_email?: string | null
                     customer_address: string
                     whatsapp_number: string
+                    whatsapp_sent?: boolean
+                    email_sent?: boolean
+                    admin_notes?: string | null
+                    cash_received?: boolean
                     created_at?: string
                     updated_at?: string
                 }
@@ -93,6 +101,10 @@ export type Database = {
                     customer_email?: string | null
                     customer_address?: string
                     whatsapp_number?: string
+                    whatsapp_sent?: boolean
+                    email_sent?: boolean
+                    admin_notes?: string | null
+                    cash_received?: boolean
                     created_at?: string
                     updated_at?: string
                 }

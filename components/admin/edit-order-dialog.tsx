@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, Upload, X, Image as ImageIcon } from "lucide-react";
+import Image from "next/image";
+import { createClient } from "@/lib/supabase/client";
 
 interface EditOrderDialogProps {
     orderId: string;
@@ -38,7 +40,14 @@ export function EditOrderDialog({ orderId, trigger, open: controlledOpen, onOpen
         product_name: "",
         quantity: 1,
         total_price: 0,
+        payment_method: "cod",
+        payment_screenshot_url: "",
     });
+
+    // Screenshot state
+    const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+    const [screenshotPreview, setScreenshotPreview] = useState<string>("");
+    const [removeScreenshot, setRemoveScreenshot] = useState(false);
 
     useEffect(() => {
         if (open) {
@@ -58,7 +67,12 @@ export function EditOrderDialog({ orderId, trigger, open: controlledOpen, onOpen
                         product_name: data.product_name || "عطر الجنّة (Attar Al Jannah)",
                         quantity: data.quantity || 1,
                         total_price: data.total_price || 0,
+                        payment_method: data.payment_method || "cod",
+                        payment_screenshot_url: data.payment_screenshot_url || "",
                     });
+                    setScreenshotPreview("");
+                    setScreenshotFile(null);
+                    setRemoveScreenshot(false);
                 } catch (error) {
                     console.error("Order fetch error:", error);
                     toast.error("Failed to load order details for editing");
@@ -80,15 +94,64 @@ export function EditOrderDialog({ orderId, trigger, open: controlledOpen, onOpen
         }));
     };
 
+    const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            setScreenshotFile(file);
+            setScreenshotPreview(URL.createObjectURL(file));
+            setRemoveScreenshot(false);
+        }
+    };
+
+    const handleRemoveScreenshot = () => {
+        setScreenshotFile(null);
+        setScreenshotPreview("");
+        setRemoveScreenshot(true);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);
 
         try {
+            let finalScreenshotUrl = formData.payment_screenshot_url;
+
+            // Handle screenshot removal
+            if (removeScreenshot) {
+                finalScreenshotUrl = "";
+            }
+            // Handle new screenshot upload
+            else if (screenshotFile) {
+                const supabase = createClient();
+                const fileExt = screenshotFile.name.split(".").pop() || "jpg";
+                const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+                const filePath = `screenshots/${fileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from("payment-screenshots")
+                    .upload(filePath, screenshotFile, { cacheControl: "3600", upsert: false });
+
+                if (uploadError) {
+                    throw new Error(`Failed to upload screenshot: ${uploadError.message}`);
+                }
+
+                const { data: urlData } = supabase.storage
+                    .from("payment-screenshots")
+                    .getPublicUrl(filePath);
+
+                finalScreenshotUrl = urlData.publicUrl;
+            }
+
+            const isOnlinePayment = ['razorpay', 'qr'].includes(formData.payment_method);
+            const payload = {
+                ...formData,
+                payment_screenshot_url: (!isOnlinePayment || removeScreenshot) ? null : (finalScreenshotUrl || undefined)
+            };
+
             const response = await fetch(`/api/admin/orders/${orderId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(payload),
             });
 
             if (!response.ok) {
@@ -110,7 +173,7 @@ export function EditOrderDialog({ orderId, trigger, open: controlledOpen, onOpen
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-            <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle>Edit Order Details</DialogTitle>
                     <DialogDescription>
@@ -123,8 +186,8 @@ export function EditOrderDialog({ orderId, trigger, open: controlledOpen, onOpen
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
                 ) : (
-                    <form onSubmit={handleSubmit} className="space-y-4 py-4">
-                        <div className="space-y-4">
+                    <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+                        <div className="space-y-4 py-4 overflow-y-auto pr-2">
                             <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Customer Info</h4>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2 col-span-2">
@@ -187,7 +250,77 @@ export function EditOrderDialog({ orderId, trigger, open: controlledOpen, onOpen
                                         required
                                     />
                                 </div>
+                                <div className="space-y-2 col-span-2">
+                                    <Label htmlFor="payment_method">Payment Method</Label>
+                                    <select
+                                        id="payment_method"
+                                        name="payment_method"
+                                        value={formData.payment_method}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, payment_method: e.target.value }))}
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        <option value="razorpay">Online (Razorpay)</option>
+                                        <option value="qr">UPI (QR)</option>
+                                        <option value="cod">Cash on Delivery</option>
+                                        <option value="volunteer_cash">Held by volunteer</option>
+                                    </select>
+                                    {formData.payment_method === 'qr' && (
+                                        <p className="text-xs mt-1 text-amber-600 dark:text-amber-400">Consider updating the payment screenshot if UPI method is selected.</p>
+                                    )}
+                                </div>
                             </div>
+
+                            {['razorpay', 'qr'].includes(formData.payment_method) && (
+                                <>
+                                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pt-2 border-t border-border">Payment Screenshot</h4>
+                                    <div className="space-y-4">
+                                        {(screenshotPreview || (formData.payment_screenshot_url && !removeScreenshot)) ? (
+                                            <div className="relative w-full max-w-sm h-64 rounded-xl overflow-hidden border border-border mx-auto group">
+                                                <Image
+                                                    src={screenshotPreview || formData.payment_screenshot_url}
+                                                    alt="Payment screenshot"
+                                                    fill
+                                                    className="object-contain bg-muted/30"
+                                                />
+                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                    <Button
+                                                        type="button"
+                                                        variant="destructive"
+                                                        size="sm"
+                                                        className="rounded-xl shadow-lg"
+                                                        onClick={handleRemoveScreenshot}
+                                                    >
+                                                        <X className="h-4 w-4 mr-2" />
+                                                        Remove Image
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center py-8 border-2 border-dashed border-border rounded-xl bg-muted/20">
+                                                <ImageIcon className="h-10 w-10 text-muted-foreground mb-3 opacity-50" />
+                                                <p className="text-sm text-muted-foreground mb-4 text-center">
+                                                    {removeScreenshot ? "Screenshot marked for removal." : "No screenshot available."}
+                                                    <br />Upload a new one below.
+                                                </p>
+
+                                                <div className="relative">
+                                                    <Input
+                                                        id="screenshot-upload"
+                                                        type="file"
+                                                        accept="image/*"
+                                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                        onChange={handleScreenshotChange}
+                                                    />
+                                                    <Button type="button" variant="outline" className="rounded-xl pointer-events-none">
+                                                        <Upload className="h-4 w-4 mr-2" />
+                                                        Choose File
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                            )}
                         </div>
 
                         <DialogFooter className="pt-4 mt-4 border-t border-border">

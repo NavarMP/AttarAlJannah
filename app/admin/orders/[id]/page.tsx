@@ -45,6 +45,10 @@ interface Order {
     created_at: string;
     volunteers?: { name: string } | null;
     payment_upi_id?: string | null;
+    whatsapp_sent?: boolean;
+    email_sent?: boolean;
+    admin_notes?: string | null;
+    cash_received?: boolean;
 }
 
 export default function OrderDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -66,6 +70,11 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
     const [historicalUpis, setHistoricalUpis] = useState<string[]>([]);
     const [deliveryRequests, setDeliveryRequests] = useState<any[]>([]);
     const [resendingEmail, setResendingEmail] = useState(false);
+
+    // Notes state
+    const [isEditingNote, setIsEditingNote] = useState(false);
+    const [noteInput, setNoteInput] = useState("");
+    const [savingNote, setSavingNote] = useState(false);
 
     // Fetch UPI IDs for autocomplete
     useEffect(() => {
@@ -265,6 +274,17 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
             }
 
             toast.success(data.message || "Email resent successfully");
+
+            // Auto update email_sent status if not already set
+            if (!order.email_sent) {
+                await fetch(`/api/admin/orders/${id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email_sent: true }),
+                });
+                fetchOrder();
+            }
+
         } catch (error: any) {
             console.error("Resend email error:", error);
             toast.error(error.message || "An error occurred while resending the email");
@@ -273,9 +293,50 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
         }
     };
 
+    const toggleWhatsAppStatus = async () => {
+        if (!order) return;
+        setUpdating(true);
+        try {
+            const newStatus = !order.whatsapp_sent;
+            const response = await fetch(`/api/admin/orders/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ whatsapp_sent: newStatus }),
+            });
+            if (!response.ok) throw new Error("Failed to update status");
+
+            toast.success(`WhatsApp status marked as ${newStatus ? 'Sent' : 'Not Sent'}`);
+            fetchOrder();
+        } catch (error) {
+            toast.error("Failed to update WhatsApp status");
+        } finally {
+            setUpdating(false);
+        }
+    };
+
+    const handleSaveNote = async () => {
+        setSavingNote(true);
+        try {
+            const response = await fetch(`/api/admin/orders/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ admin_notes: noteInput }),
+            });
+            if (!response.ok) throw new Error("Failed to save note");
+
+            toast.success("Note saved successfully");
+            setIsEditingNote(false);
+            fetchOrder();
+        } catch (error) {
+            toast.error("Failed to save note");
+        } finally {
+            setSavingNote(false);
+        }
+    };
+
     const getStatusLabel = (status: string) => {
         const labels: Record<string, string> = {
-            payment_pending: "Payment Pending",
+            pending: "Pending",
             ordered: "Ordered",
             delivered: "Delivered",
             cant_reach: "Can't Reach",
@@ -359,6 +420,17 @@ ${dashboardUrl}
 
             toast.dismiss("wa-prep");
             toast.success("Ready! Hit Paste (Cmd+V / Ctrl+V) in WhatsApp to attach the poster.", { duration: 6000 });
+
+            // Auto update whatsapp_sent status if not already set
+            if (!order.whatsapp_sent) {
+                await fetch(`/api/admin/orders/${id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ whatsapp_sent: true }),
+                });
+                fetchOrder(); // Refresh to show the badge
+            }
+
         } catch (error) {
             console.error("WhatsApp prep failed:", error);
             toast.dismiss("wa-prep");
@@ -445,7 +517,16 @@ ${dashboardUrl}
                                     className="rounded-xl"
                                     onClick={() => handleWhatsAppMessage(order)}
                                 >
-                                    <MessageCircle className="h-3 w-3" />
+                                    <MessageCircle className="h-3 w-3 mr-1" /> Message
+                                </Button>
+                                <Button
+                                    variant={order.whatsapp_sent ? "default" : "outline"}
+                                    size="sm"
+                                    className={`rounded-xl px-2 h-7 ${order.whatsapp_sent ? 'bg-green-600 hover:bg-green-700 text-white' : ''}`}
+                                    onClick={toggleWhatsAppStatus}
+                                    disabled={updating}
+                                >
+                                    {order.whatsapp_sent ? 'Sent ✓' : 'Mark Sent'}
                                 </Button>
                             </div>
                         </div>
@@ -455,16 +536,23 @@ ${dashboardUrl}
                                 {order.customer_email ? (
                                     <>
                                         <p className="font-medium">{order.customer_email}</p>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="rounded-xl ml-2 h-7 px-2"
-                                            onClick={handleResendEmail}
-                                            disabled={resendingEmail}
-                                        >
-                                            <Mail className="h-3 w-3 mr-1" />
-                                            {resendingEmail ? "Sending..." : "Resend confirmation"}
-                                        </Button>
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="rounded-xl h-7 px-2"
+                                                onClick={handleResendEmail}
+                                                disabled={resendingEmail}
+                                            >
+                                                <Mail className="h-3 w-3 mr-1" />
+                                                {resendingEmail ? "Sending..." : "Resend"}
+                                            </Button>
+                                            {order.email_sent && (
+                                                <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded-full flex items-center">
+                                                    Sent ✓
+                                                </span>
+                                            )}
+                                        </div>
                                     </>
                                 ) : (
                                     <p className="text-sm italic text-muted-foreground">(Not provided)</p>
@@ -511,6 +599,35 @@ ${dashboardUrl}
                         <div>
                             <p className="text-sm text-muted-foreground">Payment Method</p>
                             <p className="font-medium">{order.payment_method === 'cod' ? 'Cash on Delivery' : order.payment_method === 'volunteer_cash' ? 'Cash (Volunteer)' : order.payment_method === 'qr' ? 'UPI' : order.payment_method === 'razorpay' ? 'Razorpay' : order.payment_method}</p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-muted-foreground mb-1">Cash Received</p>
+                            <Button
+                                variant={order.cash_received ? "default" : "outline"}
+                                size="sm"
+                                className={`rounded-xl px-2 h-7 ${order.cash_received ? 'bg-green-600 hover:bg-green-700 text-white' : 'text-amber-600 border-amber-200 hover:bg-amber-50 dark:hover:bg-amber-900/30'}`}
+                                onClick={async () => {
+                                    setUpdating(true);
+                                    try {
+                                        const response = await fetch(`/api/admin/orders/${id}`, {
+                                            method: "PATCH",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ cash_received: !order.cash_received }),
+                                        });
+                                        if (response.ok) {
+                                            toast.success(`Cash marked as ${!order.cash_received ? 'received' : 'not received'}`);
+                                            fetchOrder();
+                                        } else {
+                                            toast.error("Failed to update cash status");
+                                        }
+                                    } finally {
+                                        setUpdating(false);
+                                    }
+                                }}
+                                disabled={updating}
+                            >
+                                {order.cash_received ? 'Yes ✓' : 'No ✗'}
+                            </Button>
                         </div>
                         <div className="flex items-center justify-between">
                             <div>
@@ -639,6 +756,66 @@ ${dashboardUrl}
                         )}
                     </CardContent>
                 </Card>
+
+                {/* Admin Notes */}
+                <Card className="rounded-3xl md:col-span-2">
+                    <CardHeader className="flex flex-row items-center justify-between py-4">
+                        <CardTitle className="text-lg">Admin Notes (Internal)</CardTitle>
+                        {!isEditingNote && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="rounded-xl h-8"
+                                onClick={() => {
+                                    setNoteInput(order.admin_notes || "");
+                                    setIsEditingNote(true);
+                                }}
+                            >
+                                <Pencil className="h-3 w-3 mr-2" />
+                                {order.admin_notes ? "Edit Note" : "Add Note"}
+                            </Button>
+                        )}
+                    </CardHeader>
+                    <CardContent>
+                        {isEditingNote ? (
+                            <div className="space-y-3">
+                                <textarea
+                                    className="w-full min-h-[100px] p-3 rounded-xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                                    placeholder="Add notes about this order..."
+                                    value={noteInput}
+                                    onChange={(e) => setNoteInput(e.target.value)}
+                                />
+                                <div className="flex items-center gap-2 justify-end">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="rounded-xl"
+                                        onClick={() => setIsEditingNote(false)}
+                                        disabled={savingNote}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        className="rounded-xl"
+                                        onClick={handleSaveNote}
+                                        disabled={savingNote}
+                                    >
+                                        {savingNote ? "Saving..." : "Save Note"}
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="bg-muted/30 p-4 rounded-xl min-h-[80px]">
+                                {order.admin_notes ? (
+                                    <p className="whitespace-pre-wrap text-sm">{order.admin_notes}</p>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground italic text-center mt-2">No notes added yet.</p>
+                                )}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
             </div>
 
             {/* Payment Screenshot */}
@@ -758,7 +935,7 @@ ${dashboardUrl}
                                 <SelectValue placeholder="Select status" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="payment_pending">Payment Pending</SelectItem>
+                                <SelectItem value="pending">Pending</SelectItem>
                                 <SelectItem value="ordered">Ordered</SelectItem>
                                 <SelectItem value="delivered">Delivered</SelectItem>
                                 <SelectItem value="cant_reach">Can&apos;t Reach</SelectItem>

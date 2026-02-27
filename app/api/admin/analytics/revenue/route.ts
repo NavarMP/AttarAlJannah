@@ -26,11 +26,11 @@ export async function GET(request: NextRequest) {
         const startDate = new Date(start);
         const endDate = new Date(end);
 
-        // Fetch ordered orders for the period
+        // Fetch cash received orders for the period
         const { data: orders } = await supabase
             .from("orders")
             .select("quantity, total_price, created_at, zone_id, volunteer_id, payment_upi_id, volunteers(name), delivery_zones(name)")
-            .eq("order_status", "ordered")
+            .eq("cash_received", true)
             .gte("created_at", startDate.toISOString())
             .lte("created_at", endDate.toISOString())
             .order("created_at", { ascending: true });

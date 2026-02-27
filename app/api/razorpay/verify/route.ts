@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
                 razorpay_order_id,
                 razorpay_payment_id,
                 payment_status: "paid",
-                order_status: "ordered", // Promote from 'payment_pending' to 'ordered'
+                order_status: "ordered", // Promote from 'pending' to 'ordered'
                 updated_at: new Date().toISOString(),
             })
             .eq("id", order_id)

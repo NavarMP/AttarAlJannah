@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
         // Filter confirmed/delivered orders
         const confirmedOrders = orders?.filter(o => o.order_status === "ordered" || o.order_status === "delivered") || [];
-        const pendingOrders = orders?.filter(o => o.order_status === "pending" || o.order_status === "payment_pending") || [];
+        const pendingOrders = orders?.filter(o => o.order_status === "pending" || o.order_status === "pending") || [];
 
         // Calculate confirmed bottles and orders
         const confirmedBottles = confirmedOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
