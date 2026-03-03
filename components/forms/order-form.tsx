@@ -33,11 +33,12 @@ interface OrderFormProps {
     volunteerId?: string;
     prefillData?: any;
     customerProfile?: CustomerProfile | null;
+    isVolunteerLoggedIn?: boolean;
 }
 
 const PRODUCT_PRICE = 313;
 
-export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFormProps) {
+export function OrderForm({ volunteerId, prefillData, customerProfile, isVolunteerLoggedIn }: OrderFormProps) {
     const { t } = useTranslation();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -888,8 +889,8 @@ export function OrderForm({ volunteerId, prefillData, customerProfile }: OrderFo
                                 </div>
                             </label>
 
-                            {/* Cash to Volunteer (only when volunteer is validated) */}
-                            {(volunteerId || (isVolunteerValidated && volunteerName)) && (
+                            {/* Cash to Volunteer (logged in) */}
+                            {isVolunteerLoggedIn && (
                                 <label className={`flex items-start gap-3 p-4 border rounded-2xl cursor-pointer transition-all ${activePaymentMethod === "volunteer_cash" ? "border-primary bg-primary/5 shadow-sm" : "hover:bg-accent"}`}>
                                     <input
                                         type="radio"

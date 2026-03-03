@@ -51,7 +51,11 @@ async function getVolunteerData(volunteerId: string) {
         .eq("volunteer_id", volunteer.id);
 
     const confirmedOrders = orders?.filter(o => o.order_status === "confirmed" || o.order_status === "delivered") || [];
+    const pendingOrders = orders?.filter(o => o.order_status === "pending") || [];
+
     const totalBottles = confirmedOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
+    const pendingBottles = pendingOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
+
     const goal = progress?.goal || 20;
     const goalProgress = Math.min(100, Math.round((totalBottles / goal) * 100));
 
@@ -65,6 +69,7 @@ async function getVolunteerData(volunteerId: string) {
         ...volunteer,
         stats: {
             totalBottles,
+            pendingBottles,
             goal,
             goalProgress,
             activeDays
@@ -177,10 +182,17 @@ export default async function PublicProfilePage({ params }: Props) {
                                     <p className="text-sm text-muted-foreground uppercase tracking-wider font-medium">
                                         Bottles Ordered
                                     </p>
-                                    <p className="text-3xl font-bold text-primary flex items-center justify-center gap-2">
-                                        <Award className="h-5 w-5 text-gold-500" />
-                                        {stats.totalBottles}
-                                    </p>
+                                    <div className="flex flex-col items-center justify-center">
+                                        <p className="text-3xl font-bold text-primary flex items-center justify-center gap-2">
+                                            <Award className="h-5 w-5 text-gold-500" />
+                                            {stats.totalBottles}
+                                        </p>
+                                        {stats.pendingBottles > 0 && (
+                                            <p className="text-xs text-orange-500 font-medium mt-1">
+                                                +{stats.pendingBottles} pending
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="text-center space-y-1 border-l border-border/50">
                                     <p className="text-sm text-muted-foreground uppercase tracking-wider font-medium">

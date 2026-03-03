@@ -42,6 +42,7 @@ export function EditOrderDialog({ orderId, trigger, open: controlledOpen, onOpen
         total_price: 0,
         payment_method: "cod",
         payment_screenshot_url: "",
+        cash_received: 0,
     });
 
     // Screenshot state
@@ -69,6 +70,7 @@ export function EditOrderDialog({ orderId, trigger, open: controlledOpen, onOpen
                         total_price: data.total_price || 0,
                         payment_method: data.payment_method || "cod",
                         payment_screenshot_url: data.payment_screenshot_url || "",
+                        cash_received: data.cash_received || 0,
                     });
                     setScreenshotPreview("");
                     setScreenshotFile(null);
@@ -90,7 +92,7 @@ export function EditOrderDialog({ orderId, trigger, open: controlledOpen, onOpen
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
-            [name]: name === "quantity" || name === "total_price" ? Number(value) : value
+            [name]: ["quantity", "total_price", "cash_received"].includes(name) ? Number(value) : value
         }));
     };
 
@@ -273,6 +275,19 @@ export function EditOrderDialog({ orderId, trigger, open: controlledOpen, onOpen
                                     {formData.payment_method === 'qr' && (
                                         <p className="text-xs mt-1 text-amber-600 dark:text-amber-400">Consider updating the payment screenshot if UPI method is selected.</p>
                                     )}
+                                </div>
+                                <div className="space-y-2 col-span-2">
+                                    <Label htmlFor="cash_received">Cash Received (₹)</Label>
+                                    <Input
+                                        id="cash_received"
+                                        name="cash_received"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={formData.cash_received}
+                                        onChange={handleChange}
+                                    />
+                                    <p className="text-xs text-muted-foreground mt-1">Amount collected so far. Can be partial or advance. Leave 0 if unpaid.</p>
                                 </div>
                             </div>
 

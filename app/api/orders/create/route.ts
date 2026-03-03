@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
                 extracted_transaction_id: isCodPayment ? null : extractedTransactionId,
                 payment_status: "pending",
                 order_status: "pending", // QR/COD: stays until admin verifies; Razorpay: promoted after verify
-                cash_received: paymentMethod === "qr" || paymentMethod === "razorpay" ? true : false,
+                cash_received: paymentMethod === "qr" || paymentMethod === "razorpay" ? 313 : 0,
                 volunteer_id: referredByUuid,
                 payment_upi_id: isCodPayment ? null : activeUpiId, // COD doesn't use UPI
             })

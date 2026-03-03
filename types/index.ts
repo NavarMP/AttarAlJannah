@@ -57,7 +57,7 @@ export interface Order {
     whatsapp_sent?: boolean;
     email_sent?: boolean;
     admin_notes?: string;
-    cash_received?: boolean;
+    cash_received?: number;
     customer_address: string;
 
     created_at: string;

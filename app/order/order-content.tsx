@@ -21,6 +21,7 @@ function OrderContentInner() {
     const { user, customerProfile } = useCustomerAuth();
     const [prefillData, setPrefillData] = useState<any>(null);
     const [referralCode, setReferralCode] = useState<string | null>(null);
+    const [isVolunteerLoggedIn, setIsVolunteerLoggedIn] = useState(false);
     const { t, language } = useTranslation();
 
     const handleBack = () => {
@@ -94,6 +95,7 @@ function OrderContentInner() {
     }, []);
 
     useEffect(() => {
+        setIsVolunteerLoggedIn(!!localStorage.getItem("volunteerId"));
         // Get referral code from URL
         const ref = searchParams.get("ref");
         if (ref) {
@@ -203,6 +205,7 @@ function OrderContentInner() {
                 volunteerId={referralCode || undefined}
                 prefillData={prefillData}
                 customerProfile={customerProfile}
+                isVolunteerLoggedIn={isVolunteerLoggedIn}
             />
         </div>
     );

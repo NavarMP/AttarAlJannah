@@ -532,10 +532,14 @@ ${dashboardUrl}
 
     const bulkActions: BulkAction[] = [
         {
-            label: "Cash Received",
+            label: "Cash Status",
             icon: <DollarSign className="h-4 w-4" />,
+            options: [
+                { label: "Received (₹313)", value: "313" },
+                { label: "Not Received (₹0)", value: "0" }
+            ],
             onExecute: async (_ids, value) => {
-                const isReceived = value === "true";
+                const amount = parseInt(value || "0", 10);
                 setBulkProcessing(true);
                 try {
                     const response = await fetch("/api/admin/orders/bulk-update", {
@@ -543,7 +547,7 @@ ${dashboardUrl}
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                             orderIds: Array.from(selectedOrders),
-                            cash_received: isReceived,
+                            cash_received: amount,
                         }),
                     });
                     const data = await response.json();
@@ -561,6 +565,36 @@ ${dashboardUrl}
                 }
             },
         },
+        // {
+        //     label: "Cash Received",
+        //     icon: <DollarSign className="h-4 w-4" />,
+        //     onExecute: async (_ids, value) => {
+        //         const isReceived = value === "true";
+        //         setBulkProcessing(true);
+        //         try {
+        //             const response = await fetch("/api/admin/orders/bulk-update", {
+        //                 method: "POST",
+        //                 headers: { "Content-Type": "application/json" },
+        //                 body: JSON.stringify({
+        //                     orderIds: Array.from(selectedOrders),
+        //                     cash_received: isReceived,
+        //                 }),
+        //             });
+        //             const data = await response.json();
+        //             if (response.ok) {
+        //                 toast.success(`Cash status updated for ${selectedOrders.size} order(s)`);
+        //                 setSelectedOrders(new Set());
+        //                 fetchOrders();
+        //             } else {
+        //                 toast.error(data.error || "Failed to update cash status");
+        //             }
+        //         } catch (error) {
+        //             toast.error("An error occurred");
+        //         } finally {
+        //             setBulkProcessing(false);
+        //         }
+        //     },
+        // },
         {
             label: "Change Status",
             icon: <Package className="h-4 w-4" />,
@@ -1143,7 +1177,6 @@ ${dashboardUrl}
                                                             Mark Cash Received
                                                         </DropdownMenuItem>
                                                     )}
-
                                                     <DropdownMenuSeparator />
 
                                                     {/* Change Status submenu */}

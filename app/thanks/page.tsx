@@ -75,7 +75,7 @@ function ThanksContent() {
             const data = await response.json();
             setOrder(data);
 
-            // Auto-login removed as requested
+            // Auto-login removed
             // if (data.customer_phone && (!user || user.phone !== data.customer_phone)) {
             //     console.log("Auto-logging in user:", data.customer_phone);
             //     loginWithPhone(data.customer_phone);

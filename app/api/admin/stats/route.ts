@@ -32,8 +32,8 @@ export async function GET() {
         const deliveredOrdersCount = deliveredOrders.length;
 
         // Get total revenue from orders where cash was received
-        const cashOrders = allOrders?.filter(o => o.cash_received === true) || [];
-        const totalRevenue = cashOrders.reduce((sum, order) => sum + Number(order.total_price), 0);
+        const cashOrders = allOrders?.filter(o => (o.cash_received || 0) > 0) || [];
+        const totalRevenue = cashOrders.reduce((sum, order) => sum + (Number(order.cash_received) || 0), 0);
 
         // Get recent orders
         const { data: recentOrders } = await adminSupabase

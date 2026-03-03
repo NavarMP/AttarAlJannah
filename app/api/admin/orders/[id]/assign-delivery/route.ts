@@ -28,7 +28,7 @@ export async function POST(
             const { error: updateError } = await adminSupabase
                 .from("orders")
                 .update({
-                    volunteer_id: null,
+                    delivery_volunteer_id: null,
                     is_delivery_duty: false,
                     delivery_method: null,
                 })
@@ -110,7 +110,7 @@ export async function POST(
         const { error: updateError } = await adminSupabase
             .from("orders")
             .update({
-                volunteer_id: volunteer ? volunteer.id : null,
+                delivery_volunteer_id: volunteer ? volunteer.id : null,
                 is_delivery_duty: deliveryMethod === "volunteer",
                 delivery_method: deliveryMethod,
             })

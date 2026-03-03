@@ -19,12 +19,17 @@ export async function GET(request: NextRequest) {
 
         const supabase = await createClient();
 
-        // Look up volunteer UUID from volunteer_id string
-        const { data: volunteer, error: volunteerError } = await supabase
-            .from("volunteers")
-            .select("id")
-            .ilike("volunteer_id", volunteerId)
-            .single();
+        // Ensure we properly handle UUID vs readable string to avoid casting errors
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(volunteerId);
+
+        const volunteerQuery = supabase.from("volunteers").select("id");
+        if (isUuid) {
+            volunteerQuery.eq("id", volunteerId);
+        } else {
+            volunteerQuery.ilike("volunteer_id", volunteerId);
+        }
+
+        const { data: volunteer, error: volunteerError } = await volunteerQuery.single();
 
         if (volunteerError || !volunteer) {
             console.error("Volunteer lookup error:", volunteerError);
@@ -56,8 +61,9 @@ export async function GET(request: NextRequest) {
         // Build query for listing orders
         let query = supabase.from("orders").select("*");
 
-        // Filter out pending orders globally
-        query = query.neq("order_status", "pending");
+        // Let volunteer see all their orders including pending
+        // query = query.neq("order_status", "pending");
+        query = query.is("deleted_at", null);
 
         if (deliveryAssigned) {
             // Orders where this volunteer is assigned as delivery volunteer

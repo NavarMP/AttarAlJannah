@@ -34,6 +34,7 @@ interface Order {
     payment_method: string;
     payment_status: string;
     order_status: string;
+    delivery_method?: string;
     created_at: string;
 }
 
@@ -231,6 +232,7 @@ export default function VolunteerOrdersPage() {
     const getStatusColor = (status: string) => {
         switch (status) {
             case "confirmed":
+                return "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400";
             case "pending":
                 return "bg-orange-100 text-orange-800 dark:bg-yellow-950/40 dark:text-yellow-400";
             case "delivered":
@@ -347,11 +349,11 @@ export default function VolunteerOrdersPage() {
                                         </th>
                                         <th className="px-4 py-4 text-left text-sm font-semibold">Customer</th>
                                         <th className="px-4 py-4 text-left text-sm font-semibold">Phone</th>
-                                        <th className="px-4 py-4 text-left text-sm font-semibold">Product</th>
                                         <th className="px-4 py-4 text-left text-sm font-semibold">Qty</th>
                                         <th className="px-4 py-4 text-left text-sm font-semibold">Total</th>
                                         <th className="px-4 py-4 text-left text-sm font-semibold">Payment</th>
                                         <th className="px-4 py-4 text-left text-sm font-semibold">Status</th>
+                                        <th className="px-4 py-4 text-left text-sm font-semibold">Delivery</th>
                                         <th className="px-4 py-4 text-left text-sm font-semibold">Date</th>
                                         <th className="px-4 py-4 text-center text-sm font-semibold">Actions</th>
                                     </tr>
@@ -376,9 +378,6 @@ export default function VolunteerOrdersPage() {
                                             <td className="px-4 py-4 text-sm text-muted-foreground">
                                                 {order.customer_phone}
                                             </td>
-                                            <td className="px-4 py-4 text-sm">
-                                                {order.product_name}
-                                            </td>
                                             <td className="px-4 py-4">{order.quantity}</td>
                                             <td className="px-4 py-4 font-semibold text-primary">
                                                 ₹{order.total_price.toLocaleString()}
@@ -391,8 +390,16 @@ export default function VolunteerOrdersPage() {
                                                     {getStatusLabel(order.order_status)}
                                                 </span>
                                             </td>
+                                            <td className="px-4 py-4">
+                                                <span className="text-sm text-muted-foreground">
+                                                    {order.delivery_method === 'pickup' ? 'Self Pickup' : order.delivery_method === 'volunteer' ? 'Volunteer Delivery' : order.delivery_method === 'courier' ? 'Courier' : order.delivery_method === 'post' ? 'By Post' : order.delivery_method || '-'}
+                                                </span>
+                                            </td>
                                             <td className="px-4 py-4 text-sm text-muted-foreground whitespace-nowrap">
-                                                {new Date(order.created_at).toLocaleDateString()}
+                                                <div>{new Date(order.created_at).toLocaleDateString()}</div>
+                                                <div className="text-xs opacity-70">
+                                                    {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </div>
                                             </td>
                                             <td className="px-4 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                                                 <DropdownMenu>

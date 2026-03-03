@@ -4,10 +4,11 @@ import { use, useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Phone, MessageCircle, Image as ImageIcon, Package } from "lucide-react";
+import { ArrowLeft, Phone, MessageCircle, Image as ImageIcon, Package, DollarSign, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import Image from "next/image";
 import Link from "next/link";
+import { Input } from "@/components/ui/input";
 
 interface Order {
     id: string;
@@ -26,6 +27,7 @@ interface Order {
     created_at: string;
     volunteer_id?: string;
     is_delivery_duty?: boolean;
+    cash_received?: number;
 }
 
 export default function VolunteerOrderDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -33,6 +35,8 @@ export default function VolunteerOrderDetailsPage({ params }: { params: Promise<
     const router = useRouter();
     const [order, setOrder] = useState<Order | null>(null);
     const [loading, setLoading] = useState(true);
+    const [updatingCash, setUpdatingCash] = useState(false);
+    const [cashInput, setCashInput] = useState<number>(0);
     const [trackingEvents, setTrackingEvents] = useState<{ status: string; title: string; created_at: string }[]>([]);
 
     const fetchTrackingEvents = useCallback(async () => {
@@ -63,6 +67,11 @@ export default function VolunteerOrderDetailsPage({ params }: { params: Promise<
             }
             const data = await response.json();
             setOrder(data.order);
+            if (data.order && typeof data.order.cash_received === 'number') {
+                setCashInput(data.order.cash_received);
+            } else {
+                setCashInput(0);
+            }
         } catch (error) {
             console.error("Failed to fetch order:", error);
             toast.error("Failed to load order");
@@ -89,6 +98,33 @@ export default function VolunteerOrderDetailsPage({ params }: { params: Promise<
                 return "bg-red-100 text-red-700";
             default:
                 return "bg-gray-100 text-gray-700";
+        }
+    };
+
+    const handleCashUpdate = async () => {
+        if (!order) return;
+        setUpdatingCash(true);
+        try {
+            const volunteerId = localStorage.getItem("volunteerId");
+            const response = await fetch(`/api/volunteer/orders/${order.id}/cash`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    volunteerId,
+                    cash_received: cashInput,
+                }),
+            });
+            const data = await response.json();
+            if (response.ok) {
+                toast.success(`Cash updated to ₹${cashInput}`);
+                setOrder({ ...order, cash_received: cashInput });
+            } else {
+                toast.error(data.error || "Failed to update cash amount");
+            }
+        } catch (error) {
+            toast.error("An error occurred");
+        } finally {
+            setUpdatingCash(false);
         }
     };
 
@@ -153,6 +189,54 @@ export default function VolunteerOrderDetailsPage({ params }: { params: Promise<
                                     {new Date(order.created_at).toLocaleString()}
                                 </p>
                             </div>
+
+                            {/* Volunteer Cash Updates */}
+                            {order.payment_method === 'volunteer_cash' && (
+                                <div className="pt-4 border-t border-border/50">
+                                    <h4 className="flex items-center gap-2 font-medium text-sm text-amber-700 dark:text-amber-400 mb-3">
+                                        <DollarSign className="w-4 h-4" />
+                                        Cash Collection
+                                    </h4>
+
+                                    <div className="bg-amber-50 dark:bg-amber-950/20 p-4 rounded-xl space-y-3">
+                                        <div className="flex justify-between items-center text-sm">
+                                            <span className="text-muted-foreground">Amount Collected</span>
+                                            <span className="font-bold text-lg text-primary">₹{(order.cash_received || 0).toFixed(2)}</span>
+                                        </div>
+
+                                        <div className="flex justify-between items-center text-sm">
+                                            <span className="text-muted-foreground">Pending</span>
+                                            <span className="font-bold text-red-500">
+                                                ₹{Math.max(0, order.total_price - (order.cash_received || 0)).toFixed(2)}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-end gap-2 pt-2">
+                                            <div className="flex-1 space-y-1.5">
+                                                <label className="text-xs font-medium text-muted-foreground">Update Collected Amount</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">₹</span>
+                                                    <Input
+                                                        type="number"
+                                                        min={0}
+                                                        max={order.total_price * 2}
+                                                        value={cashInput}
+                                                        onChange={(e) => setCashInput(Number(e.target.value))}
+                                                        className="pl-7 bg-background"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <Button
+                                                onClick={handleCashUpdate}
+                                                disabled={updatingCash || cashInput === order.cash_received}
+                                                className="shadow-sm"
+                                            >
+                                                {updatingCash ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Save"}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 

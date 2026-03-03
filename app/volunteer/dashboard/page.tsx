@@ -174,12 +174,26 @@ export default function VolunteerDashboardPage() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-3xl font-bold text-foreground">
-                                {stats.confirmedOrders}
-                            </p>
-                            <p className="text-sm text-muted-foreground mt-1">
-                                orders
-                            </p>
+                            <div className="flex justify-between items-end">
+                                <div>
+                                    <p className="text-3xl font-bold text-foreground">
+                                        {stats.confirmedOrders}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground mt-1">
+                                        confirmed orders
+                                    </p>
+                                </div>
+                                {stats.pendingOrders > 0 && (
+                                    <div className="text-right pb-1">
+                                        <p className="text-lg font-semibold text-orange-500">
+                                            {stats.pendingOrders}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            pending
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
                         </CardContent>
                     </Card>
 

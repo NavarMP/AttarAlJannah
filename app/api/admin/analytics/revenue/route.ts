@@ -29,8 +29,8 @@ export async function GET(request: NextRequest) {
         // Fetch cash received orders for the period
         const { data: orders } = await supabase
             .from("orders")
-            .select("quantity, total_price, created_at, zone_id, volunteer_id, payment_upi_id, volunteers(name), delivery_zones(name)")
-            .eq("cash_received", true)
+            .select("quantity, total_price, cash_received, created_at, zone_id, volunteer_id, payment_upi_id, volunteers(name), delivery_zones(name)")
+            .gt("cash_received", 0)
             .gte("created_at", startDate.toISOString())
             .lte("created_at", endDate.toISOString())
             .order("created_at", { ascending: true });
@@ -64,6 +64,7 @@ export async function GET(request: NextRequest) {
         orders.forEach(order => {
             const date = new Date(order.created_at).toISOString().split('T')[0];
             const bottles = order.quantity || 0;
+            const cashAmount = Number(order.cash_received) || 0;
 
             if (!timelineMap[date]) {
                 timelineMap[date] = {
@@ -75,8 +76,8 @@ export async function GET(request: NextRequest) {
             }
 
             timelineMap[date].bottles += bottles;
-            timelineMap[date].grossRevenue += bottles * BOTTLE_PRICE;
-            timelineMap[date].netProfit += bottles * NET_PROFIT_PER_BOTTLE;
+            timelineMap[date].grossRevenue += cashAmount;
+            timelineMap[date].netProfit += cashAmount - (bottles * MANUFACTURER_COST);
             timelineMap[date].manufacturerCost += bottles * MANUFACTURER_COST;
         });
 
@@ -98,6 +99,7 @@ export async function GET(request: NextRequest) {
         orders.forEach(order => {
             const zoneName = (order.delivery_zones as any)?.name || "Unassigned";
             const bottles = order.quantity || 0;
+            const cashAmount = Number(order.cash_received) || 0;
 
             if (!zoneMap[zoneName]) {
                 zoneMap[zoneName] = {
@@ -109,8 +111,8 @@ export async function GET(request: NextRequest) {
             }
 
             zoneMap[zoneName].bottles += bottles;
-            zoneMap[zoneName].grossRevenue += bottles * BOTTLE_PRICE;
-            zoneMap[zoneName].netProfit += bottles * NET_PROFIT_PER_BOTTLE;
+            zoneMap[zoneName].grossRevenue += cashAmount;
+            zoneMap[zoneName].netProfit += cashAmount - (bottles * MANUFACTURER_COST);
         });
 
         const byZone = Object.values(zoneMap).sort((a, b) => b.netProfit - a.netProfit);
@@ -128,6 +130,7 @@ export async function GET(request: NextRequest) {
         orders.forEach(order => {
             const volunteerName = (order.volunteers as any)?.name || "Direct";
             const bottles = order.quantity || 0;
+            const cashAmount = Number(order.cash_received) || 0;
 
             if (!volunteerMap[volunteerName]) {
                 volunteerMap[volunteerName] = {
@@ -139,8 +142,8 @@ export async function GET(request: NextRequest) {
             }
 
             volunteerMap[volunteerName].bottles += bottles;
-            volunteerMap[volunteerName].grossRevenue += bottles * BOTTLE_PRICE;
-            volunteerMap[volunteerName].netProfit += bottles * NET_PROFIT_PER_BOTTLE;
+            volunteerMap[volunteerName].grossRevenue += cashAmount;
+            volunteerMap[volunteerName].netProfit += cashAmount - (bottles * MANUFACTURER_COST);
         });
 
         const byVolunteer = Object.values(volunteerMap)
@@ -160,6 +163,7 @@ export async function GET(request: NextRequest) {
         orders.forEach(order => {
             const accountId = order.payment_upi_id || "Unassigned/Old";
             const bottles = order.quantity || 0;
+            const cashAmount = Number(order.cash_received) || 0;
 
             if (!accountMap[accountId]) {
                 accountMap[accountId] = {
@@ -171,8 +175,8 @@ export async function GET(request: NextRequest) {
             }
 
             accountMap[accountId].bottles += bottles;
-            accountMap[accountId].grossRevenue += bottles * BOTTLE_PRICE;
-            accountMap[accountId].netProfit += bottles * NET_PROFIT_PER_BOTTLE;
+            accountMap[accountId].grossRevenue += cashAmount;
+            accountMap[accountId].netProfit += cashAmount - (bottles * MANUFACTURER_COST);
         });
 
         const byAccount = Object.values(accountMap)
@@ -180,9 +184,9 @@ export async function GET(request: NextRequest) {
 
         // Calculate overall metrics
         const bottlesSold = orders.reduce((sum, order) => sum + (order.quantity || 0), 0);
-        const totalGrossRevenue = bottlesSold * BOTTLE_PRICE;
-        const totalNetProfit = bottlesSold * NET_PROFIT_PER_BOTTLE;
+        const totalGrossRevenue = orders.reduce((sum, order) => sum + (Number(order.cash_received) || 0), 0);
         const totalManufacturerCost = bottlesSold * MANUFACTURER_COST;
+        const totalNetProfit = totalGrossRevenue - totalManufacturerCost;
 
         return NextResponse.json({
             timeline,

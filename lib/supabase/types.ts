@@ -58,7 +58,7 @@ export type Database = {
                     whatsapp_sent: boolean
                     email_sent: boolean
                     admin_notes: string | null
-                    cash_received: boolean
+                    cash_received: number
                     created_at: string
                     updated_at: string
                 }
@@ -81,7 +81,7 @@ export type Database = {
                     whatsapp_sent?: boolean
                     email_sent?: boolean
                     admin_notes?: string | null
-                    cash_received?: boolean
+                    cash_received?: number
                     created_at?: string
                     updated_at?: string
                 }
@@ -104,7 +104,7 @@ export type Database = {
                     whatsapp_sent?: boolean
                     email_sent?: boolean
                     admin_notes?: string | null
-                    cash_received?: boolean
+                    cash_received?: number
                     created_at?: string
                     updated_at?: string
                 }

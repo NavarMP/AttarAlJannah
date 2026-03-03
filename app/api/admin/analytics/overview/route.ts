@@ -46,16 +46,16 @@ export async function GET(request: NextRequest) {
             .lt("created_at", prevEndDate.toISOString());
 
         // Calculate metrics using NET PROFIT (₹200 per bottle)
-        const cashReceivedOrders = currentOrders?.filter(o => o.cash_received === true) || [];
+        const cashReceivedOrders = currentOrders?.filter(o => (o.cash_received || 0) > 0) || [];
         const bottlesSold = cashReceivedOrders.reduce((sum, order) => sum + (order.quantity || 0), 0);
-        const totalRevenue = bottlesSold * NET_PROFIT_PER_BOTTLE; // Net profit, not gross
+        const totalRevenue = cashReceivedOrders.reduce((sum, order) => sum + (Number(order.cash_received) || 0), 0) - (bottlesSold * MANUFACTURER_COST); // Net profit: total cash received - cost of bottles
         const activeOrders = currentOrders?.filter(o => o.order_status === "confirmed" || o.order_status === "pending").length || 0;
         const totalOrders = currentOrders?.length || 0;
 
         // Previous period metrics
-        const prevCashOrders = previousOrders?.filter(o => o.cash_received === true) || [];
+        const prevCashOrders = previousOrders?.filter(o => (o.cash_received || 0) > 0) || [];
         const prevBottles = prevCashOrders.reduce((sum, order) => sum + (order.quantity || 0), 0);
-        const prevRevenue = prevBottles * NET_PROFIT_PER_BOTTLE;
+        const prevRevenue = prevCashOrders.reduce((sum, order) => sum + (Number(order.cash_received) || 0), 0) - (prevBottles * MANUFACTURER_COST);
         const prevActiveOrders = previousOrders?.filter(o => o.order_status === "confirmed" || o.order_status === "pending").length || 0;
 
         // Calculate growth percentages
@@ -124,12 +124,12 @@ export async function GET(request: NextRequest) {
             .lte("created_at", lastMonthEnd.toISOString());
 
         const thisMonthRevenue = thisMonthOrders
-            ?.filter(o => o.cash_received === true)
-            .reduce((sum, o) => sum + Number(o.total_price), 0) || 0;
+            ?.filter(o => (o.cash_received || 0) > 0)
+            .reduce((sum, o) => sum + Number(o.cash_received), 0) || 0;
 
         const lastMonthRevenue = lastMonthOrders
-            ?.filter(o => o.cash_received === true)
-            .reduce((sum, o) => sum + Number(o.total_price), 0) || 1;
+            ?.filter(o => (o.cash_received || 0) > 0)
+            .reduce((sum, o) => sum + Number(o.cash_received), 0) || 1;
 
         const monthlyGrowth = Math.round(((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100);
 

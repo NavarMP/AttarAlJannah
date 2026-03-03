@@ -18,6 +18,7 @@ import { AutoHideContainer } from "@/components/custom/auto-hide-container";
 import { DeliveryManagement } from "@/components/admin/delivery-management";
 import { VolunteerAssignment } from "@/components/admin/volunteer-assignment";
 import { TrackingTimeline } from "@/components/tracking-timeline";
+import { Slider } from "@/components/ui/slider";
 import { EditOrderDialog } from "@/components/admin/edit-order-dialog";
 
 interface Order {
@@ -48,7 +49,7 @@ interface Order {
     whatsapp_sent?: boolean;
     email_sent?: boolean;
     admin_notes?: string | null;
-    cash_received?: boolean;
+    cash_received?: number;
 }
 
 export default function OrderDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -75,6 +76,11 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
     const [isEditingNote, setIsEditingNote] = useState(false);
     const [noteInput, setNoteInput] = useState("");
     const [savingNote, setSavingNote] = useState(false);
+
+    // Cash Received Editing State
+    const [isEditingCash, setIsEditingCash] = useState(false);
+    const [cashInput, setCashInput] = useState(0);
+    const [savingCash, setSavingCash] = useState(false);
 
     // Fetch UPI IDs for autocomplete
     useEffect(() => {
@@ -602,32 +608,110 @@ ${dashboardUrl}
                         </div>
                         <div>
                             <p className="text-sm text-muted-foreground mb-1">Cash Received</p>
-                            <Button
-                                variant={order.cash_received ? "default" : "outline"}
-                                size="sm"
-                                className={`rounded-xl px-2 h-7 ${order.cash_received ? 'bg-green-600 hover:bg-green-700 text-white' : 'text-amber-600 border-amber-200 hover:bg-amber-50 dark:hover:bg-amber-900/30'}`}
-                                onClick={async () => {
-                                    setUpdating(true);
-                                    try {
-                                        const response = await fetch(`/api/admin/orders/${id}`, {
-                                            method: "PATCH",
-                                            headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({ cash_received: !order.cash_received }),
-                                        });
-                                        if (response.ok) {
-                                            toast.success(`Cash marked as ${!order.cash_received ? 'received' : 'not received'}`);
-                                            fetchOrder();
-                                        } else {
-                                            toast.error("Failed to update cash status");
-                                        }
-                                    } finally {
-                                        setUpdating(false);
-                                    }
-                                }}
-                                disabled={updating}
-                            >
-                                {order.cash_received ? 'Yes ✓' : 'No ✗'}
-                            </Button>
+                            {isEditingCash ? (
+                                <div className="space-y-3 mt-2 bg-muted/30 p-3 rounded-xl border border-border">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-lg font-bold text-primary">₹</span>
+                                        <Input
+                                            type="number"
+                                            value={cashInput}
+                                            onChange={(e) => setCashInput(Number(e.target.value))}
+                                            className="h-9 text-lg font-medium w-full"
+                                            min={0}
+                                        />
+                                    </div>
+                                    <Slider
+                                        value={[cashInput]}
+                                        min={0}
+                                        max={Math.max(order.total_price, cashInput, 313)}
+                                        step={1}
+                                        onValueChange={(vals: number[]) => setCashInput(vals[0])}
+                                        className="py-2"
+                                    />
+                                    <div className="flex items-center gap-2 justify-end pt-1">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                                setCashInput(0);
+                                            }}
+                                            className="h-8 text-xs mr-auto"
+                                        >
+                                            Set to ₹0
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                                setCashInput(order.total_price);
+                                            }}
+                                            className="h-8 text-xs mr-auto"
+                                        >
+                                            Set to Full (₹{order.total_price})
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => setIsEditingCash(false)}
+                                            disabled={savingCash}
+                                            className="h-8 text-xs"
+                                        >
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            onClick={async () => {
+                                                setSavingCash(true);
+                                                try {
+                                                    const response = await fetch(`/api/admin/orders/${id}`, {
+                                                        method: "PATCH",
+                                                        headers: { "Content-Type": "application/json" },
+                                                        body: JSON.stringify({ cash_received: cashInput }),
+                                                    });
+                                                    if (response.ok) {
+                                                        toast.success(`Cash amount updated successfully`);
+                                                        setIsEditingCash(false);
+                                                        fetchOrder();
+                                                    } else {
+                                                        toast.error("Failed to update cash amount");
+                                                    }
+                                                } finally {
+                                                    setSavingCash(false);
+                                                }
+                                            }}
+                                            disabled={savingCash}
+                                            className="h-8 text-xs"
+                                        >
+                                            {savingCash ? "Saving..." : "Save Amount"}
+                                        </Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-3">
+                                    <div className={`px-3 py-1.5 rounded-xl font-medium border ${Number(order.cash_received) >= order.total_price
+                                        ? 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800'
+                                        : Number(order.cash_received) > 0
+                                            ? 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'
+                                            : 'bg-muted text-muted-foreground border-border'
+                                        }`}>
+                                        ₹{order.cash_received || 0}
+                                        {Number(order.cash_received) < order.total_price && Number(order.cash_received) > 0 && (
+                                            <span className="ml-2 text-xs opacity-80">(Pending: ₹{order.total_price - Number(order.cash_received)})</span>
+                                        )}
+                                    </div>
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        onClick={() => {
+                                            setCashInput(Number(order.cash_received) || 0);
+                                            setIsEditingCash(true);
+                                        }}
+                                        className="h-8 w-8 rounded-xl"
+                                    >
+                                        <Pencil className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                         <div className="flex items-center justify-between">
                             <div>
