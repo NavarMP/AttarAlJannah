@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
     Package, ArrowLeft, Search, Trash2, MoreVertical, Eye, Edit2,
-    Phone, Copy, Download
+    Phone, Copy, Download, RefreshCw
 } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -63,6 +63,9 @@ export default function VolunteerOrdersPage() {
     const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
     const [bulkProcessing, setBulkProcessing] = useState(false);
 
+    // Refresh state
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
     useEffect(() => {
         const id = localStorage.getItem("volunteerId");
         if (!id) {
@@ -85,6 +88,20 @@ export default function VolunteerOrdersPage() {
             console.error(error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleRefresh = async () => {
+        if (!volunteerId) return;
+        setIsRefreshing(true);
+        try {
+            await fetchOrders(volunteerId);
+            toast.success("Orders refreshed!");
+        } catch (error) {
+            console.error("Refresh error:", error);
+            toast.error("Failed to refresh orders");
+        } finally {
+            setIsRefreshing(false);
         }
     };
 
@@ -266,6 +283,15 @@ export default function VolunteerOrdersPage() {
                         <p className="text-muted-foreground">Manage your customer orders • {orders.length} total</p>
                     </div>
                     <div className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={handleRefresh}
+                            disabled={isRefreshing}
+                            className="rounded-xl gap-2"
+                        >
+                            <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                            {isRefreshing ? "Refreshing..." : "Refresh"}
+                        </Button>
                         <Button
                             variant="outline"
                             onClick={() => router.push("/volunteer/dashboard")}

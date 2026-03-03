@@ -78,10 +78,8 @@ export async function GET(request: NextRequest) {
                 query = query.eq("order_status", status);
             }
         } else {
-            // Orders referred by this volunteer (not delivery duty)
-            query = query
-                .eq("volunteer_id", volunteer.id)
-                .or("is_delivery_duty.is.null,is_delivery_duty.eq.false");
+            // Orders assigned to this volunteer (both referral and delivery duty)
+            query = query.eq("volunteer_id", volunteer.id);
         }
 
         query = query.order("created_at", { ascending: false });

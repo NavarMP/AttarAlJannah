@@ -10,6 +10,13 @@ import { toast } from "sonner";
 import { Loader2, Save, Upload, X, Image as ImageIcon } from "lucide-react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+interface Volunteer {
+    id: string;
+    name: string;
+    volunteer_id: string;
+}
 
 interface EditOrderDialogProps {
     orderId: string;
@@ -43,7 +50,11 @@ export function EditOrderDialog({ orderId, trigger, open: controlledOpen, onOpen
         payment_method: "cod",
         payment_screenshot_url: "",
         cash_received: 0,
+        volunteer_id: "",
     });
+
+    // Volunteer list for referral dropdown
+    const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
 
     // Screenshot state
     const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
@@ -71,6 +82,7 @@ export function EditOrderDialog({ orderId, trigger, open: controlledOpen, onOpen
                         payment_method: data.payment_method || "cod",
                         payment_screenshot_url: data.payment_screenshot_url || "",
                         cash_received: data.cash_received || 0,
+                        volunteer_id: data.volunteer_id || "",
                     });
                     setScreenshotPreview("");
                     setScreenshotFile(null);
@@ -84,7 +96,18 @@ export function EditOrderDialog({ orderId, trigger, open: controlledOpen, onOpen
                 }
             };
 
+            const fetchVolunteers = async () => {
+                try {
+                    const response = await fetch("/api/admin/volunteers?limit=1000");
+                    const data = await response.json();
+                    setVolunteers(data.volunteers || []);
+                } catch (error) {
+                    console.error("Failed to fetch volunteers:", error);
+                }
+            };
+
             fetchOrderDetails();
+            fetchVolunteers();
         }
     }, [open, orderId, setOpen]);
 
@@ -151,10 +174,15 @@ export function EditOrderDialog({ orderId, trigger, open: controlledOpen, onOpen
             }
 
             const isOnlinePayment = ['razorpay', 'qr'].includes(formData.payment_method);
-            const payload = {
+            const payload: any = {
                 ...formData,
                 payment_screenshot_url: (!isOnlinePayment || removeScreenshot) ? null : (finalScreenshotUrl || undefined)
             };
+
+            // Send volunteer_id for referral volunteer assignment (empty string = remove)
+            if (formData.volunteer_id === "") {
+                payload.volunteer_id = null;
+            }
 
             const response = await fetch(`/api/admin/orders/${orderId}`, {
                 method: "PATCH",
@@ -288,6 +316,26 @@ export function EditOrderDialog({ orderId, trigger, open: controlledOpen, onOpen
                                         onChange={handleChange}
                                     />
                                     <p className="text-xs text-muted-foreground mt-1">Amount collected so far. Can be partial or advance. Leave 0 if unpaid.</p>
+                                </div>
+                                <div className="space-y-2 col-span-2">
+                                    <Label htmlFor="volunteer_id">Referral Volunteer</Label>
+                                    <Select
+                                        value={formData.volunteer_id || "none"}
+                                        onValueChange={(value) => setFormData(prev => ({ ...prev, volunteer_id: value === "none" ? "" : value }))}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select volunteer" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">No Volunteer</SelectItem>
+                                            {volunteers.map((v) => (
+                                                <SelectItem key={v.id} value={v.id}>
+                                                    {v.name} (@{v.volunteer_id})
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-muted-foreground mt-1">Assign or change the referral volunteer for this order.</p>
                                 </div>
                             </div>
 

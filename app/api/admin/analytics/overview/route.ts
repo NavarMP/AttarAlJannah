@@ -49,14 +49,14 @@ export async function GET(request: NextRequest) {
         const cashReceivedOrders = currentOrders?.filter(o => (o.cash_received || 0) > 0) || [];
         const bottlesSold = cashReceivedOrders.reduce((sum, order) => sum + (order.quantity || 0), 0);
         const totalRevenue = cashReceivedOrders.reduce((sum, order) => sum + (Number(order.cash_received) || 0), 0) - (bottlesSold * MANUFACTURER_COST); // Net profit: total cash received - cost of bottles
-        const activeOrders = currentOrders?.filter(o => o.order_status === "confirmed" || o.order_status === "pending").length || 0;
+        const activeOrders = currentOrders?.filter(o => o.order_status === "delivered" || o.order_status === "confirmed" || o.order_status === "pending").length || 0;
         const totalOrders = currentOrders?.length || 0;
 
         // Previous period metrics
         const prevCashOrders = previousOrders?.filter(o => (o.cash_received || 0) > 0) || [];
         const prevBottles = prevCashOrders.reduce((sum, order) => sum + (order.quantity || 0), 0);
         const prevRevenue = prevCashOrders.reduce((sum, order) => sum + (Number(order.cash_received) || 0), 0) - (prevBottles * MANUFACTURER_COST);
-        const prevActiveOrders = previousOrders?.filter(o => o.order_status === "confirmed" || o.order_status === "pending").length || 0;
+        const prevActiveOrders = previousOrders?.filter(o => o.order_status === "delivered" || o.order_status === "confirmed" || o.order_status === "pending").length || 0;
 
         // Calculate growth percentages
         const revenueGrowth = prevRevenue === 0 ? 100 : Math.round(((totalRevenue - prevRevenue) / prevRevenue) * 100);

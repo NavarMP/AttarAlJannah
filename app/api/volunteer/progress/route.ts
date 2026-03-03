@@ -44,34 +44,29 @@ export async function GET(request: NextRequest) {
             .maybeSingle();
 
         // Get order statistics using the volunteer's UUID
-        // We only want orders where they are the referrer, not the delivery volunteer
+        // Include all orders assigned to this volunteer (both referral and delivery duty)
         // and only orders that have not been deleted
         const { data: orders } = await supabase
             .from("orders")
             .select("*")
             .eq("volunteer_id", targetUuid)
-            .is("deleted_at", null)
-            .or("is_delivery_duty.is.null,is_delivery_duty.eq.false");
+            .is("deleted_at", null);
 
-        // Filter confirmed/delivered orders
-        const confirmedOrders = orders?.filter(o => o.order_status === "confirmed" || o.order_status === "delivered") || [];
-        const pendingOrders = orders?.filter(o => o.order_status === "pending") || [];
+        // Filter all active orders (pending + confirmed + delivered)
+        const activeOrders = orders?.filter(o =>
+            ["pending", "confirmed", "delivered"].includes(o.order_status)
+        ) || [];
 
-        // Calculate confirmed bottles and orders
-        const confirmedBottles = confirmedOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
-        const confirmedOrdersCount = confirmedOrders.length;
+        // Calculate active bottles and orders
+        const activeBottles = activeOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
+        const activeOrdersCount = activeOrders.length;
 
-        const pendingBottles = pendingOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
-        const pendingOrdersCount = pendingOrders.length;
-
-        // Calculate total revenue from confirmed orders
-        const totalRevenue = confirmedOrders.reduce((sum, o) => sum + o.total_price, 0);
+        // Calculate total revenue from all active orders
+        const totalRevenue = activeOrders.reduce((sum, o) => sum + o.total_price, 0);
 
         return NextResponse.json({
-            confirmedBottles,
-            confirmedOrders: confirmedOrdersCount,
-            pendingBottles,
-            pendingOrders: pendingOrdersCount,
+            activeBottles,
+            activeOrders: activeOrdersCount,
             goal: progress?.goal || 20,
             totalRevenue: Math.round(totalRevenue),
         });

@@ -6,18 +6,16 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Package, TrendingUp, Trophy, Plus, DollarSign, Share2 } from "lucide-react";
+import { Package, TrendingUp, Trophy, Plus, DollarSign, Share2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { calculateCommission } from "@/lib/utils/commission-utils";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 
 
 interface DashboardStats {
-    confirmedBottles: number;
-    confirmedOrders: number;
+    activeBottles: number;
+    activeOrders: number;
     goal: number;
-    pendingBottles: number;
-    pendingOrders: number;
     totalRevenue: number;
 }
 
@@ -25,15 +23,15 @@ export default function VolunteerDashboardPage() {
     const router = useRouter();
     const [volunteerName, setVolunteerName] = useState("");
     const [volunteerId, setVolunteerId] = useState("");
+    const [volunteerUuid, setVolunteerUuid] = useState("");
     const [stats, setStats] = useState<DashboardStats>({
-        confirmedBottles: 0,
-        confirmedOrders: 0,
+        activeBottles: 0,
+        activeOrders: 0,
         goal: 20,
-        pendingBottles: 0,
-        pendingOrders: 0,
         totalRevenue: 0,
     });
     const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     const fetchStats = useCallback(async (id: string) => {
         try {
@@ -61,15 +59,18 @@ export default function VolunteerDashboardPage() {
                 if (data.uuid) {
                     console.log("Fetched UUID from API:", data.uuid);
                     localStorage.setItem("volunteerUuid", data.uuid);
+                    setVolunteerUuid(data.uuid);
                     fetchStats(data.uuid);
                     return;
                 }
             }
             // Fallback: try with readable ID (might not work but better than nothing)
             console.warn("Could not fetch UUID, falling back to readable ID:", volunteerId);
+            setVolunteerUuid(volunteerId);
             fetchStats(volunteerId);
         } catch (error) {
             console.error("Error fetching UUID:", error);
+            setVolunteerUuid(volunteerId);
             fetchStats(volunteerId);
         }
     }, [fetchStats]);
@@ -94,6 +95,7 @@ export default function VolunteerDashboardPage() {
             fetchAndStoreUuid(id);
         } else {
             console.log("Using stored UUID:", uuid);
+            setVolunteerUuid(uuid);
             fetchStats(uuid);
         }
     }, [router, fetchAndStoreUuid, fetchStats]);
@@ -104,7 +106,20 @@ export default function VolunteerDashboardPage() {
         router.push("/volunteer/login");
     };
 
-    const progressPercentage = (stats.confirmedBottles / stats.goal) * 100;
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        try {
+            await fetchStats(volunteerUuid);
+            toast.success("Dashboard refreshed!");
+        } catch (error) {
+            console.error("Refresh error:", error);
+            toast.error("Failed to refresh dashboard");
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
+
+    const progressPercentage = (stats.activeBottles / stats.goal) * 100;
 
     if (isLoading) {
         return (
@@ -119,13 +134,25 @@ export default function VolunteerDashboardPage() {
             <div className="max-w-6xl mx-auto space-y-8">
                 {/* Header */}
                 <div>
-                    <h1 className="text-4xl font-bold text-foreground">
-                        Welcome back, {volunteerName}!
-                    </h1>
-                    <div className="flex justify-between items-start mt-2">
-                        <p className="text-muted-foreground">
-                            Track your progress and manage your orders
-                        </p>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <h1 className="text-4xl font-bold text-foreground">
+                                Welcome back, {volunteerName}!
+                            </h1>
+                            <p className="text-muted-foreground mt-2">
+                                Track your progress and manage your orders
+                            </p>
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleRefresh}
+                            disabled={isRefreshing}
+                            className="gap-2"
+                        >
+                            <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                            {isRefreshing ? "Refreshing..." : "Refresh"}
+                        </Button>
                     </div>
                 </div>
 
@@ -141,7 +168,7 @@ export default function VolunteerDashboardPage() {
                         <div className="space-y-2">
                             <div className="flex justify-between items-center">
                                 <span className="text-2xl font-bold text-foreground">
-                                    {stats.confirmedBottles} / {stats.goal} Bottles
+                                    {stats.activeBottles} / {stats.goal} Bottles
                                 </span>
                                 <span className="text-sm text-muted-foreground">
                                     {Math.round(progressPercentage)}% Complete
@@ -150,7 +177,7 @@ export default function VolunteerDashboardPage() {
                             <Progress value={progressPercentage} className="h-4" />
                         </div>
 
-                        {stats.confirmedBottles >= stats.goal ? (
+                        {stats.activeBottles >= stats.goal ? (
                             <div className="p-4 bg-gradient-to-r from-gold-500/20 to-emerald-500/20 rounded-lg border border-gold-300 dark:border-gold-700">
                                 <p className="text-lg font-bold text-center">
                                     🎉 Goal Achieved! Keep going for more bottles! 🚀
@@ -158,7 +185,7 @@ export default function VolunteerDashboardPage() {
                             </div>
                         ) : (
                             <p className="text-sm text-muted-foreground">
-                                Keep going! {stats.goal - stats.confirmedBottles} more bottles to reach your goal.
+                                Keep going! {stats.goal - stats.activeBottles} more bottles to reach your goal.
                             </p>
                         )}
                     </CardContent>
@@ -174,26 +201,12 @@ export default function VolunteerDashboardPage() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="flex justify-between items-end">
-                                <div>
-                                    <p className="text-3xl font-bold text-foreground">
-                                        {stats.confirmedOrders}
-                                    </p>
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                        confirmed orders
-                                    </p>
-                                </div>
-                                {stats.pendingOrders > 0 && (
-                                    <div className="text-right pb-1">
-                                        <p className="text-lg font-semibold text-orange-500">
-                                            {stats.pendingOrders}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            pending
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
+                            <p className="text-3xl font-bold text-foreground">
+                                {stats.activeOrders}
+                            </p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                                orders
+                            </p>
                         </CardContent>
                     </Card>
 
@@ -223,11 +236,11 @@ export default function VolunteerDashboardPage() {
                         </CardHeader>
                         <CardContent>
                             <p className="text-3xl font-bold text-gold-500">
-                                ₹{calculateCommission(stats.confirmedBottles, stats.goal).toLocaleString()}
+                                ₹{calculateCommission(stats.activeBottles, stats.goal).toLocaleString()}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
-                                {stats.confirmedBottles > stats.goal
-                                    ? `₹10 per bottle after ${stats.goal} (${stats.confirmedBottles - stats.goal} eligible)`
+                                {stats.activeBottles > stats.goal
+                                    ? `₹10 per bottle after ${stats.goal} (${stats.activeBottles - stats.goal} eligible)`
                                     : `Sales after ${stats.goal} bottles earn ₹10 each`
                                 }
                             </p>
