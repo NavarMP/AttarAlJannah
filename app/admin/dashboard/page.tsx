@@ -170,7 +170,7 @@ export default function AdminDashboard() {
                 <Card className="rounded-3xl">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium text-muted-foreground">
-                            Net Profit
+                            Revenue
                         </CardTitle>
                         <DollarSign className="h-5 w-5 text-green-500" />
                     </CardHeader>

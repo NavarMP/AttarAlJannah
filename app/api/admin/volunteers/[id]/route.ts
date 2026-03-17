@@ -67,10 +67,7 @@ export async function PUT(
         const supabase = await createClient();
 
         // Sanitize body — remove fields that don't belong in volunteers table
-        const { confirmPassword, goal, houseBuilding, locationLink, phoneCountry, ...updateData } = body;
-        if (updateData.password === "") {
-            delete updateData.password;
-        }
+        const { confirmPassword, goal, houseBuilding, locationLink, phoneCountry, password, ...updateData } = body;
 
         // Try update by volunteer_id
         let { data, error } = await supabase
@@ -96,6 +93,25 @@ export async function PUT(
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 400 });
+        }
+
+        // Update password in Auth if provided
+        if (password && password.trim() !== "" && data?.auth_id) {
+            const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+            const adminSupabase = createSupabaseClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                process.env.SUPABASE_SERVICE_ROLE_KEY!
+            );
+            
+            const { error: passwordError } = await adminSupabase.auth.admin.updateUserById(
+                data.auth_id,
+                { password: password }
+            );
+            
+            if (passwordError) {
+                console.error("Failed to update password:", passwordError);
+                return NextResponse.json({ error: "Failed to update password: " + passwordError.message }, { status: 400 });
+            }
         }
 
         // Update goal in challenge_progress table if provided

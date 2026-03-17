@@ -20,10 +20,18 @@ export async function GET(request: NextRequest) {
         // 2. Fetch all orders to calculate stats and get details
         const { data: orders, error: ordersError } = await supabase
             .from("orders")
-            .select("customer_phone, customer_name, created_at")
+            .select("id, customer_phone, customer_name, whatsapp_number, quantity, created_at, order_status, delivery_method, payment_method, volunteer_id, is_delivery_duty")
             .is("deleted_at", null);
 
         if (ordersError) throw ordersError;
+
+        // Fetch volunteers for volunteer info
+        const { data: volunteersData } = await supabase
+            .from("volunteers")
+            .select("id, name");
+
+        const volunteerMap = new Map<string, string>();
+        volunteersData?.forEach(v => volunteerMap.set(v.id, v.name));
 
         // 3. Aggregate stats and Find Guest Customers
         // Split customers into active and deleted
@@ -36,7 +44,8 @@ export async function GET(request: NextRequest) {
 
         // Group orders by phone
         const ordersByPhone = new Map<string, any[]>();
-        orders?.forEach(o => {
+        orders?.forEach((o: any) => {
+            if (!o.customer_phone) return;
             const phone = o.customer_phone;
             if (!ordersByPhone.has(phone)) {
                 ordersByPhone.set(phone, []);
@@ -62,21 +71,36 @@ export async function GET(request: NextRequest) {
                         , userOrders[0].created_at)
                     : customer.last_order_at;
 
-                // Get email from latest order if not in profile
+                // Get email from customer profile and WhatsApp from orders
                 const sortedOrders = [...userOrders].sort((a, b) =>
                     new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
                 );
-                const email = sortedOrders.find(o => o.customer_email)?.customer_email || null;
+                const email = customer.email || null;
+                const whatsapp_number = sortedOrders.find(o => o.whatsapp_number)?.whatsapp_number || null;
+                const totalBottles = userOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
+
+                const orderStatuses = [...new Set(userOrders.map(o => o.order_status))];
+                const deliveryMethods = [...new Set(userOrders.map(o => o.delivery_method).filter(Boolean))];
+                const paymentMethods = [...new Set(userOrders.map(o => o.payment_method).filter(Boolean))];
+                const referredVolunteers = [...new Set(userOrders.map(o => o.is_delivery_duty === false ? o.volunteer_id : null).filter(Boolean))];
+                const deliveryVolunteers = [...new Set(userOrders.map(o => o.is_delivery_duty === true ? o.volunteer_id : null).filter(Boolean))];
 
                 allCustomers.push({
                     id: customer.id,
                     phone: customer.phone,
                     name: customer.name,
-                    email: email, // Customers table doesn't have email in schema currently (only phone/address)
+                    email: email,
                     address: customer.address,
+                    whatsapp_number,
                     total_orders: totalOrders,
+                    total_bottles: totalBottles,
                     last_order_at: lastOrder,
-                    created_at: customer.created_at
+                    created_at: customer.created_at,
+                    order_statuses: orderStatuses,
+                    delivery_methods: deliveryMethods,
+                    payment_methods: paymentMethods,
+                    referred_volunteers: referredVolunteers,
+                    delivery_volunteers: deliveryVolunteers,
                 });
             }
         }
@@ -86,20 +110,34 @@ export async function GET(request: NextRequest) {
             if (!customerMap.has(phone) && !deletedPhoneSet.has(phone)) {
                 // This is a guest
                 const totalOrders = userOrders.length;
+                const totalBottles = userOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
                 // Get latest order for details
                 const sortedOrders = [...userOrders].sort((a, b) =>
                     new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
                 );
                 const latestOrder = sortedOrders[0];
 
+                const orderStatuses = [...new Set(userOrders.map(o => o.order_status))];
+                const deliveryMethods = [...new Set(userOrders.map(o => o.delivery_method).filter(Boolean))];
+                const paymentMethods = [...new Set(userOrders.map(o => o.payment_method).filter(Boolean))];
+                const referredVolunteers = [...new Set(userOrders.map(o => o.is_delivery_duty === false ? o.volunteer_id : null).filter(Boolean))];
+                const deliveryVolunteers = [...new Set(userOrders.map(o => o.is_delivery_duty === true ? o.volunteer_id : null).filter(Boolean))];
+
                 allCustomers.push({
                     id: `guest-${phone}`, // Generate simple ID
                     phone: phone,
                     name: latestOrder.customer_name || "Guest Customer",
-                    email: latestOrder.customer_email || null,
+                    email: null,
+                    whatsapp_number: latestOrder.whatsapp_number || null,
                     total_orders: totalOrders,
+                    total_bottles: totalBottles,
                     last_order_at: latestOrder.created_at,
-                    created_at: sortedOrders[sortedOrders.length - 1].created_at // Use first order date as created_at
+                    created_at: sortedOrders[sortedOrders.length - 1].created_at,
+                    order_statuses: orderStatuses,
+                    delivery_methods: deliveryMethods,
+                    payment_methods: paymentMethods,
+                    referred_volunteers: referredVolunteers,
+                    delivery_volunteers: deliveryVolunteers,
                 });
             }
         }

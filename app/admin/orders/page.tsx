@@ -36,6 +36,7 @@ import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BulkActionBar, BulkAction } from "@/components/admin/bulk-action-bar";
 import { EditOrderDialog } from "@/components/admin/edit-order-dialog";
+import { ExportPrintDialog, type ExportConfig, type PrintConfig, type ColumnOption } from "@/components/admin/export-print-dialog";
 
 interface Stats {
     totalBottles: number;
@@ -483,31 +484,159 @@ ${dashboardUrl}
         window.open(`/admin/orders/${orderId}?action=print`, "_blank");
     };
 
-    const handleExportCSV = async (selectedIds?: string[]) => {
+    const handleExport = async (config: ExportConfig) => {
         try {
-            const params = new URLSearchParams({ type: "orders" });
-            if (selectedIds && selectedIds.length > 0) {
-                params.set("ids", selectedIds.join(","));
+            const params = new URLSearchParams({ type: "orders", format: config.format });
+            
+            if (config.columns.length > 0) {
+                params.set("columns", config.columns.join(","));
             }
+            
+            if (config.scope === "selected" && selectedOrders.size > 0) {
+                params.set("ids", Array.from(selectedOrders).join(","));
+            }
+            
+            if (config.includeFilters && hasActiveFilters) {
+                if (statusFilter !== "all") params.set("status", statusFilter);
+                if (startDate) params.set("startDate", startDate);
+                if (endDate) params.set("endDate", endDate);
+                if (referredByFilter !== "all") params.set("referredBy", referredByFilter);
+                if (deliveryVolunteerFilter !== "all") params.set("deliveryVolunteer", deliveryVolunteerFilter);
+                if (deliveryMethodFilter !== "all") params.set("deliveryMethod", deliveryMethodFilter);
+                if (paymentMethodFilter !== "all") params.set("paymentMethod", paymentMethodFilter);
+                if (cashReceivedFilter !== "all") params.set("cashReceived", cashReceivedFilter);
+            }
+            
+            if (config.includeSort) {
+                params.set("sortBy", sortBy);
+                params.set("sortOrder", sortOrder);
+            }
+
             const response = await fetch(`/api/admin/export?${params}`);
             if (!response.ok) {
-                toast.error("Failed to export");
+                const err = await response.json().catch(() => ({}));
+                toast.error(err.error || "Failed to export");
                 return;
             }
+            
+            const contentType = config.format === "excel" 
+                ? "application/vnd.ms-excel" 
+                : config.format === "pdf"
+                ? "application/pdf"
+                : "text/csv";
+                
             const blob = await response.blob();
+            const ext = config.format === "excel" ? "xls" : config.format;
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = `orders_export_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.download = `orders_export_${new Date().toISOString().slice(0, 10)}.${ext}`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            toast.success("Orders exported successfully");
+            toast.success(`Orders exported as ${config.format.toUpperCase()}`);
         } catch (error) {
+            console.error("Export error:", error);
             toast.error("Failed to export orders");
         }
     };
+
+    const handlePrint = (config: PrintConfig) => {
+        let printData = orders;
+        
+        if (config.scope === "selected" && selectedOrders.size > 0) {
+            printData = orders.filter(o => selectedOrders.has(o.id));
+        }
+        
+        const printWindow = window.open("", "_blank", "width=800,height=600");
+        if (!printWindow) {
+            toast.error("Unable to open print window");
+            return;
+        }
+
+        const columns = config.columns || ORDER_COLUMNS.map(c => c.key);
+        const headers = columns.map(col => ORDER_COLUMNS.find(c => c.key === col)?.label || col);
+
+        const formatStatus = (status: string) => ORDER_STATUSES.find(s => s.value === status)?.label || status;
+        const formatDelivery = (method?: string) => method ? (DELIVERY_METHODS.find(d => d.value === method)?.label || method) : "-";
+
+        let tableRows = printData.map(order => {
+            return columns.map(col => {
+                let val: any;
+                switch (col) {
+                    case "customer_name": val = order.customer_name; break;
+                    case "customer_phone": val = order.customer_phone; break;
+                    case "whatsapp_number": val = order.whatsapp_number || "-"; break;
+                    case "quantity": val = order.quantity; break;
+                    case "total_price": val = `₹${order.total_price}`; break;
+                    case "payment_method": val = order.payment_method === 'cod' ? 'Cash on Delivery' : order.payment_method === 'volunteer_cash' ? 'Cash (Volunteer)' : order.payment_method === 'qr' ? 'UPI' : order.payment_method === 'razorpay' ? 'Razorpay' : order.payment_method || "-"; break;
+                    case "order_status": val = formatStatus(order.order_status); break;
+                    case "delivery_method": val = formatDelivery(order.delivery_method); break;
+                    case "created_at": val = new Date(order.created_at).toLocaleDateString(); break;
+                    default: val = "-";
+                }
+                return val;
+            }).join("</td><td>");
+        }).map(row => `<tr><td>${row}</td></tr>`).join("");
+
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Orders Report</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 20px; }
+                    h1 { margin-bottom: 20px; }
+                    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    th { background-color: #f5f5f5; font-weight: bold; }
+                    tr:nth-child(even) { background-color: #fafafa; }
+                    .meta { margin-bottom: 20px; color: #666; font-size: 12px; }
+                    @media print {
+                        body { -webkit-print-color-adjust: exact; }
+                        th { background-color: #e0e0e0 !important; }
+                    }
+                </style>
+            </head>
+            <body>
+                <h1>Orders Report</h1>
+                <div class="meta">
+                    <p>Total Records: ${printData.length}</p>
+                    <p>Generated: ${new Date().toLocaleString()}</p>
+                    ${hasActiveFilters ? "<p>Filtered view</p>" : ""}
+                </div>
+                <table>
+                    <thead>
+                        <tr><th>${headers.join("</th><th>")}</th></tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows}
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+        }, 250);
+    };
+
+    const ORDER_COLUMNS: ColumnOption[] = [
+        { key: "customer_name", label: "Customer", default: true },
+        { key: "customer_phone", label: "Phone", default: true },
+        { key: "whatsapp_number", label: "WhatsApp", default: true },
+        { key: "quantity", label: "Qty", default: true },
+        { key: "total_price", label: "Total", default: true },
+        { key: "payment_method", label: "Payment", default: true },
+        { key: "order_status", label: "Status", default: true },
+        { key: "delivery_method", label: "Delivery", default: true },
+        { key: "created_at", label: "Date", default: true },
+    ];
 
     // ==== Selection helpers ====
 
@@ -522,8 +651,9 @@ ${dashboardUrl}
     };
 
     const toggleSelectAll = () => {
-        if (selectedOrders.size === orders.length) {
+        if (selectedOrders.size === orders.length && orders.length > 0) {
             setSelectedOrders(new Set());
+        } else {
             setSelectedOrders(new Set(orders.map(o => o.id)));
         }
     };
@@ -685,7 +815,7 @@ ${dashboardUrl}
             icon: <Download className="h-4 w-4" />,
             variant: "outline",
             onExecute: async () => {
-                await handleExportCSV(Array.from(selectedOrders));
+                await handleExport({ format: "csv", columns: ORDER_COLUMNS.filter(c => c.default).map(c => c.key), scope: "selected", includeFilters: true, includeSort: true });
             },
         },
         {
@@ -764,15 +894,25 @@ ${dashboardUrl}
                     <h1 className="text-3xl font-bold">Orders</h1>
                     <p className="text-muted-foreground">Manage all customer orders • {totalCount} total</p>
                 </div>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="rounded-xl gap-2"
-                    onClick={() => handleExportCSV()}
+                <ExportPrintDialog
+                    options={{
+                        type: "orders",
+                        columns: ORDER_COLUMNS,
+                        data: orders as unknown as Record<string, unknown>[],
+                        selectedIds: Array.from(selectedOrders),
+                        filters: { status: statusFilter, search },
+                        sortBy,
+                        sortOrder,
+                        totalCount,
+                    }}
+                    onExport={handleExport}
+                    onPrint={handlePrint}
                 >
-                    <Download className="h-4 w-4" />
-                    Export All
-                </Button>
+                    <Button variant="outline" size="sm" className="rounded-xl gap-2">
+                        <Download className="h-4 w-4" />
+                        Export
+                    </Button>
+                </ExportPrintDialog>
             </div>
 
             {/* Stats Cards */}
