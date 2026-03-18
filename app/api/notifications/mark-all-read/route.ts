@@ -5,19 +5,33 @@ import { createClient } from "@/lib/supabase/server";
 export async function POST(request: NextRequest) {
     try {
         const supabase = await createClient();
+        const body = await request.json().catch(() => ({}));
 
-        // Get current user
+        // Get current user (Supabase Auth OR Simple Auth ID)
         const { data: { user } } = await supabase.auth.getUser();
+        let targetUserId = user?.id;
 
-        if (!user) {
+        // If no session, check for provided user_id (Simple Auth)
+        if (!targetUserId && body.user_id) {
+            targetUserId = body.user_id;
+        }
+
+        if (!targetUserId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // Update all unread notifications for this user
-        const { data, error } = await supabase
+        // Use service role client for bypassing RLS
+        const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+        const adminSupabase = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+
+        // Update all unread notifications for this user AND public notifications
+        const { data, error } = await adminSupabase
             .from("notifications")
             .update({ is_read: true })
-            .eq("user_id", user.id)
+            .or(`user_id.eq.${targetUserId},user_role.eq.public`)
             .eq("is_read", false)
             .select();
 

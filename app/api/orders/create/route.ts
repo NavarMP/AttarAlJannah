@@ -162,6 +162,48 @@ export async function POST(request: NextRequest) {
 
         console.log("✅ Order created successfully:", orderData.id);
 
+        // Auto-assign delivery zone based on pincode
+        let assignedZoneId = null;
+        if (pincode) {
+            try {
+                const { data: zones } = await supabase
+                    .from("delivery_zones")
+                    .select("id, pincodes, pincode_start, pincode_end, is_active")
+                    .eq("is_active", true);
+
+                if (zones && zones.length > 0) {
+                    const pincodeNum = parseInt(pincode);
+                    for (const zone of zones) {
+                        // Check exact pincodes array match
+                        if (zone.pincodes && zone.pincodes.includes(pincode)) {
+                            assignedZoneId = zone.id;
+                            break;
+                        }
+                        // Check pincode range
+                        if (zone.pincode_start && zone.pincode_end) {
+                            const start = parseInt(zone.pincode_start);
+                            const end = parseInt(zone.pincode_end);
+                            if (!isNaN(pincodeNum) && pincodeNum >= start && pincodeNum <= end) {
+                                assignedZoneId = zone.id;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Update order with zone_id if found
+                    if (assignedZoneId) {
+                        await supabase
+                            .from("orders")
+                            .update({ zone_id: assignedZoneId })
+                            .eq("id", orderData.id);
+                        console.log("✅ Zone assigned:", assignedZoneId);
+                    }
+                }
+            } catch (zoneError) {
+                console.error("⚠️ Zone assignment error (non-blocking):", zoneError);
+            }
+        }
+
         // Send unique stylish order confirmation email via Nodemailer
         if (customerEmail) {
             console.log(`📧 Sending automated Nodemailer confirmation to: ${customerEmail}`);

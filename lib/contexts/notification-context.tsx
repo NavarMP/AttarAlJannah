@@ -175,19 +175,22 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             }
 
             // 2. Handle Private Notifications via API
-            // (We call API regardless, to clear private ones efficiently)
+            // Determine User ID for Simple Auth support
+            let targetUserId = user?.id;
+            if (!targetUserId && typeof window !== "undefined") {
+                targetUserId = localStorage.getItem("volunteerUuid") || localStorage.getItem("customerUuid") || undefined;
+            }
+
             const response = await fetch("/api/notifications/mark-all-read", {
                 method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    user_id: targetUserId
+                }),
             });
 
             if (!response.ok) {
-                // If API fails (maybe auth?), we still want to keep the UI update for public ones?
-                // But let's throw to be safe, though public ones are already handled.
-                console.warn("API Mark All Read failed (might be expected for simple auth?)");
-                // For Simple Auth, 'mark-all-read' endpoint might need update too?
-                // Yes, 'mark-all-read' endpoint uses session. It fails for Simple Auth.
-                // We should probably loop update or fix that endpoint.
-                // For now, let's just proceed optimistically.
+                console.warn("API Mark All Read failed:", await response.text());
             }
 
             // Update local state
@@ -204,25 +207,25 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     const deleteNotification = async (id: string) => {
         const notification = notifications.find(n => n.id === id);
 
-        // Public notifications cannot be deleted from DB by user, just hide them locally?
-        // Or "Mark as Read" is enough.
-        // If Delete is required, we can store in "deleted_public_notifications".
-        // Let's assume Delete = Mark Read for public for now to avoid complexity or just block it.
-        // Actually letting it fail is fine, or implementing "deleted_public" logic.
-        // Let's implement local hide.
+        // Public notifications cannot be deleted from DB by user, just hide them locally
         if (notification?.user_role === 'public') {
-            // Treat as delete
-            // We can use the same "read" logic? Or a new "hidden" list?
-            // Simplest: Mark as read locally and filter out if we want to hide? 
-            // But UI shows "Delete".
             setNotifications((prev) => prev.filter((n) => n.id !== id));
-            // We won't persist delete for public yet, unless requested.
             return;
         }
 
         try {
+            // Determine User ID for Simple Auth support
+            let targetUserId = user?.id;
+            if (!targetUserId && typeof window !== "undefined") {
+                targetUserId = localStorage.getItem("volunteerUuid") || localStorage.getItem("customerUuid") || undefined;
+            }
+
             const response = await fetch(`/api/notifications/${id}`, {
                 method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    user_id: targetUserId
+                }),
             });
 
             if (!response.ok) {
@@ -248,23 +251,33 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
     // Setup Supabase Realtime subscription for new notifications
     useEffect(() => {
-        if (!user) return;
+        // Determine target user ID
+        let targetUserId = user?.id;
+        if (!targetUserId && typeof window !== "undefined") {
+            targetUserId = localStorage.getItem("volunteerUuid") || localStorage.getItem("customerUuid") || undefined;
+        }
+
+        if (!targetUserId) return;
 
         const channel = supabase
-            .channel(`notifications:${user.id}`)
+            .channel(`notifications:${targetUserId}`)
             .on(
                 "postgres_changes",
                 {
                     event: "INSERT",
                     schema: "public",
                     table: "notifications",
-                    filter: `user_id=eq.${user.id}`,
+                    filter: `user_id=eq.${targetUserId}`,
                 },
                 (payload) => {
                     const newNotification = payload.new as Notification;
 
                     // Add to notifications list
-                    setNotifications((prev) => [newNotification, ...prev]);
+                    setNotifications((prev) => {
+                        // Avoid duplicates
+                        if (prev.some(n => n.id === newNotification.id)) return prev;
+                        return [newNotification, ...prev];
+                    });
                     setUnreadCount((prev) => prev + 1);
 
                     // Show toast notification
@@ -280,7 +293,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
                     // }
                 }
             )
-            .subscribe();
+            .subscribe((status) => {
+                if (status === 'CHANNEL_ERROR') {
+                    console.error('Realtime notification subscription error');
+                }
+            });
 
         return () => {
             supabase.removeChannel(channel);

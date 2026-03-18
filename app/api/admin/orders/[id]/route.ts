@@ -19,6 +19,17 @@ export async function GET(
             .eq("id", id)
             .single();
 
+        // If zone_id exists, fetch zone separately
+        let zoneData = null;
+        if (data?.zone_id) {
+            const { data: zone } = await supabase
+                .from("delivery_zones")
+                .select("name")
+                .eq("id", data.zone_id)
+                .single();
+            zoneData = zone;
+        }
+
         if (error) {
             console.error("Order fetch error:", error);
             return NextResponse.json({ error: "Order not found" }, { status: 404 });
@@ -28,7 +39,8 @@ export async function GET(
         const orderWithVolunteerId = {
             ...data,
             delivery_volunteer_id: data.volunteers?.volunteer_id || null,
-            customer_email: data.customers?.email || null
+            customer_email: data.customers?.email || null,
+            zones: zoneData
         };
 
         return NextResponse.json(orderWithVolunteerId);
@@ -54,11 +66,11 @@ export async function PATCH(
             customer_name, customer_phone, whatsapp_number, customer_email,
             customer_address, product_name, quantity, total_price,
             whatsapp_sent, email_sent, admin_notes, payment_screenshot_url, cash_received,
-            payment_method
+            payment_method, zone_id
         } = body;
 
         // Allow updates if at least one meaningful field is present
-        if (!order_status && !delivery_method && !volunteer_id && is_delivery_duty === undefined && !created_at && payment_upi_id === undefined && !customer_name && !customer_phone && !whatsapp_number && customer_email === undefined && !customer_address && !product_name && quantity === undefined && total_price === undefined && whatsapp_sent === undefined && email_sent === undefined && admin_notes === undefined && payment_screenshot_url === undefined && cash_received === undefined && payment_method === undefined) {
+        if (!order_status && !delivery_method && !volunteer_id && is_delivery_duty === undefined && !created_at && payment_upi_id === undefined && !customer_name && !customer_phone && !whatsapp_number && customer_email === undefined && !customer_address && !product_name && quantity === undefined && total_price === undefined && whatsapp_sent === undefined && email_sent === undefined && admin_notes === undefined && payment_screenshot_url === undefined && cash_received === undefined && payment_method === undefined && zone_id === undefined) {
             return NextResponse.json({ error: "No fields to update provided" }, { status: 400 });
         }
 
@@ -98,6 +110,7 @@ export async function PATCH(
         if (payment_screenshot_url !== undefined) updateData.payment_screenshot_url = payment_screenshot_url;
         if (cash_received !== undefined) updateData.cash_received = cash_received;
         if (payment_method !== undefined) updateData.payment_method = payment_method;
+        if (zone_id !== undefined) updateData.zone_id = zone_id;
 
         // Handle screenshot deletion if it's being removed or replaced
         if (payment_screenshot_url !== undefined && currentOrder.payment_screenshot_url && payment_screenshot_url !== currentOrder.payment_screenshot_url) {

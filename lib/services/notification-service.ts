@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { sendNotificationEmail, isEmailServiceConfigured } from "./email-service";
 
 export interface CreateNotificationParams {
@@ -56,7 +56,7 @@ export class NotificationService {
      * Create a single notification with priority and category
      */
     static async createNotification(params: CreateNotificationParams) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         const { data, error } = await supabase
             .from("notifications")
@@ -92,7 +92,7 @@ export class NotificationService {
         priority: 'critical' | 'high' | 'medium' | 'low',
         channels: ('push' | 'email' | 'sms')[] = ['push']
     ) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         // Check user preferences first
         if (params.user_id && params.user_role !== 'admin') {
@@ -146,7 +146,7 @@ export class NotificationService {
         userRole: string,
         notificationType: string
     ): Promise<boolean> {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         try {
             // Critical notifications always send
@@ -206,7 +206,7 @@ export class NotificationService {
         channels: string[],
         params: CreateNotificationParams
     ) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         // Send email if in channels and configured
         if (channels.includes('email') && isEmailServiceConfigured()) {
@@ -253,7 +253,7 @@ export class NotificationService {
      * Create notifications for multiple users
      */
     static async createBulkNotifications(notifications: CreateNotificationParams[]) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         const { data, error } = await supabase
             .from("notifications")
@@ -286,7 +286,7 @@ export class NotificationService {
      * Notify when order is created
      */
     static async notifyOrderCreated(orderId: string) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         const { data: order } = await supabase
             .from("orders")
@@ -344,7 +344,7 @@ export class NotificationService {
      * Notify when payment fails
      */
     static async notifyPaymentFailed(orderId: string) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         const { data: order } = await supabase
             .from("orders")
@@ -378,7 +378,7 @@ export class NotificationService {
      * Notify when order status changes (enhanced with all statuses)
      */
     static async notifyOrderStatusChange(params: NotifyOrderStatusChangeParams) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         const { data: order } = await supabase
             .from("orders")
@@ -460,7 +460,7 @@ export class NotificationService {
      * Notify when delivery is assigned
      */
     static async notifyDeliveryAssigned(orderId: string, volunteerId: string) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         const { data: order } = await supabase
             .from("orders")
@@ -511,7 +511,7 @@ export class NotificationService {
      * Notify when delivery is completed
      */
     static async notifyDeliveryCompleted(orderId: string, volunteerId: string) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         const { data: order } = await supabase
             .from("orders")
@@ -551,7 +551,7 @@ export class NotificationService {
      * Notify when payment is verified
      */
     static async notifyPaymentVerified(orderId: string) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         const { data: order } = await supabase
             .from("orders")
@@ -645,7 +645,7 @@ export class NotificationService {
      * Notify zone assignment
      */
     static async notifyZoneAssigned(volunteerId: string, zoneId: string) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         const { data: zone } = await supabase
             .from("delivery_zones")
@@ -692,7 +692,7 @@ export class NotificationService {
      * Notify admins of new order
      */
     static async notifyAdminOrderCreated(orderId: string) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         const { data: order } = await supabase
             .from("orders")
@@ -714,7 +714,7 @@ export class NotificationService {
      * Notify admins of new delivery request
      */
     static async notifyAdminDeliveryRequest(requestId: string) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         const { data: request } = await supabase
             .from("delivery_requests")
@@ -744,7 +744,7 @@ export class NotificationService {
      * Notify admins of new volunteer
      */
     static async notifyAdminNewVolunteer(volunteerId: string) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         const { data: volunteer } = await supabase
             .from("volunteers")
@@ -766,7 +766,7 @@ export class NotificationService {
      * Notify admins of payment failure
      */
     static async notifyAdminPaymentFailed(orderId: string) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         const { data: order } = await supabase
             .from("orders")
@@ -788,7 +788,7 @@ export class NotificationService {
      * Update customer preferences
      */
     static async updateCustomerPreferences(customerId: string, preferences: Partial<NotificationPreferences>) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         const { data, error } = await supabase
             .from('customers')
@@ -804,7 +804,7 @@ export class NotificationService {
      * Get customer preferences
      */
     static async getCustomerPreferences(customerId: string) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         const { data, error } = await supabase
             .from('customers')
@@ -829,7 +829,7 @@ export class NotificationService {
             priority?: string;
         }
     ) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
         const notifications: CreateNotificationParams[] = [];
 
         if (targetType === "all") {

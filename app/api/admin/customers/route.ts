@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
         // 2. Fetch all orders to calculate stats and get details
         const { data: orders, error: ordersError } = await supabase
             .from("orders")
-            .select("id, customer_phone, customer_name, whatsapp_number, quantity, created_at, order_status, delivery_method, payment_method, volunteer_id, is_delivery_duty")
+            .select("id, customer_phone, customer_name, whatsapp_number, quantity, created_at, order_status, delivery_method, payment_method, volunteer_id, is_delivery_duty, zone_id")
             .is("deleted_at", null);
 
         if (ordersError) throw ordersError;
@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
                 const paymentMethods = [...new Set(userOrders.map(o => o.payment_method).filter(Boolean))];
                 const referredVolunteers = [...new Set(userOrders.map(o => o.is_delivery_duty === false ? o.volunteer_id : null).filter(Boolean))];
                 const deliveryVolunteers = [...new Set(userOrders.map(o => o.is_delivery_duty === true ? o.volunteer_id : null).filter(Boolean))];
+                const zoneIds = [...new Set(userOrders.map(o => o.zone_id).filter(Boolean))];
 
                 allCustomers.push({
                     id: customer.id,
@@ -101,6 +102,7 @@ export async function GET(request: NextRequest) {
                     payment_methods: paymentMethods,
                     referred_volunteers: referredVolunteers,
                     delivery_volunteers: deliveryVolunteers,
+                    zone_ids: zoneIds,
                 });
             }
         }
@@ -122,6 +124,7 @@ export async function GET(request: NextRequest) {
                 const paymentMethods = [...new Set(userOrders.map(o => o.payment_method).filter(Boolean))];
                 const referredVolunteers = [...new Set(userOrders.map(o => o.is_delivery_duty === false ? o.volunteer_id : null).filter(Boolean))];
                 const deliveryVolunteers = [...new Set(userOrders.map(o => o.is_delivery_duty === true ? o.volunteer_id : null).filter(Boolean))];
+                const zoneIds = [...new Set(userOrders.map(o => o.zone_id).filter(Boolean))];
 
                 allCustomers.push({
                     id: `guest-${phone}`, // Generate simple ID
@@ -138,6 +141,7 @@ export async function GET(request: NextRequest) {
                     payment_methods: paymentMethods,
                     referred_volunteers: referredVolunteers,
                     delivery_volunteers: deliveryVolunteers,
+                    zone_ids: zoneIds,
                 });
             }
         }

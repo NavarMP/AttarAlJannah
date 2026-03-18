@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
             targetRole,
             targetUserIds,
             filters,
+            isTest,
         } = body;
 
         if (!title || !message) {
@@ -28,6 +29,38 @@ export async function POST(request: NextRequest) {
                 { error: "Title and message are required" },
                 { status: 400 }
             );
+        }
+
+        // Handle test notification - send to admin only
+        if (isTest) {
+            const notifications = [{
+                user_id: auth.admin.id,
+                user_role: "admin" as const,
+                type: "manual" as const,
+                category: "test",
+                title: `[TEST] ${title}`,
+                message,
+                action_url: actionUrl || null,
+                priority,
+                is_read: false,
+                delivery_status: "sent",
+            }];
+
+            await NotificationService.createBulkNotifications(notifications);
+            
+            await logAuditEvent({
+                actor: { id: auth.admin.id, email: auth.admin.email, name: auth.admin.name, role: auth.admin.role as any },
+                action: "send_test",
+                entityType: "notification",
+                details: { title, message },
+                ipAddress: getClientIP(request),
+            });
+
+            return NextResponse.json({
+                success: true,
+                count: 1,
+                message: "Test notification sent to yourself",
+            });
         }
 
         const supabase = createAdminClient();
@@ -75,15 +108,57 @@ export async function POST(request: NextRequest) {
 
                 await NotificationService.createBulkNotifications(notifications);
                 recipientIds = [...customerIds.map((c) => c.id), ...volunteerIds.map((v) => v.id)];
+                
+                if (notifications.length === 0) {
+                    console.warn("No notifications to send - both customers and volunteers tables may be empty");
+                }
                 break;
             }
 
             case "role": {
+                // If targetRole is not provided, default to sending to all
                 if (!targetRole) {
-                    return NextResponse.json({ error: "Target role is required" }, { status: 400 });
+                    const [customersRes, volunteersRes] = await Promise.all([
+                        supabase.from("customers").select("id"),
+                        supabase.from("volunteers").select("id"),
+                    ]);
+
+                    const customerIds = customersRes.data?.map((c) => ({ id: c.id, role: "customer" as const })) || [];
+                    const volunteerIds = volunteersRes.data?.map((v) => ({ id: v.id, role: "volunteer" as const })) || [];
+
+                    const notifications = [
+                        ...customerIds.map((u) => ({
+                            user_id: u.id,
+                            user_role: u.role,
+                            type: "manual" as const,
+                            category: "manual",
+                            title,
+                            message,
+                            action_url: actionUrl || null,
+                            priority,
+                            is_read: false,
+                            delivery_status: "sent",
+                        })),
+                        ...volunteerIds.map((u) => ({
+                            user_id: u.id,
+                            user_role: u.role,
+                            type: "manual" as const,
+                            category: "manual",
+                            title,
+                            message,
+                            action_url: actionUrl || null,
+                            priority,
+                            is_read: false,
+                            delivery_status: "sent",
+                        })),
+                    ];
+
+                    await NotificationService.createBulkNotifications(notifications);
+                    recipientIds = [...customerIds.map((c) => c.id), ...volunteerIds.map((v) => v.id)];
+                    break;
                 }
 
-                const tableName = targetRole === "customer" ? "customers" : "volunteers";
+                const tableName = targetRole === "customer" ? "customers" : targetRole === "volunteer" ? "volunteers" : "customers";
                 const { data: users } = await supabase.from(tableName).select("id");
 
                 const notifications = (users || []).map((user) => ({
@@ -112,22 +187,71 @@ export async function POST(request: NextRequest) {
                     );
                 }
 
-                if (!targetRole) {
-                    return NextResponse.json({ error: "Target role is required" }, { status: 400 });
-                }
+                // Determine roles for each user by checking both tables
+                const notifications = [];
+                for (const userId of targetUserIds) {
+                    // Check customers first
+                    const { data: customer } = await supabase
+                        .from("customers")
+                        .select("id")
+                        .eq("id", userId)
+                        .single();
+                    
+                    if (customer) {
+                        notifications.push({
+                            user_id: userId,
+                            user_role: "customer" as const,
+                            type: "manual" as const,
+                            category: "manual",
+                            title,
+                            message,
+                            action_url: actionUrl || null,
+                            priority,
+                            is_read: false,
+                            delivery_status: "sent",
+                        });
+                        continue;
+                    }
+                    
+                    // Check volunteers
+                    const { data: volunteer } = await supabase
+                        .from("volunteers")
+                        .select("id")
+                        .eq("id", userId)
+                        .single();
+                    
+                    if (volunteer) {
+                        notifications.push({
+                            user_id: userId,
+                            user_role: "volunteer" as const,
+                            type: "manual" as const,
+                            category: "manual",
+                            title,
+                            message,
+                            action_url: actionUrl || null,
+                            priority,
+                            is_read: false,
+                            delivery_status: "sent",
+                        });
+                        continue;
+                    }
 
-                const notifications = targetUserIds.map((userId: string) => ({
-                    user_id: userId,
-                    user_role: targetRole as "customer" | "volunteer" | "admin",
-                    type: "manual" as const,
-                    category: "manual",
-                    title,
-                    message,
-                    action_url: actionUrl || null,
-                    priority,
-                    is_read: false,
-                    delivery_status: "sent",
-                }));
+                    // Check admins (auth.users)
+                    if (targetRole === "admin") {
+                        notifications.push({
+                            user_id: userId,
+                            user_role: "admin" as const,
+                            type: "manual" as const,
+                            category: "manual",
+                            title,
+                            message,
+                            action_url: actionUrl || null,
+                            priority,
+                            is_read: false,
+                            delivery_status: "sent",
+                        });
+                    }
+                }
 
                 await NotificationService.createBulkNotifications(notifications);
                 recipientIds = targetUserIds;

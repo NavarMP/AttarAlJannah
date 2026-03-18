@@ -44,6 +44,7 @@ interface Customer {
     payment_methods?: string[];
     referred_volunteers?: string[];
     delivery_volunteers?: string[];
+    zone_ids?: string[];
 }
 
 interface Volunteer {
@@ -136,6 +137,8 @@ export default function CustomersPage() {
     const [paymentMethodFilter, setPaymentMethodFilter] = useState<string[]>([]);
     const [referredVolunteerFilter, setReferredVolunteerFilter] = useState<string[]>([]);
     const [deliveryVolunteerFilter, setDeliveryVolunteerFilter] = useState<string[]>([]);
+    const [zoneFilter, setZoneFilter] = useState<string[]>([]);
+    const [zones, setZones] = useState<{ id: string; name: string }[]>([]);
 
     const fetchVolunteers = useCallback(async () => {
         try {
@@ -151,14 +154,33 @@ export default function CustomersPage() {
         fetchVolunteers();
     }, [fetchVolunteers]);
 
+    // Fetch zones for filter dropdown
+    useEffect(() => {
+        const fetchZones = async () => {
+            try {
+                const response = await fetch("/api/admin/delivery-zones?active=true");
+                const data = await response.json();
+                setZones(data.zones || []);
+            } catch (error) {
+                console.error("Failed to fetch zones:", error);
+            }
+        };
+        fetchZones();
+    }, []);
+
     const volunteerOptions: MultiSelectOption[] = useMemo(() =>
         volunteers.map(v => ({ value: v.id, label: v.name })),
         [volunteers]
     );
 
+    const zoneOptions: MultiSelectOption[] = useMemo(() =>
+        zones.map(z => ({ value: z.id, label: z.name })),
+        [zones]
+    );
+
     const hasActiveFilters = searchQuery !== "" || startDate !== "" || endDate !== "" ||
         statusFilter.length > 0 || deliveryMethodFilter.length > 0 || paymentMethodFilter.length > 0 ||
-        referredVolunteerFilter.length > 0 || deliveryVolunteerFilter.length > 0;
+        referredVolunteerFilter.length > 0 || deliveryVolunteerFilter.length > 0 || zoneFilter.length > 0;
 
     const clearAllFilters = () => {
         setSearchInput("");
@@ -171,6 +193,7 @@ export default function CustomersPage() {
         setPaymentMethodFilter([]);
         setReferredVolunteerFilter([]);
         setDeliveryVolunteerFilter([]);
+        setZoneFilter([]);
     };
 
     const handleDatePreset = (preset: string) => {
@@ -287,6 +310,13 @@ export default function CustomersPage() {
             });
         }
 
+        if (zoneFilter.length > 0) {
+            result = result.filter(c => {
+                const zones = (c as any).zone_ids || [];
+                return zoneFilter.some(z => zones.includes(z));
+            });
+        }
+
         result.sort((a, b) => {
             let aVal: any = a[sortBy];
             let bVal: any = b[sortBy];
@@ -310,7 +340,7 @@ export default function CustomersPage() {
         ).length;
 
         setStats({ total, withOrders, newThisMonth });
-    }, [allCustomers, sortBy, sortOrder, startDate, endDate, statusFilter, deliveryMethodFilter, paymentMethodFilter, referredVolunteerFilter, deliveryVolunteerFilter]);
+    }, [allCustomers, sortBy, sortOrder, startDate, endDate, statusFilter, deliveryMethodFilter, paymentMethodFilter, referredVolunteerFilter, deliveryVolunteerFilter, zoneFilter]);
 
     const handleDelete = async () => {
         if (!deleteId) return;
@@ -712,6 +742,16 @@ export default function CustomersPage() {
                                         selected={deliveryVolunteerFilter}
                                         onChange={setDeliveryVolunteerFilter}
                                         placeholder="All Volunteers"
+                                    />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-muted-foreground">Delivery Zone</label>
+                                    <MultiSelectFilter
+                                        options={zoneOptions}
+                                        selected={zoneFilter}
+                                        onChange={setZoneFilter}
+                                        placeholder="All Zones"
                                     />
                                 </div>
                             </div>

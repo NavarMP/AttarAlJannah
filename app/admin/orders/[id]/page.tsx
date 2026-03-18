@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Phone, MessageCircle, Image as ImageIcon, Trash2, Pencil, MapPin, Truck, Mail } from "lucide-react";
+import { ArrowLeft, Phone, MessageCircle, Image as ImageIcon, Trash2, Pencil, MapPin, Truck, Mail, ExternalLink, Package } from "lucide-react";
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import Image from "next/image";
@@ -39,7 +39,7 @@ interface Order {
     screenshot_verification_details: any;
     extracted_transaction_id: string | null;
     volunteer_id?: string;
-    delivery_volunteer_id?: string; // Human-readable volunteer ID like VOL001
+    delivery_volunteer_id?: string;
     is_delivery_duty?: boolean;
     delivery_method?: string;
     delivery_fee?: number;
@@ -50,6 +50,8 @@ interface Order {
     email_sent?: boolean;
     admin_notes?: string | null;
     cash_received?: number;
+    zone_id?: string | null;
+    zones?: { name: string } | null;
 }
 
 export default function OrderDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -82,6 +84,15 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
     const [cashInput, setCashInput] = useState(0);
     const [savingCash, setSavingCash] = useState(false);
 
+    // Other orders from same customer
+    const [otherOrders, setOtherOrders] = useState<Order[]>([]);
+    const [loadingOtherOrders, setLoadingOtherOrders] = useState(false);
+
+    // Delivery zones
+    const [zones, setZones] = useState<{ id: string; name: string }[]>([]);
+    const [selectedZoneId, setSelectedZoneId] = useState<string>("");
+    const [updatingZone, setUpdatingZone] = useState(false);
+
     // Fetch UPI IDs for autocomplete
     useEffect(() => {
         const fetchUpis = async () => {
@@ -98,6 +109,22 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
         fetchUpis();
     }, []);
 
+    // Fetch delivery zones
+    useEffect(() => {
+        const fetchZones = async () => {
+            try {
+                const res = await fetch("/api/admin/delivery-zones?active=true");
+                if (res.ok) {
+                    const data = await res.json();
+                    setZones(data.zones || []);
+                }
+            } catch (error) {
+                console.error("Failed to fetch zones:", error);
+            }
+        };
+        fetchZones();
+    }, []);
+
     const fetchOrder = useCallback(async () => {
         try {
             const response = await fetch(`/api/admin/orders/${id}`);
@@ -107,6 +134,7 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
             const data = await response.json();
             setOrder(data);
             setNewStatus(data.order_status);
+            setSelectedZoneId(data.zone_id || "");
 
             // Fetch delivery requests for this order
             try {
@@ -130,6 +158,30 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
     useEffect(() => {
         fetchOrder();
     }, [fetchOrder]);
+
+    // Fetch other orders from same customer
+    const fetchOtherOrders = useCallback(async () => {
+        if (!order?.customer_phone) return;
+        setLoadingOtherOrders(true);
+        try {
+            const response = await fetch(`/api/admin/orders?search=${order.customer_phone}&limit=100`);
+            if (response.ok) {
+                const data = await response.json();
+                const filtered = (data.orders || []).filter((o: Order) => o.id !== order.id);
+                setOtherOrders(filtered);
+            }
+        } catch (error) {
+            console.error("Failed to fetch other orders:", error);
+        } finally {
+            setLoadingOtherOrders(false);
+        }
+    }, [order?.customer_phone, order?.id]);
+
+    useEffect(() => {
+        if (order?.customer_phone) {
+            fetchOtherOrders();
+        }
+    }, [order?.customer_phone, fetchOtherOrders]);
 
     const handleStatusUpdate = async () => {
         if (!order || newStatus === order.order_status) return;
@@ -320,6 +372,27 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
         }
     };
 
+    const handleZoneChange = async () => {
+        if (!order || selectedZoneId === (order.zone_id || "")) return;
+        setUpdatingZone(true);
+        try {
+            const response = await fetch(`/api/admin/orders/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ zone_id: selectedZoneId || null }),
+            });
+            if (!response.ok) throw new Error("Failed to update zone");
+            toast.success("Delivery zone updated successfully");
+            fetchOrder();
+        } catch (error) {
+            console.error("Failed to update zone:", error);
+            toast.error("Failed to update delivery zone");
+            setSelectedZoneId(order.zone_id || "");
+        } finally {
+            setUpdatingZone(false);
+        }
+    };
+
     const handleSaveNote = async () => {
         setSavingNote(true);
         try {
@@ -500,7 +573,30 @@ ${dashboardUrl}
                     <CardContent className="space-y-3">
                         <div>
                             <p className="text-sm text-muted-foreground">Name</p>
-                            <p className="font-medium">{order.customer_name}</p>
+                            <div className="flex items-center gap-2">
+                                <p className="font-medium">{order.customer_name}</p>
+                                <Link href={`/admin/customers/${order.customer_phone}`}>
+                                    <Button variant="outline" size="sm" className="rounded-xl h-7 px-2">
+                                        <ExternalLink className="h-3 w-3 mr-1" /> View Customer
+                                    </Button>
+                                </Link>
+                            </div>
+                            {/* Other orders hint */}
+                            {otherOrders.length > 0 && (
+                                <div className="mt-2">
+                                    <Link href={`/admin/customers/${order.customer_phone}`} className="text-sm">
+                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors">
+                                            <Package className="h-3 w-3" />
+                                            +{otherOrders.length} more order{otherOrders.length > 1 ? 's' : ''}
+                                            <span className="text-xs text-muted-foreground">
+                                                ({otherOrders.filter(o => o.order_status === 'pending').length} pending,{' '}
+                                                {otherOrders.filter(o => o.order_status === 'confirmed').length} confirmed,{' '}
+                                                {otherOrders.filter(o => o.order_status === 'delivered').length} delivered)
+                                            </span>
+                                        </span>
+                                    </Link>
+                                </div>
+                            )}
                         </div>
                         <div>
                             <p className="text-sm text-muted-foreground">Phone</p>
@@ -580,6 +676,38 @@ ${dashboardUrl}
                                     View on Maps
                                 </a>
                             )}
+                        </div>
+                        {/* Delivery Zone Selector */}
+                        <div>
+                            <p className="text-sm text-muted-foreground">Delivery Zone</p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <Select value={selectedZoneId || "no-zone"} onValueChange={(v) => setSelectedZoneId(v === "no-zone" ? "" : v)}>
+                                    <SelectTrigger className="w-48 rounded-xl">
+                                        <SelectValue placeholder="Select zone" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="no-zone">No Zone</SelectItem>
+                                        {zones.map(zone => (
+                                            <SelectItem key={zone.id} value={zone.id}>{zone.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {(selectedZoneId !== (order.zone_id || "")) && (
+                                    <Button 
+                                        size="sm" 
+                                        className="rounded-xl"
+                                        onClick={handleZoneChange}
+                                        disabled={updatingZone}
+                                    >
+                                        {updatingZone ? "Saving..." : "Save"}
+                                    </Button>
+                                )}
+                                {order.zones && (
+                                    <span className="text-xs text-muted-foreground">
+                                        (Auto: {order.zones.name})
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </CardContent>
                 </Card>

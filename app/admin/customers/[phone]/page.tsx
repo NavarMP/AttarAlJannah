@@ -484,11 +484,24 @@ ${window.location.origin}/track/${order.id}
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleCopy(customer.whatsapp_number!, "WhatsApp")}>
                                 <Copy className="h-3 w-3" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-green-500" onClick={() => {
-                                const cleanNumber = customer.whatsapp_number!.replace(/\D/g, '');
-                                window.open(`https://wa.me/${cleanNumber}`, "_blank");
-                            }}>
-                                <MessageCircle className="h-3 w-3" />
+                            <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                onClick={() => {
+                                    const message = `Assalamu Alaykum ${customer.name || ''},
+
+Thank you for being a valued customer of Attar al-Jannah!
+
+We wanted to check in with you. Is there anything we can help you with?
+
+جزاك الله خيراً`;
+                                    const encodedMessage = encodeURIComponent(message);
+                                    const cleanNumber = customer.whatsapp_number!.replace(/\D/g, '');
+                                    window.open(`https://wa.me/${cleanNumber}?text=${encodedMessage}`, "_blank");
+                                }}
+                            >
+                                <MessageCircle className="h-3 w-3 mr-1" /> Message
                             </Button>
                         </div>
                     )}
@@ -563,9 +576,9 @@ ${window.location.origin}/track/${order.id}
                                 </thead>
                                 <tbody className="divide-y divide-border">
                                     {filteredOrders.map((order) => (
-                                        <tr key={order.id} className="hover:bg-muted/30">
+                                        <tr key={order.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => router.push(`/admin/orders/${order.id}`)}>
                                             <td className="px-4 py-3">
-                                                <Link href={`/admin/orders/${order.id}`} className="font-mono text-sm hover:text-primary">
+                                                <Link href={`/admin/orders/${order.id}`} className="font-mono text-sm hover:text-primary" onClick={(e) => e.stopPropagation()}>
                                                     {order.id.slice(0, 8)}
                                                 </Link>
                                             </td>

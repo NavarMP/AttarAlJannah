@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
         const deliveryMethod = searchParams.get("deliveryMethod");
         const paymentMethod = searchParams.get("paymentMethod");
         const cashReceived = searchParams.get("cashReceived");
+        const zone = searchParams.get("zone");
 
         // Use service role client to bypass RLS for admin queries
         const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
@@ -89,6 +90,11 @@ export async function GET(request: NextRequest) {
         if (cashReceived && cashReceived !== "all") {
             const isReceived = cashReceived === "true";
             query = query.eq("cash_received", isReceived);
+        }
+
+        // Zone filter
+        if (zone && zone !== "all") {
+            query = query.eq("zone_id", zone);
         }
 
         if (search) {

@@ -24,6 +24,9 @@ import {
     Calendar,
     Repeat,
     X,
+    Zap,
+    Trash2,
+    Play,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -69,6 +72,7 @@ interface ScheduledNotification {
     recurrence: string;
     status: string;
     target_filters: any;
+    created_at: string;
 }
 
 export default function EnhancedNotificationComposerPage() {
@@ -90,6 +94,7 @@ export default function EnhancedNotificationComposerPage() {
     const [actionUrl, setActionUrl] = useState("");
     const [priority, setPriority] = useState("medium");
     const [sending, setSending] = useState(false);
+    const [sendingTest, setSendingTest] = useState(false);
 
     // Filter State
     const [filterZone, setFilterZone] = useState("");
@@ -106,6 +111,15 @@ export default function EnhancedNotificationComposerPage() {
         days: 30,
     });
     const [loadingHistory, setLoadingHistory] = useState(false);
+
+    // Scheduled Tab State
+    const [scheduledNotifications, setScheduledNotifications] = useState<ScheduledNotification[]>([]);
+    const [loadingScheduled, setLoadingScheduled] = useState(false);
+    const [processingScheduled, setProcessingScheduled] = useState(false);
+    const [showScheduleForm, setShowScheduleForm] = useState(false);
+    const [scheduleDate, setScheduleDate] = useState("");
+    const [scheduleTime, setScheduleTime] = useState("");
+    const [scheduleRecurrence, setScheduleRecurrence] = useState("once");
 
     // User Selection State
     const [searchQuery, setSearchQuery] = useState("");
@@ -124,6 +138,14 @@ export default function EnhancedNotificationComposerPage() {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, historyFilter]);
+
+    // Load scheduled notifications when tab changes
+    useEffect(() => {
+        if (activeTab === "scheduled") {
+            loadScheduledNotifications();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab]);
 
     // Update recipient count when filters change
     useEffect(() => {
@@ -196,7 +218,6 @@ export default function EnhancedNotificationComposerPage() {
         setActionUrl(template.action_url_template || "");
         setPriority(template.priority);
 
-        // Initialize variables
         const vars: Record<string, string> = {};
         template.variables.forEach((v: string) => {
             vars[v] = "";
@@ -212,44 +233,51 @@ export default function EnhancedNotificationComposerPage() {
         return result;
     }
 
-    async function handleSend() {
+    async function handleSend(isTest = false) {
         if (!title || !message) {
             toast.error("Title and message are required");
             return;
         }
 
-        if (targetType === "role" && !targetRole) {
-            toast.error("Please select a role");
+        if (!isTest && targetType === "role" && !targetRole) {
+            toast.error("Please select a target role");
             return;
         }
 
-        if (targetType === "individual" && selectedUsers.length === 0) {
+        if (!isTest && targetType === "individual" && selectedUsers.length === 0) {
             toast.error("Please select at least one user");
             return;
         }
 
-        setSending(true);
+        if (isTest) {
+            setSendingTest(true);
+        } else {
+            setSending(true);
+        }
 
         try {
             const finalTitle = selectedTemplate ? replaceVariables(title) : title;
             const finalMessage = selectedTemplate ? replaceVariables(message) : message;
 
+            const payload: any = {
+                title: finalTitle,
+                message: finalMessage,
+                actionUrl: actionUrl || undefined,
+                priority,
+                targetType: isTest ? "all" : targetType,
+                targetRole: isTest ? undefined : (targetType === "role" ? targetRole : undefined),
+                targetUserIds: isTest ? undefined : (targetType === "individual" ? selectedUsers : undefined),
+                filters: isTest ? undefined : (targetType === "filtered" ? {
+                    zone: filterZone || undefined,
+                    orderStatus: filterOrderStatus || undefined,
+                } : undefined),
+                isTest,
+            };
+
             const res = await fetch("/api/admin/send-notification", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    title: finalTitle,
-                    message: finalMessage,
-                    actionUrl: actionUrl || undefined,
-                    priority,
-                    targetType,
-                    targetRole: targetType === "role" ? targetRole : undefined,
-                    targetUserIds: targetType === "individual" ? selectedUsers : undefined,
-                    filters: targetType === "filtered" ? {
-                        zone: filterZone || undefined,
-                        orderStatus: filterOrderStatus || undefined,
-                    } : undefined,
-                }),
+                body: JSON.stringify(payload),
             });
 
             if (!res.ok) {
@@ -258,23 +286,29 @@ export default function EnhancedNotificationComposerPage() {
             }
 
             const data = await res.json();
-            toast.success(`Notification sent to ${data.count || 0} recipients!`);
-
-            // Reset form
-            setTitle("");
-            setMessage("");
-            setActionUrl("");
-            setPriority("medium");
-            setSelectedTemplate(null);
-            setTemplateVariables({});
-            setSelectedUsers([]);
-            setFilterZone("");
-            setFilterOrderStatus("");
+            
+            if (isTest) {
+                toast.success("Test notification sent! Check your notifications.");
+            } else {
+                toast.success(`Notification sent to ${data.count || 0} recipients!`);
+                
+                // Reset form
+                setTitle("");
+                setMessage("");
+                setActionUrl("");
+                setPriority("medium");
+                setSelectedTemplate(null);
+                setTemplateVariables({});
+                setSelectedUsers([]);
+                setFilterZone("");
+                setFilterOrderStatus("");
+            }
         } catch (error: any) {
             console.error("Error sending notification:", error);
             toast.error(error.message || "Failed to send notification");
         } finally {
             setSending(false);
+            setSendingTest(false);
         }
     }
 
@@ -297,6 +331,136 @@ export default function EnhancedNotificationComposerPage() {
             toast.error("Failed to load notification history");
         } finally {
             setLoadingHistory(false);
+        }
+    }
+
+    async function loadScheduledNotifications() {
+        setLoadingScheduled(true);
+        try {
+            const res = await fetch("/api/admin/scheduled-notifications");
+            if (!res.ok) throw new Error("Failed to load scheduled notifications");
+            const data = await res.json();
+            setScheduledNotifications(data.scheduled || []);
+        } catch (error) {
+            console.error("Error loading scheduled notifications:", error);
+            toast.error("Failed to load scheduled notifications");
+        } finally {
+            setLoadingScheduled(false);
+        }
+    }
+
+    async function handleProcessScheduled() {
+        setProcessingScheduled(true);
+        try {
+            const res = await fetch("/api/admin/scheduled-notifications/process", {
+                method: "POST",
+            });
+            const data = await res.json();
+            
+            if (res.ok) {
+                toast.success(`Processed ${data.processed} notifications`);
+                loadScheduledNotifications();
+                loadHistory();
+            } else {
+                throw new Error(data.error || "Failed to process notifications");
+            }
+        } catch (error: any) {
+            console.error("Error processing scheduled notifications:", error);
+            toast.error(error.message || "Failed to process notifications");
+        } finally {
+            setProcessingScheduled(false);
+        }
+    }
+
+    async function handleScheduleNotification() {
+        if (!title || !message) {
+            toast.error("Title and message are required");
+            return;
+        }
+
+        if (!scheduleDate || !scheduleTime) {
+            toast.error("Please select date and time");
+            return;
+        }
+
+        const scheduledFor = new Date(`${scheduleDate}T${scheduleTime}`).toISOString();
+        
+        if (new Date(scheduledFor) <= new Date()) {
+            toast.error("Scheduled time must be in the future");
+            return;
+        }
+
+        try {
+            const res = await fetch("/api/admin/scheduled-notifications", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    title: selectedTemplate ? replaceVariables(title) : title,
+                    message: selectedTemplate ? replaceVariables(message) : message,
+                    actionUrl: actionUrl || undefined,
+                    priority,
+                    targetType,
+                    targetRole: targetType === "role" ? targetRole : undefined,
+                    targetUserIds: targetType === "individual" ? selectedUsers : undefined,
+                    filters: targetType === "filtered" ? {
+                        zone: filterZone || undefined,
+                        orderStatus: filterOrderStatus || undefined,
+                    } : undefined,
+                    scheduledFor,
+                    recurrence: scheduleRecurrence,
+                }),
+            });
+
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.error || "Failed to schedule notification");
+            }
+
+            toast.success("Notification scheduled successfully!");
+            setShowScheduleForm(false);
+            setScheduleDate("");
+            setScheduleTime("");
+            setScheduleRecurrence("once");
+            loadScheduledNotifications();
+        } catch (error: any) {
+            console.error("Error scheduling notification:", error);
+            toast.error(error.message || "Failed to schedule notification");
+        }
+    }
+
+    async function handleCancelScheduled(id: string) {
+        try {
+            const res = await fetch(`/api/admin/scheduled-notifications?id=${id}`, {
+                method: "DELETE",
+            });
+
+            if (!res.ok) {
+                throw new Error("Failed to cancel notification");
+            }
+
+            toast.success("Scheduled notification cancelled");
+            loadScheduledNotifications();
+        } catch (error) {
+            console.error("Error cancelling scheduled notification:", error);
+            toast.error("Failed to cancel notification");
+        }
+    }
+
+    async function handleDeleteHistoryNotification(id: string) {
+        try {
+            const res = await fetch(`/api/admin/notifications/${id}`, {
+                method: "DELETE",
+            });
+
+            if (!res.ok) {
+                throw new Error("Failed to delete notification");
+            }
+
+            toast.success("Notification deleted");
+            loadHistory();
+        } catch (error) {
+            console.error("Error deleting notification:", error);
+            toast.error("Failed to delete notification");
         }
     }
 
@@ -334,6 +498,26 @@ export default function EnhancedNotificationComposerPage() {
         }
     }
 
+    function getStatusColor(status: string): string {
+        switch (status) {
+            case "pending": return "bg-yellow-100 text-yellow-800";
+            case "sent": return "bg-green-100 text-green-800";
+            case "failed": return "bg-red-100 text-red-800";
+            case "cancelled": return "bg-gray-100 text-gray-800";
+            default: return "bg-blue-100 text-blue-800";
+        }
+    }
+
+    function formatScheduledTime(isoString: string): string {
+        const date = new Date(isoString);
+        return date.toLocaleString();
+    }
+
+    const isFormValid = title && message && 
+        (targetType === "all" || targetType === "filtered" || 
+         (targetType === "role" && targetRole) ||
+         (targetType === "individual" && selectedUsers.length > 0));
+
     return (
         <div className="container mx-auto py-8 px-4 max-w-7xl">
             <div className="mb-8">
@@ -346,10 +530,14 @@ export default function EnhancedNotificationComposerPage() {
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="compose" className="flex items-center gap-2">
                         <Send className="h-4 w-4" />
                         Compose
+                    </TabsTrigger>
+                    <TabsTrigger value="scheduled" className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        Scheduled
                     </TabsTrigger>
                     <TabsTrigger value="history" className="flex items-center gap-2">
                         <Clock className="h-4 w-4" />
@@ -370,34 +558,38 @@ export default function EnhancedNotificationComposerPage() {
                                 <CardDescription>Click to apply a template</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-2 max-h-[600px] overflow-y-auto">
-                                {templates.map((template) => (
-                                    <div
-                                        key={template.id}
-                                        onClick={() => applyTemplate(template)}
-                                        className={`p-3 rounded-lg border cursor-pointer transition-all hover:border-purple-500 hover:shadow-md ${selectedTemplate?.id === template.id ? "border-purple-500 bg-purple-50" : ""
-                                            }`}
-                                    >
-                                        <div className="flex items-start justify-between mb-1">
-                                            <p className="font-medium text-sm">{template.name}</p>
-                                            <Badge variant={getPriorityColor(template.priority) as any} className="text-xs">
-                                                {template.priority}
-                                            </Badge>
-                                        </div>
-                                        <p className="text-xs text-muted-foreground truncate">
-                                            {template.title_template}
-                                        </p>
-                                        <div className="flex items-center gap-2 mt-2">
-                                            <Badge variant="outline" className="text-xs">
-                                                {template.category}
-                                            </Badge>
-                                            {template.is_system && (
-                                                <Badge variant="secondary" className="text-xs">
-                                                    System
+                                {templates.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground text-center py-4">No templates available</p>
+                                ) : (
+                                    templates.map((template) => (
+                                        <div
+                                            key={template.id}
+                                            onClick={() => applyTemplate(template)}
+                                            className={`p-3 rounded-lg border cursor-pointer transition-all hover:border-purple-500 hover:shadow-md ${selectedTemplate?.id === template.id ? "border-purple-500 bg-purple-50" : ""
+                                                }`}
+                                        >
+                                            <div className="flex items-start justify-between mb-1">
+                                                <p className="font-medium text-sm">{template.name}</p>
+                                                <Badge variant={getPriorityColor(template.priority) as any} className="text-xs">
+                                                    {template.priority}
                                                 </Badge>
-                                            )}
+                                            </div>
+                                            <p className="text-xs text-muted-foreground truncate">
+                                                {template.title_template}
+                                            </p>
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <Badge variant="outline" className="text-xs">
+                                                    {template.category}
+                                                </Badge>
+                                                {template.is_system && (
+                                                    <Badge variant="secondary" className="text-xs">
+                                                        System
+                                                    </Badge>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))
+                                )}
                             </CardContent>
                         </Card>
 
@@ -479,7 +671,7 @@ export default function EnhancedNotificationComposerPage() {
                                                             onChange={(e) => setSearchQuery(e.target.value)}
                                                         />
                                                         <Button onClick={searchUsers} disabled={loadingUsers}>
-                                                            <Search className="h-4 w-4" />
+                                                            {loadingUsers ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                                                         </Button>
                                                     </div>
 
@@ -636,27 +828,226 @@ export default function EnhancedNotificationComposerPage() {
                                     </div>
                                 </div>
 
-                                <Button
-                                    onClick={handleSend}
-                                    disabled={sending || !title || !message}
-                                    className="w-full"
-                                    size="lg"
-                                >
-                                    {sending ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Sending...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Send className="mr-2 h-4 w-4" />
-                                            Send Notification
-                                        </>
-                                    )}
-                                </Button>
+                                {/* Action Buttons */}
+                                <div className="flex flex-col gap-3">
+                                    <div className="flex gap-2">
+                                        <Button
+                                            onClick={() => handleSend(false)}
+                                            disabled={sending || sendingTest || !isFormValid}
+                                            className="flex-1"
+                                            size="lg"
+                                        >
+                                            {sending ? (
+                                                <>
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    Sending...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Send className="mr-2 h-4 w-4" />
+                                                    Send Now
+                                                </>
+                                            )}
+                                        </Button>
+                                        <Button
+                                            onClick={() => setShowScheduleForm(true)}
+                                            disabled={!title || !message}
+                                            variant="outline"
+                                            size="lg"
+                                        >
+                                            <Calendar className="mr-2 h-4 w-4" />
+                                            Schedule
+                                        </Button>
+                                    </div>
+                                    
+                                    <Button
+                                        onClick={() => handleSend(true)}
+                                        disabled={sending || sendingTest || !title || !message}
+                                        variant="secondary"
+                                        className="w-full"
+                                    >
+                                        {sendingTest ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Sending Test...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Zap className="mr-2 h-4 w-4" />
+                                                Send Test (To Me)
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
                             </CardContent>
                         </Card>
                     </div>
+
+                    {/* Schedule Form Modal */}
+                    {showScheduleForm && (
+                        <Card className="border-2 border-purple-500">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Calendar className="h-5 w-5 text-purple-600" />
+                                    Schedule Notification
+                                </CardTitle>
+                                <CardDescription>
+                                    Set when this notification should be sent
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <Label>Date</Label>
+                                        <Input
+                                            type="date"
+                                            value={scheduleDate}
+                                            onChange={(e) => setScheduleDate(e.target.value)}
+                                            min={new Date().toISOString().split('T')[0]}
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label>Time</Label>
+                                        <Input
+                                            type="time"
+                                            value={scheduleTime}
+                                            onChange={(e) => setScheduleTime(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <Label>Recurrence</Label>
+                                    <Select value={scheduleRecurrence} onValueChange={setScheduleRecurrence}>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="once">One-time</SelectItem>
+                                            <SelectItem value="daily">Daily</SelectItem>
+                                            <SelectItem value="weekly">Weekly</SelectItem>
+                                            <SelectItem value="monthly">Monthly</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="flex gap-2">
+                                    <Button onClick={handleScheduleNotification} className="flex-1">
+                                        <Calendar className="mr-2 h-4 w-4" />
+                                        Schedule
+                                    </Button>
+                                    <Button onClick={() => setShowScheduleForm(false)} variant="outline">
+                                        Cancel
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+                </TabsContent>
+
+                {/* SCHEDULED TAB */}
+                <TabsContent value="scheduled" className="space-y-6">
+                    {/* Process Now Button */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Play className="h-5 w-5 text-green-600" />
+                                Process Scheduled Notifications
+                            </CardTitle>
+                            <CardDescription>
+                                Manually trigger processing of due scheduled notifications
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Button onClick={handleProcessScheduled} disabled={processingScheduled}>
+                                {processingScheduled ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Processing...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Play className="mr-2 h-4 w-4" />
+                                        Process Now
+                                    </>
+                                )}
+                            </Button>
+                        </CardContent>
+                    </Card>
+
+                    {/* Scheduled Notifications List */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Scheduled Notifications</CardTitle>
+                            <CardDescription>
+                                View and manage pending scheduled notifications
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {loadingScheduled ? (
+                                <div className="flex justify-center py-8">
+                                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                                </div>
+                            ) : scheduledNotifications.length === 0 ? (
+                                <div className="text-center py-8 text-muted-foreground">
+                                    No scheduled notifications
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {scheduledNotifications.map((sched) => (
+                                        <div
+                                            key={sched.id}
+                                            className="p-4 border rounded-lg hover:shadow-md transition-shadow"
+                                        >
+                                            <div className="flex items-start justify-between mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    {getPriorityIcon(sched.priority)}
+                                                    <h3 className="font-semibold">{sched.title}</h3>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Badge className={getStatusColor(sched.status)}>
+                                                        {sched.status}
+                                                    </Badge>
+                                                    {sched.recurrence !== "once" && (
+                                                        <Badge variant="outline">
+                                                            <Repeat className="h-3 w-3 mr-1" />
+                                                            {sched.recurrence}
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <p className="text-sm text-muted-foreground mb-3">{sched.message}</p>
+
+                                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                                <div className="flex items-center gap-4">
+                                                    <span className="flex items-center gap-1">
+                                                        <Calendar className="h-3 w-3" />
+                                                        {formatScheduledTime(sched.scheduled_for)}
+                                                    </span>
+                                                    <span className="capitalize">
+                                                        Target: {sched.target_filters?.type || 'all'}
+                                                        {sched.target_filters?.role && ` (${sched.target_filters.role})`}
+                                                    </span>
+                                                </div>
+
+                                                {sched.status === "pending" && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="destructive"
+                                                        onClick={() => handleCancelScheduled(sched.id)}
+                                                    >
+                                                        <X className="mr-1 h-3 w-3" />
+                                                        Cancel
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
                 </TabsContent>
 
                 {/* HISTORY TAB */}
@@ -725,6 +1116,7 @@ export default function EnhancedNotificationComposerPage() {
                                             <SelectItem value="delivery">Delivery</SelectItem>
                                             <SelectItem value="system">System</SelectItem>
                                             <SelectItem value="manual">Manual</SelectItem>
+                                            <SelectItem value="scheduled">Scheduled</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -817,13 +1209,23 @@ export default function EnhancedNotificationComposerPage() {
                                                     )}
                                                 </div>
 
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() => handleResend(notif.id)}
-                                                >
-                                                    Resend
-                                                </Button>
+                                                <div className="flex items-center gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => handleResend(notif.id)}
+                                                    >
+                                                        Resend
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => handleDeleteHistoryNotification(notif.id)}
+                                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                    >
+                                                        <Trash2 className="h-3 w-3" />
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </div>
                                     ))}

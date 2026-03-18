@@ -172,6 +172,7 @@ export default function OrdersPage() {
     const [paymentMethodFilter, setPaymentMethodFilter] = useState("all");
     const [cashReceivedFilter, setCashReceivedFilter] = useState("all");
     const [deliveryVolunteerFilter, setDeliveryVolunteerFilter] = useState("all");
+    const [zoneFilter, setZoneFilter] = useState("all");
     const [datePreset, setDatePreset] = useState<string>("all");
 
     // Sorting
@@ -180,6 +181,7 @@ export default function OrdersPage() {
 
     // Volunteer list for filter dropdown
     const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
+    const [zones, setZones] = useState<{ id: string; name: string }[]>([]);
 
     // Show/hide advanced filters
     const [showFilters, setShowFilters] = useState(false);
@@ -206,6 +208,20 @@ export default function OrdersPage() {
         fetchVolunteers();
     }, []);
 
+    // Fetch zones for filter dropdown
+    useEffect(() => {
+        const fetchZones = async () => {
+            try {
+                const response = await fetch("/api/admin/delivery-zones?active=true");
+                const data = await response.json();
+                setZones(data.zones || []);
+            } catch (error) {
+                console.error("Failed to fetch zones:", error);
+            }
+        };
+        fetchZones();
+    }, []);
+
     // Debounce search input
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -217,7 +233,7 @@ export default function OrdersPage() {
 
     // Check if any filter is active
     const hasActiveFilters = statusFilter !== "all" || startDate !== "" || endDate !== "" ||
-        referredByFilter !== "all" || deliveryMethodFilter !== "all" || paymentMethodFilter !== "all" || cashReceivedFilter !== "all" || deliveryVolunteerFilter !== "all" || searchInput !== "";
+        referredByFilter !== "all" || deliveryMethodFilter !== "all" || paymentMethodFilter !== "all" || cashReceivedFilter !== "all" || deliveryVolunteerFilter !== "all" || searchInput !== "" || zoneFilter !== "all";
 
     const clearAllFilters = () => {
         setStatusFilter("all");
@@ -230,6 +246,7 @@ export default function OrdersPage() {
         setPaymentMethodFilter("all");
         setCashReceivedFilter("all");
         setDeliveryVolunteerFilter("all");
+        setZoneFilter("all");
         setDatePreset("all");
         setPage(1);
     };
@@ -293,6 +310,7 @@ export default function OrdersPage() {
             if (deliveryMethodFilter !== "all") queryParams.append("deliveryMethod", deliveryMethodFilter);
             if (paymentMethodFilter !== "all") queryParams.append("paymentMethod", paymentMethodFilter);
             if (cashReceivedFilter !== "all") queryParams.append("cashReceived", cashReceivedFilter);
+            if (zoneFilter !== "all") queryParams.append("zone", zoneFilter);
 
             const response = await fetch(`/api/admin/orders?${queryParams}`);
 
@@ -312,7 +330,7 @@ export default function OrdersPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, statusFilter, search, startDate, endDate, sortBy, sortOrder, referredByFilter, deliveryVolunteerFilter, deliveryMethodFilter, paymentMethodFilter, cashReceivedFilter]);
+    }, [page, statusFilter, search, startDate, endDate, sortBy, sortOrder, referredByFilter, deliveryVolunteerFilter, deliveryMethodFilter, paymentMethodFilter, cashReceivedFilter, zoneFilter]);
 
     useEffect(() => {
         fetchStats();
@@ -1120,6 +1138,24 @@ ${dashboardUrl}
                                             {volunteers.map(v => (
                                                 <SelectItem key={`delivery-${v.id}`} value={v.id}>
                                                     {v.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Delivery Zone Filter */}
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-muted-foreground">Delivery Zone</label>
+                                    <Select value={zoneFilter} onValueChange={(v) => { setZoneFilter(v); setPage(1); }}>
+                                        <SelectTrigger className="h-9">
+                                            <SelectValue placeholder="All Zones" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Zones</SelectItem>
+                                            {zones.map(z => (
+                                                <SelectItem key={z.id} value={z.id}>
+                                                    {z.name}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>

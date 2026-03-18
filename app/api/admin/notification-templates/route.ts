@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/middleware/auth-guard";
 import { logAuditEvent, getClientIP } from "@/lib/services/audit";
 
@@ -11,7 +11,8 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         const category = searchParams.get("category");
 
-        const supabase = await createClient();
+        // Use admin client to bypass RLS
+        const supabase = createAdminClient();
 
         let query = supabase
             .from("notification_templates")
