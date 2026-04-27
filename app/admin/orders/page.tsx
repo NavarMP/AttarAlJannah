@@ -29,8 +29,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
     Search, Trash2, MoreVertical, Eye, FileDown, Printer,
-    Phone, MessageSquare, Truck, Package, Download, Copy, DollarSign,
-    ArrowUpDown, ArrowUp, ArrowDown, CalendarDays, Filter, X, RotateCcw, CheckCircle, Pencil, CreditCard
+    Phone, MessageSquare, Truck, Package, Download, Copy, DollarSign, XCircle,
+    ArrowUpDown, ArrowUp, ArrowDown, CalendarDays, Filter, X, RotateCcw, CheckCircle, Pencil, CreditCard, PackageCheck
 } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -45,6 +45,8 @@ interface Stats {
     confirmedOrders: number;
     deliveredBottles: number;
     deliveredOrders: number;
+    cancelledBottles: number;
+    cancelledOrders: number;
     totalRevenue: number;
 }
 
@@ -53,7 +55,9 @@ interface Order {
     customer_name: string;
     customer_phone: string;
     whatsapp_number: string;
+    customer_address: string;
     total_price: number;
+    cash_received?: number;
     quantity: number;
     payment_method: string;
     order_status: string;
@@ -61,6 +65,8 @@ interface Order {
     created_at: string;
     referred_by?: string;
     volunteer_name?: string;
+    delivery_volunteer_name?: string;
+    admin_notes?: string;
 }
 
 interface Volunteer {
@@ -964,12 +970,38 @@ ${dashboardUrl}
                 <Card className="rounded-3xl">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium text-muted-foreground">
-                            Revenue
+                            Confirmed
                         </CardTitle>
-                        <DollarSign className="h-5 w-5 text-primary" />
+                        <PackageCheck className="h-5 w-5 text-yellow-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold">₹{stats?.totalRevenue?.toFixed(2) || 0}</div>
+                        <div className="space-y-2">
+                            <div className="text-3xl font-bold">
+                                {stats?.confirmedBottles || 0}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                                {stats?.confirmedOrders || 0} orders
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="rounded-3xl">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                            Cancelled
+                        </CardTitle>
+                        <XCircle className="h-5 w-5 text-red-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-2">
+                            <div className="text-3xl font-bold">
+                                {stats?.cancelledBottles || 0}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                                {stats?.cancelledOrders || 0} orders
+                            </p>
+                        </div>
                     </CardContent>
                 </Card>
             </div>
@@ -978,15 +1010,23 @@ ${dashboardUrl}
             <Card className="p-4 rounded-3xl">
                 <div className="flex flex-col gap-4">
                     {/* Row 1: Search + Filter Toggle + Clear */}
-                    <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                    <div className="flex flex-col gap-3 sm:flex-row items-stretch sm:items-center">
                         <div className="relative flex-1">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
-                                placeholder="Search by name, phone, or Order ID..."
+                                placeholder="Search anything — name, phone, address, volunteer, status, amount, date..."
                                 value={searchInput}
                                 onChange={(e) => setSearchInput(e.target.value)}
                                 className="pl-10"
                             />
+                            {searchInput && (
+                                <button
+                                    onClick={() => { setSearchInput(""); setSearch(""); }}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            )}
                         </div>
                         <div className="flex gap-2">
                             <Button
@@ -1016,6 +1056,30 @@ ${dashboardUrl}
                             )}
                         </div>
                     </div>
+
+                    {/* Smart Search Hints */}
+                    {!searchInput && (
+                        <div className="flex flex-wrap items-center gap-1.5 -mt-1">
+                            <span className="text-[11px] text-muted-foreground/60">Try:</span>
+                            {[
+                                { label: "pending", desc: "status" },
+                                { label: "cod", desc: "payment" },
+                                { label: "courier", desc: "delivery" },
+                                { label: "313", desc: "amount" },
+                                { label: "pickup", desc: "delivery" },
+                            ].map((hint) => (
+                                <button
+                                    key={hint.label}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted/50 hover:bg-muted text-[11px] text-muted-foreground hover:text-foreground transition-all cursor-pointer border border-transparent hover:border-border"
+                                    onClick={() => setSearchInput(hint.label)}
+                                >
+                                    <span className="font-medium">{hint.label}</span>
+                                    <span className="text-muted-foreground/50">·</span>
+                                    <span className="text-muted-foreground/60">{hint.desc}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
 
                     {/* Row 2: Expandable Filters */}
                     {showFilters && (
@@ -1256,9 +1320,10 @@ ${dashboardUrl}
                                             {getSortIcon("total_price")}
                                         </span>
                                     </th>
+                                    <th className="px-4 py-4 text-left text-sm font-semibold">Received</th>
                                     <th className="px-4 py-4 text-left text-sm font-semibold">Payment</th>
                                     <th className="px-4 py-4 text-left text-sm font-semibold">Status</th>
-                                    <th className="px-4 py-4 text-left text-sm font-semibold">Delivery</th>
+                                    {/*<th className="px-4 py-4 text-left text-sm font-semibold">Delivery</th>*/}
                                     <th
                                         className="px-4 py-4 text-left text-sm font-semibold cursor-pointer hover:text-primary transition-colors group"
                                         onClick={() => handleSort("created_at")}
@@ -1294,17 +1359,32 @@ ${dashboardUrl}
                                             {order.customer_phone}
                                         </td>
                                         <td className="px-4 py-4">
-                                            {order.volunteer_name ? (
-                                                <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">
-                                                    {order.volunteer_name}
-                                                </span>
-                                            ) : (
-                                                <span className="text-sm text-muted-foreground">-</span>
-                                            )}
+                                            <div className="space-y-0.5">
+                                                {order.volunteer_name ? (
+                                                    <span className="text-sm text-blue-600 dark:text-blue-400 font-medium block">
+                                                        {order.volunteer_name}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-sm text-muted-foreground">-</span>
+                                                )}
+                                                {order.delivery_volunteer_name && (
+                                                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                                        <Truck className="h-3 w-3" />
+                                                        {order.delivery_volunteer_name}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-4 py-4">{order.quantity}</td>
                                         <td className="px-4 py-4 font-semibold text-primary">
                                             ₹{order.total_price}
+                                        </td>
+                                        <td className="px-4 py-4">
+                                            {(order.cash_received != null && order.cash_received > 0) ? (
+                                                <span className="font-semibold text-emerald-600 dark:text-emerald-400">₹{order.cash_received}</span>
+                                            ) : (
+                                                <span className="text-sm text-muted-foreground">-</span>
+                                            )}
                                         </td>
                                         <td className="px-4 py-4">
                                             <span className="text-sm">{order.payment_method === 'cod' ? 'Cash on Delivery' : order.payment_method === 'volunteer_cash' ? 'Cash (Volunteer)' : order.payment_method === 'qr' ? 'UPI' : order.payment_method === 'razorpay' ? 'Razorpay' : order.payment_method}</span>
@@ -1314,11 +1394,11 @@ ${dashboardUrl}
                                                 {getStatusLabel(order.order_status)}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-4">
+                                        {/* <td className="px-4 py-4">
                                             <span className="text-sm text-muted-foreground">
                                                 {getDeliveryLabel(order.delivery_method)}
                                             </span>
-                                        </td>
+                                        </td> */}
                                         <td className="px-4 py-4 text-sm text-muted-foreground">
                                             <div>{new Date(order.created_at).toLocaleDateString()}</div>
                                             <div className="text-xs opacity-70">

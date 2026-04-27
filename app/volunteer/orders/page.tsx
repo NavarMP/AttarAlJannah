@@ -168,7 +168,7 @@ export default function VolunteerOrdersPage() {
             const response = await fetch(`/api/volunteer/orders/${orderId}/status`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status, volunteerId }),
+                body: JSON.stringify({ newStatus: status, volunteerId }),
             });
             if (response.ok) {
                 toast.success(`Status updated to ${status}`);

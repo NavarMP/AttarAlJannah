@@ -31,6 +31,11 @@ export async function GET() {
         const deliveredBottles = deliveredOrders.reduce((sum, order) => sum + (order.quantity || 0), 0);
         const deliveredOrdersCount = deliveredOrders.length;
 
+        // Cancelled orders
+        const cancelledOrders = allOrders?.filter(o => o.order_status === "cancelled") || [];
+        const cancelledBottles = cancelledOrders.reduce((sum, order) => sum + (order.quantity || 0), 0);
+        const cancelledOrdersCount = cancelledOrders.length;
+
         // Get total revenue from orders where cash was received
         const cashOrders = allOrders?.filter(o => (o.cash_received || 0) > 0) || [];
         const totalRevenue = cashOrders.reduce((sum, order) => sum + (Number(order.cash_received) || 0), 0);
@@ -50,6 +55,8 @@ export async function GET() {
                 confirmedOrders: confirmedOrdersCount,  // Renamed from pendingOrders
                 deliveredBottles,
                 deliveredOrders: deliveredOrdersCount,
+                cancelledBottles,
+                cancelledOrders: cancelledOrdersCount,
                 totalRevenue,
             },
             recentOrders: recentOrders || [],

@@ -42,7 +42,8 @@ export async function GET(request: NextRequest) {
             .from("orders")
             .select(`
                 *,
-                volunteer:volunteers!orders_volunteer_id_fkey(name)
+                volunteer:volunteers!orders_volunteer_id_fkey(name),
+                delivery_vol:volunteers!orders_delivery_volunteer_id_fkey(name)
             `, { count: "exact" })
             .is("deleted_at", null)
             .order(safeSortBy, { ascending });
@@ -97,12 +98,72 @@ export async function GET(request: NextRequest) {
             query = query.eq("zone_id", zone);
         }
 
+        // --- UNIVERSAL SEARCH: match across ALL order fields ---
+        // Maps user-friendly search terms to database enum values
+        const SEARCH_TERM_MAPPINGS: Record<string, { field: string; value: string }[]> = {
+            // Payment methods
+            "upi": [{ field: "payment_method", value: "qr" }],
+            "razorpay": [{ field: "payment_method", value: "razorpay" }],
+            "online": [{ field: "payment_method", value: "razorpay" }],
+            "cod": [{ field: "payment_method", value: "cod" }],
+            "cash on delivery": [{ field: "payment_method", value: "cod" }],
+            "volunteer cash": [{ field: "payment_method", value: "volunteer_cash" }],
+            "held by volunteer": [{ field: "payment_method", value: "volunteer_cash" }],
+            "cash": [{ field: "payment_method", value: "cod" }, { field: "payment_method", value: "volunteer_cash" }],
+            // Order statuses
+            "pending": [{ field: "order_status", value: "pending" }],
+            "confirmed": [{ field: "order_status", value: "confirmed" }],
+            "delivered": [{ field: "order_status", value: "delivered" }],
+            "cant reach": [{ field: "order_status", value: "cant_reach" }],
+            "can't reach": [{ field: "order_status", value: "cant_reach" }],
+            "cancelled": [{ field: "order_status", value: "cancelled" }],
+            "canceled": [{ field: "order_status", value: "cancelled" }],
+            // Delivery methods
+            "pickup": [{ field: "delivery_method", value: "pickup" }],
+            "self pickup": [{ field: "delivery_method", value: "pickup" }],
+            "volunteer delivery": [{ field: "delivery_method", value: "volunteer" }],
+            "courier": [{ field: "delivery_method", value: "courier" }],
+            "by post": [{ field: "delivery_method", value: "post" }],
+            "post": [{ field: "delivery_method", value: "post" }],
+        };
+
         if (search) {
-            // For search, we need to handle both text fields and UUID
             const searchTerm = search.trim();
-            query = query.or(
-                `customer_name.ilike.%${searchTerm}%,customer_phone.ilike.%${searchTerm}%,whatsapp_number.ilike.%${searchTerm}%`
-            );
+            const searchLower = searchTerm.toLowerCase();
+
+            // Build the OR conditions for text columns
+            const orConditions = [
+                `customer_name.ilike.%${searchTerm}%`,
+                `customer_phone.ilike.%${searchTerm}%`,
+                `whatsapp_number.ilike.%${searchTerm}%`,
+                `customer_address.ilike.%${searchTerm}%`,
+                `product_name.ilike.%${searchTerm}%`,
+                `admin_notes.ilike.%${searchTerm}%`,
+                `payment_method.ilike.%${searchTerm}%`,
+                `order_status.ilike.%${searchTerm}%`,
+                `delivery_method.ilike.%${searchTerm}%`,
+            ];
+
+            // Check if search term matches any known friendly labels → add exact enum match
+            for (const [term, mappings] of Object.entries(SEARCH_TERM_MAPPINGS)) {
+                if (searchLower.includes(term) || term.includes(searchLower)) {
+                    for (const mapping of mappings) {
+                        orConditions.push(`${mapping.field}.eq.${mapping.value}`);
+                    }
+                }
+            }
+
+            // Check if search looks like a price/amount (numeric)
+            const numericSearch = parseFloat(searchTerm.replace(/[₹,]/g, ""));
+            if (!isNaN(numericSearch)) {
+                orConditions.push(`total_price.eq.${numericSearch}`);
+                orConditions.push(`quantity.eq.${numericSearch}`);
+                orConditions.push(`delivery_fee.eq.${numericSearch}`);
+            }
+
+            // Deduplicate conditions
+            const uniqueConditions = [...new Set(orConditions)];
+            query = query.or(uniqueConditions.join(","));
         }
 
         const from = (page - 1) * pageSize;
@@ -137,28 +198,57 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        // If searching and no results, try searching by UUID prefix
+        // If searching and no results from primary query, try extended search:
+        // 1. Order ID prefix match
+        // 2. Volunteer name match (requires join data)
+        // 3. Date string match
         if (search && (!orders || orders.length === 0)) {
             const searchTerm = search.trim().toLowerCase();
 
-            let uuidQuery = adminSupabase
+            let extendedQuery = adminSupabase
                 .from("orders")
                 .select(`
                     *,
-                    volunteer:volunteers!orders_volunteer_id_fkey(name)
+                    volunteer:volunteers!orders_volunteer_id_fkey(name),
+                    delivery_vol:volunteers!orders_delivery_volunteer_id_fkey(name)
                 `, { count: "exact" })
+                .is("deleted_at", null)
                 .order(safeSortBy, { ascending });
 
             if (status && status !== "all") {
-                uuidQuery = uuidQuery.eq("order_status", status);
+                extendedQuery = extendedQuery.eq("order_status", status);
             }
 
-            const { data: allOrders, error: uuidError } = await uuidQuery.limit(100);
+            const { data: allOrders, error: extError } = await extendedQuery.limit(500);
 
-            if (!uuidError && allOrders) {
-                const filteredOrders = allOrders.filter(order =>
-                    order.id.toLowerCase().startsWith(searchTerm)
-                );
+            if (!extError && allOrders) {
+                const filteredOrders = allOrders.filter(order => {
+                    // Order ID prefix match
+                    if (order.id.toLowerCase().startsWith(searchTerm)) return true;
+                    if (order.id.toLowerCase().includes(searchTerm)) return true;
+
+                    // Volunteer name match (referral volunteer)
+                    const volName = order.volunteer?.name?.toLowerCase() || "";
+                    if (volName.includes(searchTerm)) return true;
+
+                    // Delivery volunteer name match
+                    const deliveryVolName = order.delivery_vol?.name?.toLowerCase() || "";
+                    if (deliveryVolName.includes(searchTerm)) return true;
+
+                    // Date match (formatted date string)
+                    try {
+                        const dateStr = new Date(order.created_at).toLocaleDateString("en-IN", {
+                            day: "2-digit", month: "short", year: "numeric"
+                        }).toLowerCase();
+                        if (dateStr.includes(searchTerm)) return true;
+
+                        // Also try ISO date format
+                        const isoDate = order.created_at?.slice(0, 10) || "";
+                        if (isoDate.includes(searchTerm)) return true;
+                    } catch {}
+
+                    return false;
+                });
 
                 if (filteredOrders.length > 0) {
                     orders = filteredOrders.slice(from, to + 1);
@@ -167,11 +257,13 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        // Transform the data to include volunteer_name
+        // Transform the data to include volunteer_name and delivery_volunteer_name
         const transformedOrders = orders?.map(order => ({
             ...order,
             volunteer_name: order.volunteer?.name || null,
+            delivery_volunteer_name: order.delivery_vol?.name || null,
             volunteer: undefined, // Remove the nested object
+            delivery_vol: undefined, // Remove the nested object
         }));
 
         return NextResponse.json({

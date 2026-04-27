@@ -21,13 +21,6 @@ export async function PATCH(
             );
         }
 
-        if (newStatus !== "delivered" && newStatus !== "cant_reach") {
-            return NextResponse.json(
-                { error: "Delivery volunteers can only update status to 'delivered' or 'cant_reach'" },
-                { status: 400 }
-            );
-        }
-
         const supabase = await createClient();
 
         // Look up volunteer UUID from volunteer_id string
@@ -47,7 +40,7 @@ export async function PATCH(
         // Fetch the order and verify it exists
         const { data: order, error: orderError } = await supabase
             .from("orders")
-            .select("id, order_status, volunteer_id, is_delivery_duty, quantity")
+            .select("id, order_status, volunteer_id, delivery_volunteer_id, is_delivery_duty, quantity")
             .eq("id", orderId)
             .single();
 
@@ -58,15 +51,28 @@ export async function PATCH(
             );
         }
 
-        // Verify this volunteer is assigned as the delivery volunteer
-        if (!order.volunteer_id || !order.is_delivery_duty || order.volunteer_id !== volunteer.id) {
+        // Determine volunteer roles for this order
+        const isReferralVolunteer = order.volunteer_id === volunteer.id;
+        const isDeliveryVolunteer = order.delivery_volunteer_id === volunteer.id || (order.volunteer_id === volunteer.id && order.is_delivery_duty === true);
+
+        if (!isReferralVolunteer && !isDeliveryVolunteer) {
             return NextResponse.json(
-                { error: "You are not assigned as the delivery volunteer for this order" },
+                { error: "You are not authorized to update this order" },
                 { status: 403 }
             );
         }
 
-        if (order.order_status === "delivered") {
+        // If they are strictly a delivery volunteer (and not the referral volunteer), restrict statuses
+        if (isDeliveryVolunteer && !isReferralVolunteer) {
+            if (newStatus !== "delivered" && newStatus !== "cant_reach") {
+                return NextResponse.json(
+                    { error: "Delivery volunteers can only update status to 'delivered' or 'cant_reach'" },
+                    { status: 400 }
+                );
+            }
+        }
+
+        if (order.order_status === "delivered" && newStatus === "delivered") {
             return NextResponse.json(
                 { error: "This order is already marked as delivered" },
                 { status: 400 }
@@ -87,26 +93,50 @@ export async function PATCH(
             );
         }
 
-        // If marked as delivered, calculate and update delivery commission
-        if (newStatus === "delivered") {
-            const deliveryCommission = order.quantity * volunteer.delivery_commission_per_bottle;
-            const newTotalDeliveries = volunteer.total_deliveries + 1;
-            const newTotalCommission = volunteer.total_delivery_commission + deliveryCommission;
+        // Commission Handling
+        if (newStatus === "delivered" && order.order_status !== "delivered") {
+            if (isDeliveryVolunteer) {
+                const deliveryCommission = order.quantity * volunteer.delivery_commission_per_bottle;
+                const newTotalDeliveries = volunteer.total_deliveries + 1;
+                const newTotalCommission = volunteer.total_delivery_commission + deliveryCommission;
 
-            const { error: updateVolunteerError } = await supabase
-                .from("volunteers")
-                .update({
-                    total_deliveries: newTotalDeliveries,
-                    total_delivery_commission: newTotalCommission,
-                })
-                .eq("id", volunteer.id);
-
-            if (updateVolunteerError) {
-                console.error("Error updating volunteer commission:", updateVolunteerError);
-                // Not critical, order status already updated
+                await supabase
+                    .from("volunteers")
+                    .update({
+                        total_deliveries: newTotalDeliveries,
+                        total_delivery_commission: newTotalCommission,
+                    })
+                    .eq("id", volunteer.id);
             }
+        } else if (order.order_status === "delivered" && newStatus !== "delivered") {
+            // Reverting a delivered order -> deduct commission
+            const targetVolunteerId = order.delivery_volunteer_id || (order.is_delivery_duty ? order.volunteer_id : null);
+            if (targetVolunteerId) {
+                // Fetch the volunteer who got the commission
+                const { data: devVol } = await supabase
+                    .from("volunteers")
+                    .select("id, delivery_commission_per_bottle, total_deliveries, total_delivery_commission")
+                    .eq("id", targetVolunteerId)
+                    .single();
 
-            // Auto-insert tracking event
+                if (devVol) {
+                    const deliveryCommission = order.quantity * devVol.delivery_commission_per_bottle;
+                    const newTotalDeliveries = Math.max(0, devVol.total_deliveries - 1);
+                    const newTotalCommission = Math.max(0, devVol.total_delivery_commission - deliveryCommission);
+
+                    await supabase
+                        .from("volunteers")
+                        .update({
+                            total_deliveries: newTotalDeliveries,
+                            total_delivery_commission: newTotalCommission,
+                        })
+                        .eq("id", devVol.id);
+                }
+            }
+        }
+
+        // Auto-insert tracking event for delivery
+        if (newStatus === "delivered") {
             try {
                 await supabase.from("delivery_tracking_events").insert({
                     order_id: orderId,
@@ -135,11 +165,11 @@ export async function PATCH(
             return NextResponse.json({
                 success: true,
                 message: "Order marked as delivered successfully",
-                commission: {
-                    earned: deliveryCommission,
-                    totalDeliveries: newTotalDeliveries,
-                    totalCommission: newTotalCommission,
-                },
+                commission: isDeliveryVolunteer ? {
+                    earned: order.quantity * volunteer.delivery_commission_per_bottle,
+                    totalDeliveries: volunteer.total_deliveries + 1,
+                    totalCommission: volunteer.total_delivery_commission + (order.quantity * volunteer.delivery_commission_per_bottle),
+                } : undefined,
             });
         }
 
